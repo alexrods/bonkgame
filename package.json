@@ -1,0 +1,24 @@
+{
+  "name": "bonkgames-app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "vite preview --port 3000",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0",
+    "vite-plugin-static-copy": "^2.3.1"
+  },
+  "dependencies": {
+    "@solana/spl-token": "^0.1.8",
+    "@solana/web3.js": "^1.87.6",
+    "axios": "^1.8.4",
+    "bs58": "^5.0.0",
+    "phaser": "^3.88.2",
+    "socket.io-client": "^4.7.2"
+  }
+}

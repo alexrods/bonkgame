@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <!-- Supporting both portrait and landscape orientation -->
+  <title>Bonk Games - Proto v0.420</title>
+  
+  <!-- Updated Solana SPL Token Library via esm.sh -->
+  <script type="module">
+    // Import the SPL Token library from esm.sh which properly converts and bundles dependencies.
+    import { createMint,getOrCreateAssociatedTokenAccount,mintTo, ASSOCIATED_TOKEN_PROGRAM_ID } from "https://esm.sh/@solana/spl-token@0.4.13";
+    // Optionally expose to global scope if needed by legacy code.
+    window.SplToken = { createMint,getOrCreateAssociatedTokenAccount,mintTo, ASSOCIATED_TOKEN_PROGRAM_ID };
+  </script>
+
+  <!-- Game Engine -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  
+  <!-- Solana Web3 Dependencies -->
+  <script src="https://unpkg.com/@solana/web3.js@1.87.6/lib/index.iife.min.js"></script>
+
+  
+  <!-- Socket.io Client -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="src/css/styles.css">
+  <link rel="icon" href="/favicon.ico" type="image/x-icon">
+  
+  <!-- Fonts -->
+  <style>
+    @font-face {
+      font-family: 'Metal Mania';
+      src: url('/assets/fonts/Metal_Mania/MetalMania-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    @font-face {
+      font-family: 'Tektur';
+      src: url('/assets/fonts/Tektur/static/Tektur-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    @font-face {
+      font-family: 'Creepster';
+      src: url('/assets/fonts/Creepster/Creepster-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    @font-face {
+      font-family: 'Bungee';
+      src: url('/assets/fonts/Bungee/Bungee-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    /* Force font preloading */
+    #font-preloader {
+      position: absolute;
+      left: -9999px;
+      visibility: hidden;
+    }
+    .tektur-preload {
+      font-family: 'Tektur', sans-serif;
+    }
+    .metalmania-preload {
+      font-family: 'Metal Mania', sans-serif;
+    }
+    .creepster-preload {
+      font-family: 'Creepster', Arial;
+    }
+    .bungee-preload {
+      font-family: 'Bungee', Arial;
+    }
+  </style>
+</head>
+<body>
+  <!-- Font preloader -->
+  <div id="font-preloader">
+    <div class="tektur-preload">Tektur Font Preload</div>
+    <div class="metalmania-preload">Metal Mania Font Preload</div>
+    <div class="creepster-preload">Creepster Font Preload</div>
+    <div class="bungee-preload">Bungee Font Preload</div>
+  </div>
+  
+  <!-- Wallet connection UI - initially hidden, shown only in MenuScene -->
+  <div id="wallet-ui" style="display: none;">
+    <div id="wallet-container">
+      <button id="connect-wallet" class="wallet-button">Connect Wallet</button>
+      <div id="wallet-status"></div>
+    </div>
+  </div>
+  
+  <!-- Game Logo for Boot Screen -->
+  <div id="boot-logo-container" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; display: none;">
+    <img src="/assets/logo/logo.png" style="max-width: 40%; filter: drop-shadow(0 0 10px #ffffff);">
+  </div>
+  
+  <!-- Game Container -->
+  <div id="game-container"></div>
+  
+  <!-- Loading Screen -->
+  <div id="loading-screen" class="loading-container">
+    <div class="loading-title" style="font-family: 'Tektur', sans-serif;">BONK GAMES</div>
+    <div id="loading-asset" class="loading-asset" style="font-family: 'Tektur', sans-serif;"></div>
+    <div class="loading-bar-container">
+      <div id="loading-bar" class="loading-bar"></div>
+    </div>
+    <div id="loading-percent" class="loading-percent" style="font-family: 'Tektur', sans-serif;">0%</div>
+  </div>
+  
+  <!-- Wallet Connection Debug Info - Hidden by default -->
+  <div id="wallet-debug" style="display: none; position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; font-family: monospace; font-size: 12px; max-width: 400px; max-height: 200px; overflow: auto; z-index: 10000;">
+    <div id="debug-title" style="font-weight: bold; margin-bottom: 5px;">Wallet Debug Info:</div>
+    <div id="debug-content"></div>
+  </div>
+  
+  <!-- Debug toggle button -->
+  <button id="toggle-debug" style="position: fixed; bottom: 10px; left: 10px; z-index: 10001; background: #333; color: white; border: none; padding: 3px 8px; font-size: 10px; cursor: pointer; opacity: 0.5;">Debug</button>
+  
+  <script>
+    document.getElementById('toggle-debug').addEventListener('click', function() {
+      const debugPanel = document.getElementById('wallet-debug');
+      if (debugPanel.style.display === 'none') {
+        debugPanel.style.display = 'block';
+        
+        // Add debug info
+        const debugContent = document.getElementById('debug-content');
+        
+        // Check wallet availability
+        const checkWallets = () => {
+          let walletInfo = '';
+          
+          // Check for various wallet providers
+          walletInfo += 'Phantom: ' + (window.phantom?.solana ? '✅' : '❌') + '<br>';
+          walletInfo += 'Solflare: ' + (window.solflare ? '✅' : '❌') + '<br>';
+          walletInfo += 'Backpack: ' + (window.backpack?.xnft?.solana ? '✅' : '❌') + '<br>';
+          walletInfo += 'Glow: ' + (window.glowSolana ? '✅' : '❌') + '<br>';
+          walletInfo += 'Slope: ' + (window.slope ? '✅' : '❌') + '<br>';
+          walletInfo += 'Coin98: ' + (window.coin98?.sol ? '✅' : '❌') + '<br>';
+          
+          walletInfo += '<br>solanaWeb3 loaded: ' + (typeof solanaWeb3 !== 'undefined' ? '✅' : '❌') + '<br>';
+          
+          debugContent.innerHTML = walletInfo;
+        };
+        
+        checkWallets();
+        // Recheck every 2 seconds in case wallets are loaded late
+        window.walletDebugInterval = setInterval(checkWallets, 2000);
+        
+      } else {
+        debugPanel.style.display = 'none';
+        if (window.walletDebugInterval) {
+          clearInterval(window.walletDebugInterval);
+        }
+      }
+    });
+  </script>
+  
+  <!-- Main Application Script (ES Module) -->
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

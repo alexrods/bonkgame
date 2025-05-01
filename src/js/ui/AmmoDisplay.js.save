@@ -1,0 +1,201 @@
+export class AmmoDisplay {
+  constructor(scene, x, y) {
+    this.scene = scene;
+    this.x = x;
+    this.y = y;
+    this.scale = 1.5;
+    this.maxMagazines = 10;
+    this.container = null;
+    this.segmentDisplays = [];
+    this.magazineIndicators = [];
+    this.reloadTimer = null;
+    this.reloadingBlinkTween = null;
+    this.init();
+  }
+
+  init() {
+    this.createContainer();
+    this.createBackground();
+    this.createDisplays();
+    this.createMagazineIndicators();
+  }
+
+  createContainer() {
+    this.container = this.scene.add.container(this.x, this.y);
+    this.container.setDepth(100);
+    this.container.setScrollFactor(0);
+  }
+
+  createBackground() {
+    const bg = this.scene.add.rectangle(
+      0,
+      0,
+      90 * this.scale,
+      50 * this.scale,
+      0x000000,
+      0.7
+    );
+    bg.setStrokeStyle(2, 0x333333);
+    this.container.add(bg);
+  }
+
+  createDisplays() {
+    // Create two 14-segment displays at relative positions
+    this.create14SegmentDisplay(-20 * this.scale, 0);
+    this.create14SegmentDisplay(20 * this.scale, 0);
+  }
+
+  create14SegmentDisplay(x, y) {
+    const segConfigs = [
+      { dx: 0, dy: -15, w: 20, h: 4, r: 0 },          // Segment A
+      { dx: 10, dy: -8, w: 4, h: 18, r: 0 },           // Segment B
+      { dx: 10, dy: 8, w: 4, h: 18, r: 0 },            // Segment C
+      { dx: 0, dy: 15, w: 20, h: 4, r: 0 },            // Segment D
+      { dx: -10, dy: 8, w: 4, h: 18, r: 0 },           // Segment E
+      { dx: -10, dy: -8, w: 4, h: 18, r: 0 },          // Segment F
+      { dx: 0, dy: 0, w: 24, h: 5, r: 0 },             // Segment G
+      { dx: -4, dy: 0, w: 6, h: 4, r: 0.4 },           // Segment G2
+      { dx: 0, dy: -7.5, w: 14, h: 4, r: 0.785 },      // Segment H
+      { dx: 0, dy: -7.5, w: 14, h: 4, r: -0.785 },     // Segment I
+      { dx: 0, dy: 7.5, w: 14, h: 4, r: -0.785 },      // Segment J
+      { dx: 0, dy: 7.5, w: 14, h: 4, r: 0.785 },       // Segment K
+      { dx: 4, dy: 0, w: 6, h: 4, r: -0.4 },           // Segment L
+      { dx: 0, dy: 0, w: 6, h: 6, r: 0 }               // Segment M
+    ];
+
+    const segments = segConfigs.map(cfg => {
+      const rect = this.scene.add.rectangle(
+        x + cfg.dx * this.scale,
+        y + cfg.dy * this.scale,
+        cfg.w * this.scale,
+        cfg.h * this.scale,
+        0x222222
+      );
+      if (cfg.r) rect.setRotation(cfg.r);
+      return rect;
+    });
+    segments.forEach(segment => this.container.add(segment));
+    this.segmentDisplays.push(segments);
+  }
+
+  createMagazineIndicators() {
+    // Using configuration for left/right positions
+    const positions = [
+      { x: -40 * this.scale, count: 5 },
+      { x: 40 * this.scale, count: 5 }
+    ];
+
+    positions.forEach(pos => {
+      for (let i = 0; i < pos.count; i++) {
+        const yPos = 12 * this.scale - i * 6 * this.scale;
+        const circle = this.scene.add.circle(pos.x, yPos, 2 * this.scale, 0x222222);
+        this.magazineIndicators.push(circle);
+        this.container.add(circle);
+      }
+    });
+  }
+
+  setActiveSegments(displayIndex, value, isLetter = false) {
+    const patterns = {
+      '0': [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+      '1': [0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      '2': [1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 
+],
+      '3': [1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1],
+      '4': [0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+      '5': [1, 0, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+      '6': [1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+      '7': [1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      '8': [1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+      '9': [1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+      'R': [1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 1],
+      'E': [1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+      'L': [0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+      'O': [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+      'A': [1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+      'D': [1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+      'I': [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+      'N': [1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0],
+      'G': [1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+      ' ': new Array(14).fill(0)
+    };
+
+    const pattern = patterns[value] || patterns[' '];
+    const segments = this.segmentDisplays[displayIndex];
+    if (!segments) {
+      console.error('No segments found for displayIndex:', displayIndex);
+      return;
+    }
+    const activeColor = isLetter ? 0xff0000 : 0xff3333;
+    segments.forEach((segment, i) => {
+      segment.fillColor = pattern[i] ? activeColor : 0x222222;
+    });
+  }
+
+  updateAmmo(currentAmmo, magazineSize, totalMagazines, isReloading) {
+    // Ensure all segments are visible
+    this.segmentDisplays.forEach(segs => segs.forEach(s => s.setVisible(true)));
+
+    if (isReloading) {
+      this.stopReloadingEffects();
+      this.startReloadingScrollEffect();
+    } else {
+      this.stopReloadingEffects();
+      const tens = Math.floor(currentAmmo / 10);
+      const ones = currentAmmo % 10;
+      this.setActiveSegments(0, tens.toString());
+      this.setActiveSegments(1, ones.toString());
+      const color = currentAmmo === 0 ? 0xff0000 : currentAmmo <= 10 ? 0xffff00 : 0x33ff33;
+      this.segmentDisplays.forEach(segs => segs.forEach(segment => {
+        if (segment.fillColor !== 0x222222) {
+          segment.fillColor = color;
+        }
+      }));
+    }
+    this.updateMagazineIndicators(totalMagazines);
+  }
+
+  startReloadingScrollEffect() {
+    const text = "RELOADING";
+    let index = 0;
+    // Reset alpha for all segments
+    this.segmentDisplays.forEach(segs => segs.forEach(s => s.alpha = 1));
+
+    this.reloadTimer = this.scene.time.addEvent({
+      delay: 150,
+      callback: () => {
+        const char1 = index < text.length ? text.charAt(index) : ' ';
+        const char2 = (index + 1) < text.length ? text.charAt(index + 1) : ' ';
+        this.setActiveSegments(0, this.getLetterPattern(char1), true);
+        this.setActiveSegments(1, this.getLetterPattern(char2), true);
+        index = (index + 1) % (text.length + 1);
+      },
+      callbackScope: this,
+      repeat: -1
+    });
+  }
+
+  getLetterPattern(char) {
+    return '0123456789RELOADINGN '.includes(char) ? char : ' ';
+  }
+
+  stopReloadingEffects() {
+    if (this.reloadTimer) {
+      this.reloadTimer.remove();
+      this.reloadTimer = null;
+    }
+    if (this.reloadingBlinkTween) {
+      this.reloadingBlinkTween.stop();
+      this.reloadingBlinkTween = null;
+      this.segmentDisplays.forEach(segs => segs.forEach(s => s.alpha = 1));
+    }
+  }
+
+  updateMagazineIndicators(totalMagazines) {
+    const displayMagazines = Math.min(totalMagazines, this.maxMagazines);
+    for (let i = 0; i < this.maxMagazines; i++) {
+      const indicatorIndex = (i < 5) ? (5 + i) : (i - 5);
+      this.magazineIndicators[indicatorIndex].fillColor = i < displayMagazines ? 0x33ff33 : 0x222222;
+    }
+  }
+}
