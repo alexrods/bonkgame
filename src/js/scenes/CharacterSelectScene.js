@@ -457,6 +457,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     // Setup input handlers
     this.setupInputs();
     
+    // Initialize ESC key for alternative detection
+    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    
     // Update the selection display
     this.updateSelection();
     
@@ -508,7 +511,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     
     // Create a subtle glowing base for the holographic character
     this.hologramBase = this.add.circle(
-      leftSideX, 
+      leftSideX,
       centerY + 50, // Position a bit below the character
       90,
       0x00ff66, // Green base
@@ -799,6 +802,21 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
   
   setupInputs() {
+    // Explicitly enable keyboard input (may be reset during scene transitions)
+    this.input.keyboard.enabled = true;
+    console.log('[CharacterSelectScene] Keyboard input enabled:', this.input.keyboard.enabled);
+
+    // Ensure no duplicate ESC key listeners exist
+    this.input.keyboard.off('keydown-ESC');
+    // Register ESC key listener to return to menu
+    this.input.keyboard.on('keydown-ESC', (event) => {
+      console.log('[CharacterSelectScene] ESC pressed:', event.key, event.keyCode);
+      this.returnToMenu();
+    }, this);
+
+    // (Optional) Log current selected button changes to help debugging
+    console.log('[CharacterSelectScene] setupInputs completed. Current selected button:', this.currentSelectedButton);
+
     // Arrow keys for navigation
     this.input.keyboard.on('keydown-LEFT', () => {
       this.selectPrevious();
@@ -832,11 +850,6 @@ export class CharacterSelectScene extends Phaser.Scene {
       } else {
         this.confirmSelection();
       }
-    });
-    
-    // ESC to return to menu
-    this.input.keyboard.on('keydown-ESC', () => {
-      this.returnToMenu();
     });
     
     // Setup gamepad support
@@ -1096,7 +1109,9 @@ export class CharacterSelectScene extends Phaser.Scene {
       this.setSelectedButton(null);
     });
     
+    this.backText.removeAllListeners('pointerdown');
     this.backText.on('pointerdown', () => {
+      console.log('[CharacterSelectScene] backText pointerdown');
       this.returnToMenu();
     });
   }
@@ -1392,7 +1407,7 @@ export class CharacterSelectScene extends Phaser.Scene {
             });
           }
         } else {
-          // In compact/portrait mode, only fade out the name text and ensure vignette is cleared
+          // In compact mode, only fade out the name text and ensure vignette is cleared
           this.tweens.add({
             targets: previousProfile.nameText,
             alpha: 0,
@@ -1647,19 +1662,26 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
   
   returnToMenu() {
+    console.log('[CharacterSelectScene] returnToMenu triggered');
     // Stop character select music if it exists
     if (this.characterSelectMusic && this.characterSelectMusic.isPlaying) {
       this.characterSelectMusic.stop();
     }
-    // Also check registry
     const characterSelectMusic = this.registry.get('characterSelectMusic');
     if (characterSelectMusic && characterSelectMusic.isPlaying) {
       characterSelectMusic.stop();
     }
-    // Clear the registry reference to prevent any further usage
     this.registry.set('characterSelectMusic', null);
     
-    this.scene.start('MenuScene');
+    // Start the MenuScene with parameters to enforce the main menu
+    this.scene.start('MenuScene', { startHypeScreen: false, comingFromTutorial: false, showMainMenu: true });
+    console.log('[CharacterSelectScene] MenuScene started with startHypeScreen: false, comingFromTutorial: false, showMainMenu: true');
+    
+    // Use a slight delay before explicitly stopping this scene by its key
+    setTimeout(() => {
+      console.log('[CharacterSelectScene] Stopping CharacterSelectScene using explicit scene key');
+      this.scene.stop('CharacterSelectScene');
+    }, 50);
   }
   
   shutdown() {
@@ -1761,10 +1783,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     
     // Get bounds of element
     const bounds = {
-      left: element.x - (element.width * element.originX),
-      right: element.x + (element.width * (1 - element.originX)),
-      top: element.y - (element.height * element.originY),
-      bottom: element.y + (element.height * (1 - element.originY))
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      originX: 0.5,
+      originY: 0.5
     };
     
     // Check if any part is outside the screen (with padding)
@@ -1777,11 +1801,9 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
   
   updateLayout() {
-    console.log("Applying layout updates for size change");
-    
-    // Get the new dimensions
     const width = this.scale.width;
     const height = this.scale.height;
+    console.log("Applying layout updates for size change");
     
     // Update device pixel ratio (could change if user moved to a different screen)
     this.devicePixelRatio = window.devicePixelRatio || 1;
@@ -2339,7 +2361,17 @@ export class CharacterSelectScene extends Phaser.Scene {
     });
   }
   
-  update(time) {
+  update(time, delta) {
+    // Alternative detection for ESC key
+    if (this.escKey && Phaser.Input.Keyboard.JustDown(this.escKey)) {
+      console.log('[CharacterSelectScene] update detected ESC press');
+      this.returnToMenu();
+    }
+    
+    // Declare local width and height variables
+    const width = this.scale.width;
+    const height = this.scale.height;
+    
     // Update CRT scanlines effect
     this.updateCRTEffect();
     
@@ -2474,24 +2506,24 @@ export class CharacterSelectScene extends Phaser.Scene {
     if (this.globalScanlines && Phaser.Math.Between(0, 100) > 98) {
       // Create a momentary scanline glitch effect
       const glitchY = Phaser.Math.Between(0, this.scale.height);
-      const glitchHeight = Phaser.Math.Between(3, 6);
+      const glitchHeight = Phaser.Math.Between(2, 5);
       
-      // Add a temporary glitch line
       const glitchLine = this.add.rectangle(
-        this.scale.width / 2,
+        width / 2,
         glitchY,
-        this.scale.width,
+        width,
         glitchHeight,
         0xffffff,
-        0.3
+        0.4
       );
-      glitchLine.setDepth(102); // Above everything
+      glitchLine.setDepth(102);
       
       // Make it fade out quickly
       this.tweens.add({
         targets: glitchLine,
         alpha: 0,
-        duration: 100,
+        width: width * 1.1,
+        duration: 150,
         onComplete: () => {
           glitchLine.destroy();
         }

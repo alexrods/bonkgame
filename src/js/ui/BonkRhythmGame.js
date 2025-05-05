@@ -867,7 +867,7 @@ export class BonkRhythmGame {
         // Method 1: Check if there's a BonkCounter in UI with known methods
         if (this.scene.ui && this.scene.ui.bonkCounter) {
           // Just use a fixed amount for now since BonkCounter doesn't expose its balance 
-          playerBonkBalance = 5; // Default award for a successful hack
+          playerBonkBalance = 0; // Default award for a successful hack
           console.log(`Using fixed BONK value for transfer: ${playerBonkBalance}`);
         }
         // Method 2: Check if UI has a bonkCount property
@@ -883,11 +883,11 @@ export class BonkRhythmGame {
         // Safety default
         else {
           console.log(`No BONK counter found, using default value of 5`);
-          playerBonkBalance = 5; // Default award for a successful hack
+          playerBonkBalance = 0; // Default award for a successful hack
         }
       } catch (error) {
         console.warn(`Error getting BONK balance: ${error.message}, using default value of 5`);
-        playerBonkBalance = 5;
+        playerBonkBalance = 0;
       }
       
       console.log(`BONK to transfer from arena to account: ${playerBonkBalance}`);

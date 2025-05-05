@@ -114,6 +114,8 @@ export class DroneWheel {
       emote: 0,
       robot: 0
     };
+    // Disable drone wheel until the game starts (after SURVIVE)
+    this.enabled = false;
   }
 
   init() {
@@ -449,6 +451,8 @@ export class DroneWheel {
   }
 
   show() {
+    // Skip showing until game start
+    if (!this.enabled) return;
     // Update credit text with the latest amount
     this.updateCredits();
     

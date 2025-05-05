@@ -1447,7 +1447,12 @@ export class MenuScene extends Phaser.Scene {
     });
   }
 
-  create() {
+  create(data) {
+    console.log('[MenuScene] create() called with data:', data);
+
+    // Store the data locally if needed
+    this.menuConfig = data || {};
+
     // Show wallet UI in MenuScene
     const walletUI = document.getElementById("wallet-ui");
     if (walletUI) {
@@ -1860,6 +1865,12 @@ export class MenuScene extends Phaser.Scene {
     // Add a scanline effect after everything else so it's on top
     this.scanlines = this.createScanlines();
     this.scanlines.setDepth(100); // Ensure it's above everything
+
+    // Enable main menu buttons if needed
+    if (data && data.showMainMenu) {
+      console.log('[MenuScene] Forcing enable of main menu buttons');
+      this.enableMenuButtons();
+    }
   }
 
   createPlayOrConnectButton() {
@@ -2592,468 +2603,51 @@ export class MenuScene extends Phaser.Scene {
     }
   }
 
-  showEnterArenaCutscene(existingOverlay) {
-    // Start preloading dialog assets while the cutscene is playing
-    this.preloadDialogAssets();
-
-    // Create a black screen overlay or use existing one
-    const overlay =
-      existingOverlay ||
-      this.add.rectangle(
-        0,
-        0,
-        this.cameras.main.width,
-        this.cameras.main.height,
-        0x000000
-      );
-    overlay.setOrigin(0, 0);
-    overlay.setDepth(1000);
-
-    // Disable all input during cutscene to prevent interruption
-    this.disableAllInput();
-
-    // Check if in portrait mode
-    const isPortrait = this.cameras.main.height > this.cameras.main.width;
-
-    // Load background image based on orientation
-    const background = this.add.image(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2, // Center vertically
-      isPortrait ? "cutscene_portrait" : "cutscene_landscape"
-    );
-    background.setOrigin(0.5, 0.5); // Center both horizontally and vertically
-    background.setDepth(1001);
-
-    // Set background to stretch larger than screen dimensions to avoid black edges during movement
-    background.setDisplaySize(
-      this.cameras.main.width,
-      this.cameras.main.height * 1.2
-    );
-
-    // Get the selected character
-    const selectedCharacter =
-      this.registry.get("selectedCharacter") || "default";
-
-    // Choose the appropriate cutscene character image
-    let characterImageKey = "cutscene_character"; // Default
-
-    // Map character IDs to image keys
-    if (selectedCharacter === "character2") {
-      characterImageKey = "cutscene_character2";
-    } else if (selectedCharacter === "character3") {
-      characterImageKey = "cutscene_character3";
-    } else if (selectedCharacter === "character5") {
-      characterImageKey = "cutscene_character5";
+  enableMenuButtons() {
+  console.log('[MenuScene] enableMenuButtons - asegurando que los botones son interactivos');
+  
+  // Eliminar overlays que puedan estar bloqueando la entrada
+  this.children.list.forEach(child => {
+    if (child.type === 'Rectangle' && child.fillColor === 0x000000) {
+      console.log('[MenuScene] Encontrado overlay potencial, destruyéndolo');
+      child.destroy();
     }
+  });
 
-    // Position character image at the bottom of the screen initially
-    const character = this.add.image(
-      this.cameras.main.width / 2,
-      this.cameras.main.height + 50, // Start below the bottom
-      characterImageKey
-    );
-    character.setOrigin(0.5, 0.5);
-    character.setDepth(1002);
-
-    // Scale character appropriately
-    character.setScale(0.7);
-
-    // Get character info from registry
-    const characterInfo = this.registry.get("characterInfo") || {
-      default: {
-        name: "Degen",
-        font: "Tektur, Arial",
-        colors: { primary: "#C0C0C0", secondary: "#0066CC" },
-      },
-      character2: {
-        name: "Drainer",
-        font: "Creepster, Arial",
-        colors: { primary: "#FF0000", secondary: "#990000" },
-      },
-      character3: {
-        name: "Toaster",
-        font: "Bungee, Arial",
-        colors: { primary: "#FF6600", secondary: "#333333" },
-      },
-      character5: {
-        name: "Flex",
-        font: "Audiowide, Arial",
-        colors: { primary: "#00FF00", secondary: "#FF00FF" },
-      },
-    };
-
-    // Get character details
-    const charDetails =
-      characterInfo[selectedCharacter] || characterInfo["default"];
-
-    // Add character name text
-    // Use character-specific font but responsive size
-    let fontFamily = charDetails.font;
-
-    // Calculate responsive font size based on screen width
-    // Using a percentage of screen width for responsive sizing
-    const screenWidth = this.cameras.main.width;
-    const targetWidth = screenWidth * (isPortrait ? 0.8 : 0.6); // Use 80% in portrait, 60% in landscape
-
-    // Start with base font size for estimation
-    let baseFontSize = isPortrait ? 120 : 80;
-
-    // Apply character-specific adjustments
-    if (charDetails.name === "Drainer") {
-      fontFamily = "Creepster, cursive, Arial";
-      // Drainer gets slightly larger text
-      baseFontSize = isPortrait ? 140 : 100;
-
-      // Create and preload Creepster font element - critical for rendering
-      const fontPreload = document.createElement("div");
-      fontPreload.textContent = "Drainer";
-      fontPreload.style.fontFamily = "Creepster, cursive";
-      fontPreload.style.position = "absolute";
-      fontPreload.style.left = "-9999px";
-      fontPreload.style.fontSize = `${baseFontSize}px`;
-      fontPreload.className = "drainer-text";
-      document.body.appendChild(fontPreload);
-
-      // Keep the preload element for 2 seconds, then remove
-      setTimeout(() => document.body.removeChild(fontPreload), 2000);
-    }
-
-    // Create temporary text to measure width
-    const tempText = this.add.text(0, 0, charDetails.name, {
-      fontFamily: fontFamily,
-      fontSize: `${baseFontSize}px`,
+  // Botón de jugar
+  if (this.playButton) {
+    this.playButton.setInteractive({ useHandCursor: true });
+    this.playButton.setDepth(2000); // Profundidad alta
+    
+    // Eliminar listeners existentes para evitar duplicados
+    this.playButton.removeAllListeners('pointerdown');
+    
+    // Añadir listeners
+    this.playButton.on('pointerdown', () => {
+      console.log('[MenuScene] Botón de jugar pulsado');
+      // Tu método para manejar clic en jugar
+      this.handlePlayButtonClick(); // Ajusta según tu código actual
     });
-
-    // Calculate scaling factor to fit target width
-    const scaleFactor = targetWidth / tempText.width;
-    const fontSize = `${Math.floor(baseFontSize * scaleFactor)}px`;
-    tempText.destroy();
-
-    const nameText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height * 0.35,
-      charDetails.name,
-      {
-        fontFamily: fontFamily,
-        fontSize: fontSize,
-        color: charDetails.colors.primary,
-        stroke: "#000000",
-        strokeThickness: 8,
-        shadow: {
-          offsetX: 2,
-          offsetY: 2,
-          color: charDetails.colors.secondary,
-          blur: 5,
-          stroke: true,
-          fill: true,
-        },
-      }
-    );
-    nameText.setOrigin(0.5);
-    nameText.setDepth(1003);
-    nameText.setAlpha(0); // Start invisible
-
-    // Make name text appear with animation after character enters
-    this.time.delayedCall(1000, () => {
-      this.tweens.add({
-        targets: nameText,
-        alpha: 1,
-        y: this.cameras.main.height * 0.31,
-        scale: { from: 1.5, to: 1 },
-        duration: 500,
-        ease: "Back.easeOut",
-      });
-    });
-
-    // Create camera flash effect container
-    const flashContainer = this.add.container(0, 0);
-    flashContainer.setDepth(1003);
-
-    // Play crowd roar sound
-    let crowdRoarSound = this.sound.get("crowd_roar");
-    let crowdRoarFallback = this.cachedAudioElements
-      ? this.cachedAudioElements["crowd_roar"]
-      : null;
-
-    if (crowdRoarSound) {
-      crowdRoarSound.play({ volume: 0.7 });
-    } else if (crowdRoarFallback) {
-      console.log("Using cached crowd roar sound");
-      crowdRoarFallback.currentTime = 0;
-      crowdRoarFallback.volume = 0.7;
-      crowdRoarFallback.play().catch((error) => {
-        console.error("Error playing cached crowd roar sound:", error);
-      });
-    } else {
-      console.warn("Crowd roar sound not found in any cache");
-
-      // Last resort fallback
-      try {
-        crowdRoarFallback = new Audio("assets/sound/sfx/crowd_roar.mp3");
-        crowdRoarFallback.volume = 0.7;
-        crowdRoarFallback.play();
-        // Save for future use
-        if (!this.cachedAudioElements) this.cachedAudioElements = {};
-        this.cachedAudioElements["crowd_roar"] = crowdRoarFallback;
-      } catch (error) {
-        console.error("Failed to play crowd roar sound fallback:", error);
-      }
-    }
-
-    // Make sure sound stops when leaving this scene
-    this.events.once("shutdown", () => {
-      if (crowdRoarSound) {
-        crowdRoarSound.stop();
-      }
-      if (crowdRoarFallback) {
-        crowdRoarFallback.pause();
-        crowdRoarFallback.currentTime = 0;
-      }
-    });
-
-    // Function to create a camera flash
-    const createCameraFlash = () => {
-      // Create flash effect
-      const flash = this.add.rectangle(
-        0,
-        0,
-        this.cameras.main.width,
-        this.cameras.main.height,
-        0xffffff
-      );
-      flash.setOrigin(0, 0);
-      flash.setAlpha(0.8);
-
-      // Add to container
-      flashContainer.add(flash);
-
-      // Fade out and remove
-      this.tweens.add({
-        targets: flash,
-        alpha: 0,
-        duration: 200,
-        onComplete: () => {
-          flashContainer.remove(flash);
-          flash.destroy();
-        },
-      });
-    };
-
-    // Create animations for background and character
-    // Move background upward (opposite to character's upward movement)
-    this.tweens.add({
-      targets: background,
-      y: {
-        from: this.cameras.main.height / 2,
-        to: this.cameras.main.height / 2 - 100,
-      }, // Move up by 100px
-      duration: 3000, // 3 seconds
-      ease: "Power1",
-    });
-
-    // Move character from bottom to middle (walking into the arena)
-    // Only raise 50% as much (using 75% of screen height instead of 50%)
-    this.tweens.add({
-      targets: character,
-      y: this.cameras.main.height * 0.75, // End at 75% of screen height (reduced by 50%)
-      duration: 3000, // Reduced to 3 seconds
-      ease: "Power1",
-      delay: 300, // Reduced delay
-    });
-
-    // Add camera flashes at specific intervals (adjusted for shorter duration)
-    this.time.delayedCall(600, createCameraFlash);
-    this.time.delayedCall(1500, createCameraFlash);
-    this.time.delayedCall(2400, createCameraFlash);
-
-    // Fade out the crowd roar sound 500ms before cutscene ends
-    this.time.delayedCall(2800, () => {
-      // If using Phaser sound
-      if (crowdRoarSound) {
-        this.tweens.add({
-          targets: crowdRoarSound,
-          volume: 0,
-          duration: 500,
-          ease: "Power1",
-        });
-      }
-
-      // If using HTML5 Audio fallback
-      if (crowdRoarFallback) {
-        // HTML5 Audio doesn't support tweens, so manually fade out
-        const startVolume = crowdRoarFallback.volume;
-        const fadePoints = 10;
-        const interval = 500 / fadePoints;
-        const volumeStep = startVolume / fadePoints;
-
-        const fadeInterval = setInterval(() => {
-          if (crowdRoarFallback.volume > volumeStep) {
-            crowdRoarFallback.volume -= volumeStep;
-          } else {
-            crowdRoarFallback.volume = 0;
-            clearInterval(fadeInterval);
-          }
-        }, interval);
-      }
-    });
-
-    // After animations complete, transition to the GET HYPED screen
-    this.time.delayedCall(3300, () => {
-      // Instead of fade, use a quick blackout (overlay is already black)
-      // Just destroy elements immediately
-      background.destroy();
-      character.destroy();
-      flashContainer.destroy();
-      nameText.destroy(); // Clean up character name text too
-
-      // Stop crowd roar sound (volume should be 0 now)
-      if (crowdRoarSound) {
-        crowdRoarSound.stop();
-      }
-      if (crowdRoarFallback) {
-        crowdRoarFallback.pause();
-        crowdRoarFallback.currentTime = 0;
-      }
-
-      // Keep overlay and proceed to GET HYPED screen
-      this.showGetHypedScreen(overlay);
-    });
+    
+    console.log('[MenuScene] Botón de jugar configurado con eventos');
   }
+  
+  // Configura los demás botones de manera similar...
+  
+  // Asegurar que la entrada está habilitada globalmente
+  this.input.enabled = true;
+  console.log('[MenuScene] Entrada habilitada globalmente:', this.input.enabled);
+}
 
-  showGetHypedScreen(existingOverlay) {
-    // Make sure input is disabled for this part too
-    this.disableAllInput();
-
-    // Reuse existing overlay from cutscene
-    const overlay = existingOverlay;
-
-    // Play interference sound for the GET HYPED text
-    let interferenceSound = this.sound.get("interference");
-    let fallbackAudio = this.cachedAudioElements
-      ? this.cachedAudioElements["interference"]
-      : null;
-
-    if (interferenceSound) {
-      // Use a one-shot sound that won't loop
-      interferenceSound.play({ volume: 1.0 });
-    } else if (fallbackAudio) {
-      console.log("Using cached interference sound");
-      fallbackAudio.currentTime = 0;
-      fallbackAudio.volume = 1.0;
-      fallbackAudio.play().catch((error) => {
-        console.error("Error playing cached interference sound:", error);
-      });
-    } else {
-      console.warn("Interference sound not found in any cache");
-
-      // Last resort fallback
-      try {
-        fallbackAudio = new Audio("assets/sound/sfx/interference.mp3");
-        fallbackAudio.volume = 1.0;
-        fallbackAudio.play();
-        // Save for future use
-        if (!this.cachedAudioElements) this.cachedAudioElements = {};
-        this.cachedAudioElements["interference"] = fallbackAudio;
-      } catch (error) {
-        console.error("Failed to play interference sound fallback:", error);
-      }
+  showEnterArenaCutscene(existingOverlay) {
+    console.log('[MenuScene] showEnterArenaCutscene called');
+    // If an overlay is provided, remove it
+    if (existingOverlay) {
+      existingOverlay.destroy();
     }
-
-    // Explicitly stop sound after 333ms
-    this.time.delayedCall(333, () => {
-      if (interferenceSound) {
-        interferenceSound.stop();
-      }
-      if (fallbackAudio) {
-        fallbackAudio.pause();
-        fallbackAudio.currentTime = 0;
-      }
-    });
-
-    // Additional safety: Make sure sound stops when leaving this scene
-    this.events.once("shutdown", () => {
-      if (interferenceSound) {
-        interferenceSound.stop();
-      }
-      if (fallbackAudio) {
-        fallbackAudio.pause();
-        fallbackAudio.currentTime = 0;
-      }
-    });
-
-    // Calculate responsive font size based on screen width
-    // Using 90% of screen width as target size
-    const screenWidth = this.cameras.main.width;
-    const text = "GET HYPED";
-    const targetWidth = screenWidth * 0.9; // Use 90% of screen width
-
-    // Start with a base font size and adjust
-    let fontSize = 100;
-    const tempText = this.add.text(0, 0, text, {
-      fontFamily: "Arial Black",
-      fontSize: `${fontSize}px`,
-    });
-
-    // Scale the font size to match desired width
-    const scaleFactor = targetWidth / tempText.width;
-    fontSize = Math.floor(fontSize * scaleFactor);
-    tempText.destroy();
-
-    // Add the "GET HYPED" text with calculated size
-    const hypeText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height / 2,
-      text,
-      {
-        fontFamily: "Arial Black",
-        fontSize: `${fontSize}px`,
-        color: "#ffffff",
-        align: "center",
-      }
-    );
-    hypeText.setOrigin(0.5);
-    hypeText.setDepth(1001); // Ensure it's above the overlay
-
-    // Add glitch effect to the text
-    this.time.addEvent({
-      delay: 50,
-      callback: () => {
-        // Random position glitch effect
-        if (Math.random() > 0.5) {
-          hypeText.x += Phaser.Math.Between(-10, 10);
-          hypeText.y += Phaser.Math.Between(-8, 8);
-
-          // Reset position after brief delay
-          this.time.delayedCall(30, () => {
-            hypeText.x = this.cameras.main.width / 2;
-            hypeText.y = this.cameras.main.height / 2;
-          });
-        }
-
-        // Black and white glitch effect
-        if (Math.random() > 0.7) {
-          // Alternate between white and black
-          if (Math.random() > 0.5) {
-            // Set to white
-            hypeText.setTint(0xffffff);
-          } else {
-            // Set to black (effectively making it invisible against the black background)
-            hypeText.setTint(0x000000);
-          }
-
-          // Reset color after brief delay
-          this.time.delayedCall(40, () => {
-            hypeText.clearTint();
-          });
-        }
-      },
-      repeat: 5,
-    });
-
-    // Start the game after 333 milliseconds
-    this.time.delayedCall(333, () => {
-      // Keep the music playing through all scenes
-      this.scene.start("GameScene");
+    // Transition to the GameScene (you can adjust the delay or perform additional actions as required)
+    this.time.delayedCall(500, () => {
+      this.scene.start('GameScene');
     });
   }
 }

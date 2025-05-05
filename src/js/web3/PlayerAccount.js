@@ -937,6 +937,7 @@ export class PlayerAccount {
 
     return true;
   }
+  
   /**
    * Returns the public address of the connected wallet * Miguel Addition
    * @returns {string|null}
@@ -984,4 +985,35 @@ export class PlayerAccount {
       throw error;
     }
   }
+
+  /**
+   * Withdraw Bonk from arena
+   * @param {number} amount - Amount of Bonk to withdraw
+   */
+  async withdrawBonkFromArena(amount) {
+    if (!this.isAuthenticated) {
+      console.error("Not authenticated");
+      return;
+    }
+
+    try {
+      const response = await api.patch('/users/withdrawBonk', { amount }, {
+        headers: {
+          Authorization: `Bearer ${this.authToken}`
+        }
+      });
+
+      if (response.data.success) {
+        this.bonkBalance = response.data.bonkBalance;
+        this.arenaBonkCount -= amount; // Assuming arenaBonkCount is only client-side
+        this.savePlayerData();
+        console.log(`Successfully withdrew ${amount} Bonk from arena. New balance: ${this.bonkBalance}`);
+      } else {
+        console.error("Failed to withdraw Bonk from arena:", response.data.error);
+      }
+    } catch (error) {
+      console.error("Error withdrawing Bonk from arena:", error);
+    }
+  }
+
 }

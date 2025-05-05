@@ -264,20 +264,20 @@ export class GameUI {
     }
   }
   
-  // Update BONK display
+  // Update total BONK balance display (balance persistente en DB)
   updateBonkDisplay(newBalance) {
-    console.log(`GameUI.updateBonkDisplay called with balance: ${newBalance}`);
+    console.log(`GameUI.updateBonkDisplay llamado con balance total: ${newBalance}`);
     
     // Update hidden text for compatibility
     if (this.bonkText && this.bonkText.scene) {
       try {
-        this.bonkText.setText('🪙 BONK: ' + newBalance);
-        console.log('BONK text updated successfully');
+        this.bonkText.setText('🪙 BONK Total: ' + newBalance);
+        console.log('BONK text actualizado correctamente');
       } catch (error) {
-        console.warn('Error updating BONK text:', error.message);
+        console.warn('Error actualizando BONK text:', error.message);
       }
     } else {
-      console.warn('bonkText element not found or destroyed in UI');
+      console.warn('bonkText no encontrado o destruido en UI');
     }
     
     // Update the digital bonk counter
@@ -292,6 +292,41 @@ export class GameUI {
       const padding = 5;
       this.bonkCounter = new BonkCounter(this.scene, 120, 50 + (bgHeight + padding) * 2);
       this.bonkCounter.updateBonkCount(parseFloat(newBalance));
+    }
+  }
+  
+  // Update arena BONK count display (se reinicia con cada partida)
+  updateArenaBonkDisplay(arenaBonkCount) {
+    console.log(`GameUI.updateArenaBonkDisplay llamado con contador de arena: ${arenaBonkCount}`);
+    
+    // IMPORTANTE: Siempre forzar el valor inicial a 0 para el contador de arena
+    if (arenaBonkCount === undefined || arenaBonkCount === null) {
+      arenaBonkCount = 0;
+    }
+    
+    // Update arena BONK text (usamos el mismo texto que bonkText para evitar duplicación)
+    if (this.bonkText && this.bonkText.scene) {
+      try {
+        // Solo actualizar el texto, manteniendo un único contador visible
+        this.bonkText.setText('🪙 BONK: ' + arenaBonkCount);
+        console.log('Arena BONK actualizado en texto existente');
+      } catch (error) {
+        console.warn('Error actualizando texto BONK existente:', error.message);
+      }
+    }
+    
+    // Update the bonk counter - usamos el existente para evitar duplicación
+    if (this.bonkCounter) {
+      const bonkAmount = parseFloat(arenaBonkCount);
+      this.bonkCounter.updateBonkCount(bonkAmount);
+      console.log(`Contador BONK actualizado a: ${bonkAmount}`);
+    } else if (this.scene) {
+      // Crear el bonk counter si no existe
+      const bgHeight = 50 * 1.5 * 0.5;
+      const padding = 5;
+      this.bonkCounter = new BonkCounter(this.scene, 120, 50 + (bgHeight + padding) * 2);
+      this.bonkCounter.updateBonkCount(0); // Comenzar siempre en 0
+      console.log('Contador BONK creado e inicializado a 0');
     }
   }
   

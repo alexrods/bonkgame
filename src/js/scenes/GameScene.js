@@ -414,7 +414,7 @@ export class GameScene extends Phaser.Scene {
     
     // Make sure the UI's Bonk counter is updated with the latest value from player account
     if (this.playerAccount && this.ui && this.ui.updateBonkDisplay) {
-      const currentBonkBalance = this.playerAccount.getBonkBalance();
+      const currentBonkBalance = 0;
       console.log(`Setting initial Bonk balance in UI: ${currentBonkBalance}`);
       this.ui.updateBonkDisplay(currentBonkBalance);
     }
@@ -2041,6 +2041,7 @@ export class GameScene extends Phaser.Scene {
   
   // Show SURVIVE message at game start
   showSurviveMessage() {
+    this.droneWheel.enabled = true;
     this.showSurviveTextMessage('💀 SURVIVE', true);
     // Enemy drones will start after 50 kills milestone dialog
   }
@@ -3326,7 +3327,7 @@ export class GameScene extends Phaser.Scene {
       tauntImage.setScale(scaleFactor);
       
       tauntImage.setDepth(1001); // Ensure it's above the overlay
-      tauntImage.setScrollFactor(0); // Fixed to camera view
+      tauntImage.setScrollFactor(0); // Fixed to camera
       
       // Create scanlines overlay for the taunt image
       const scanlines = this.add.graphics();
