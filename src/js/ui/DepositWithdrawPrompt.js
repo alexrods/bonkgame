@@ -1480,94 +1480,138 @@ export class DepositWithdrawPrompt {
   // From game account to Solana wallet
   async handleGameToWalletWithdraw(gameCredits) {
     try {
-      // Get game account balance
-      this.onChaincreditBalance = await this.getOnchainGameAccountBalance();
+      // Create spinner
+      const spinnerContainer = this.scene.add.container(
+        this.scene.cameras.main.width / 2,
+        this.scene.cameras.main.height / 2
+      );
+      spinnerContainer.setDepth(1100); // Higher than the deposit/withdraw prompt
 
-      // Check if we have enough credits in the game account
-      // if (this.onChaincreditBalance >= gameCredits) {
-      await this.scene.playerAccount.withdrawFromGameAccount(gameCredits);
+      // Add background overlay
+      const spinnerBg = this.scene.add.rectangle(
+        0,
+        0,
+        200,
+        200,
+        0x000000,
+        0.8
+      );
+      spinnerBg.setStrokeStyle(2, 0x00ff00);
+      spinnerContainer.add(spinnerBg);
 
-      // Transfer credits from game account to wallet
-      if (this.scene.playerAccount) {
-        // Update game account balance (subtract)
-        this.scene.playerAccount.updateGameAccountBalance(-gameCredits);
-
-        // Update Solana balance (add)
-        this.onChaincreditBalance += gameCredits;
+      // Add processing text
+      const processingText = this.scene.add.text(
+        0,
+        -40,
+        "PROCESSING\nWITHDRAW",
+        {
+          fontFamily: "Tektur",
+          fontSize: "18px",
+          color: "#00ff00",
+          align: "center",
+        }
+      );
+      processingText.setOrigin(0.5);
+      spinnerContainer.add(processingText);
+      
+      // Ocultar la ventana de selección de créditos inmediatamente cuando aparece el spinner
+      if (this.contentContainer) {
+        this.contentContainer.setVisible(false);
       }
 
-      // CRITICAL: Ensure enemies are reset to normal speed if needed
-      if (this.scene.timeScaleManager) {
-        console.log(
-          "DepositWithdrawPrompt: Pre-emptively restoring enemy speeds before hide/reset"
-        );
-        this.scene.timeScaleManager.restoreEnemySpeeds();
+      // Create spinning circle
+      const spinnerGraphics = this.scene.add.graphics();
+      spinnerContainer.add(spinnerGraphics);
+
+      // Animation for the spinner
+      let angle = 0;
+      const spinnerAnimation = this.scene.time.addEvent({
+        delay: 16,
+        callback: () => {
+          spinnerGraphics.clear();
+          spinnerGraphics.lineStyle(3, 0x00ff00, 1);
+          spinnerGraphics.beginPath();
+          spinnerGraphics.arc(0, 30, 30, Phaser.Math.DegToRad(angle), Phaser.Math.DegToRad(angle + 270), false);
+          spinnerGraphics.strokePath();
+          angle = (angle + 6) % 360;
+        },
+        callbackScope: this,
+        loop: true,
+      });
+
+      try {
+        // Get game account balance
+        this.onChaincreditBalance = await this.getOnchainGameAccountBalance();
+
+        // Check if we have enough credits in the game account
+        // if (this.onChaincreditBalance >= gameCredits) {
+        await this.scene.playerAccount.withdrawFromGameAccount(gameCredits);
+
+        // Transfer credits from game account to wallet
+        if (this.scene.playerAccount) {
+          // Update game account balance (subtract)
+          this.scene.playerAccount.updateGameAccountBalance(-gameCredits);
+
+          // Update Solana balance (add)
+          this.onChaincreditBalance += gameCredits;
+        }
+
+        // CRITICAL: Ensure enemies are reset to normal speed if needed
+        if (this.scene.timeScaleManager) {
+          console.log(
+            "DepositWithdrawPrompt: Pre-emptively restoring enemy speeds before hide/reset"
+          );
+          this.scene.timeScaleManager.restoreEnemySpeeds();
+        }
+
+        // Call callback if provided
+        if (this.onWithdrawCallback) {
+          console.log("Calling onWithdrawCallback");
+          this.onWithdrawCallback(gameCredits);
+        }
+
+        // Report withdraw to analytics
+        if (window.gtag) {
+          window.gtag("event", "withdraw_credits", {
+            event_category: "economy",
+            event_label: "Withdraw credits",
+            value: gameCredits,
+          });
+        }
+
+        // Show success message in-game if in gameScene
+        if (this.scene.playerManager && this.scene.playerManager.player) {
+          this.scene.events.emit("showFloatingText", {
+            x: this.scene.playerManager.player.x,
+            y: this.scene.playerManager.player.y - 50,
+            text: `WITHDREW ${gameCredits} CREDITS`,
+            color: "#00ffff",
+          });
+        } else {
+          // In menu scene, we can't show floating text tied to player position
+          console.log(`Withdraw successful: ${gameCredits} credits to wallet`);
+        }
+
+        // Update balance displays
+        this.updateBalanceDisplays();
+
+        // Check if we need to reset wheel state
+        const comingFromWheel =
+          this.scene.scene.key === "GameScene" &&
+          this.scene.droneWheel &&
+          this.scene.droneWheel.openedFromWheel;
+
+        this.hide();
+
+        alert("Success");
+      } finally {
+        // Stop and destroy the spinner animation regardless of success or failure
+        spinnerAnimation.remove();
+        spinnerAnimation.destroy();
+        
+        // Remove the spinner container from the scene
+        spinnerContainer.destroy();
       }
-
-      // Show success message
-      if (this.scene.playerManager && this.scene.playerManager.player) {
-        this.scene.events.emit("showFloatingText", {
-          x: this.scene.playerManager.player.x,
-          y: this.scene.playerManager.player.y - 50,
-          text: `WITHDREW ${gameCredits} CREDITS`,
-          color: "#00ffff",
-        });
-      } else {
-        // In menu scene, we can't show floating text tied to player position
-        console.log(`Withdraw successful: ${gameCredits} credits to wallet`);
-      }
-
-      // Update balance displays
-      this.updateBalanceDisplays();
-
-      // Check if we need to reset wheel state
-      const comingFromWheel =
-        this.scene.droneWheel && this.scene.droneWheel.openingAtmFromWheel;
-      if (comingFromWheel) {
-        // Reset the flag when done with ATM operation
-        this.scene.droneWheel.openingAtmFromWheel = false;
-      }
-
-      // Switch back to wallet to game mode
-      this.switchToWalletToGameMode();
-
-      // Reset time scales AFTER hiding
-      this.forceTimeScaleReset();
-
-      // Run the enemy speed normalization as an extra safety measure
-      this.ensureEnemiesAtNormalSpeed();
-
-      // Pre-emptively force control restoration with immediate and delayed attempts
-      if (this.scene.playerManager) {
-        this.scene.playerManager.controlsEnabled = true;
-      }
-
-      // Call callback if provided
-      if (this.onDepositCallback) {
-        this.onDepositCallback(-gameCredits);
-      }
-
-      alert("Success");
-      // } else {
-      //   // Show insufficient game account funds message
-      //   if (this.scene.playerManager && this.scene.playerManager.player) {
-      //     this.scene.events.emit("showFloatingText", {
-      //       x: this.scene.playerManager.player.x,
-      //       y: this.scene.playerManager.player.y - 50,
-      //       text: `INSUFFICIENT GAME ACCOUNT BALANCE`,
-      //       color: "#ff0000",
-      //     });
-      //   } else {
-      //     // In menu scene, we can't show floating text tied to player position
-      //     console.log("Error: Insufficient game account balance");
-      //   }
-
-      //   // CRITICAL: Ensure enemies are reset to normal speed first
-      //   if (this.scene.timeScaleManager) {
-      //     console.log(
-      //       "DepositWithdrawPrompt: Pre-emptively restoring enemy speeds before hide/reset"
-      //     );
-      //     this.scene.timeScaleManager.restoreEnemySpeeds();
       //   }
 
       //   // Show brief error flash and hide immediately

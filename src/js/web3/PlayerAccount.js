@@ -3,6 +3,7 @@ import {
   getUserInfo,
   updateCredit,
   setCreditCount,
+  updateEarnCount,
   withdrawCredit
 } from "../utils/api.js";
 import { SolanaWallet } from "./SolanaWallet.js";
@@ -24,7 +25,8 @@ export class PlayerAccount {
     this.gameAccountBalance = 0;
 
     // BONK balance - separate from game account and arena
-    this.bonkBalance = 0;
+    this.bonkBalance = 0;  // Balance total en la DB
+    this.arenaBonkCount = 0; // Contador de BONK acumulados en la arena (se reinicia en cada nueva partida)
 
     // Initialize whitelist manager
     this.whitelistManager = new WhitelistManager();
@@ -403,11 +405,66 @@ export class PlayerAccount {
   }
 
   /**
-   * Get the player's BONK balance
-   * @returns {number} Current BONK balance
+   * Get the player's total BONK balance from DB
+   * @returns {number} Current total BONK balance
    */
   getBonkBalance() {
     return this.bonkBalance;
+  }
+  
+  /**
+   * Get the player's arena BONK count (resets with each game)
+   * @returns {number} Current arena BONK count
+   */
+  getArenaBonkCount() {
+    return this.arenaBonkCount;
+  }
+  
+  /**
+   * Update the player's arena BONK count
+   * @param {number} amount - Amount to add (positive) or subtract (negative)
+   * @returns {number} New arena BONK count
+   */
+  updateArenaBonkCount(amount) {
+    // Add the amount to the arena BONK count
+    this.arenaBonkCount += amount;
+    
+    // Ensure it doesn't go below zero
+    if (this.arenaBonkCount < 0) {
+      this.arenaBonkCount = 0;
+    }
+    
+    console.log(`Arena BONK updated: ${this.arenaBonkCount} (${amount > 0 ? '+' : ''}${amount})`);
+    
+    // Notify the UI if we have a scene
+    try {
+      if (this.scene && this.scene.events) {
+        this.scene.events.emit("arenaBonkCountUpdated", this.arenaBonkCount);
+      }
+    } catch (error) {
+      console.error("Error emitting arenaBonkCountUpdated event:", error);
+    }
+    
+    return this.arenaBonkCount;
+  }
+  
+  /**
+   * Reset the arena BONK count to 0 (should be called at start of each new game)
+   */
+  resetArenaBonkCount() {
+    this.arenaBonkCount = 0;
+    console.log("Arena BONK count reset to 0");
+    
+    // Notify the UI if we have a scene
+    try {
+      if (this.scene && this.scene.events) {
+        this.scene.events.emit("arenaBonkCountUpdated", 0);
+      }
+    } catch (error) {
+      console.error("Error emitting arenaBonkCountUpdated event:", error);
+    }
+    
+    return 0;
   }
 
   /**
@@ -477,6 +534,44 @@ export class PlayerAccount {
     }
 
     return this.bonkBalance;
+  }
+  
+  /**
+   * Update the player's earn count (BONK tokens) in the database
+   * @param {number} earn - New earn count value (total BONK balance)
+   * @returns {Promise<Object>} Response from API
+   */
+  async setEarnCount(earn) {
+    if (!this.isAuthenticated || !this.authToken) {
+      console.error("Cannot update earn count: Not authenticated");
+      console.log("Estado de autenticación:", { 
+        isAuthenticated: this.isAuthenticated, 
+        hasToken: !!this.authToken, 
+        tokenLength: this.authToken ? this.authToken.length : 0 
+      });
+      throw new Error("Not authenticated");
+    }
+    
+    try {
+      console.log("Preparando actualización de earn (BONK) en DB:", {
+        earn,
+        tokenLongitud: this.authToken ? this.authToken.length : 0,
+        tokenPrimeros10: this.authToken ? this.authToken.substring(0, 10) + '...' : null,
+        userId: this.playerData?._id
+      });
+      const response = await updateEarnCount(this.authToken, earn);
+      console.log("Earn count (BONK) updated successfully in DB", response);
+      return response;
+    } catch (error) {
+      console.error("Error updating earn count (BONK) in DB:", error);
+      if (error.response) {
+        console.error("Detalles del error:", {
+          status: error.response.status,
+          data: error.response.data
+        });
+      }
+      throw error;
+    }
   }
 
   /**
