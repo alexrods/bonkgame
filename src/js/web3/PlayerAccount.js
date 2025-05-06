@@ -26,7 +26,6 @@ export class PlayerAccount {
 
     // BONK balance - separate from game account and arena
     this.bonkBalance = 0;  // Balance total en la DB
-    this.arenaBonkCount = 0; // Contador de BONK acumulados en la arena (se reinicia en cada nueva partida)
 
     // Initialize whitelist manager
     this.whitelistManager = new WhitelistManager();
@@ -411,61 +410,6 @@ export class PlayerAccount {
   getBonkBalance() {
     return this.bonkBalance;
   }
-  
-  /**
-   * Get the player's arena BONK count (resets with each game)
-   * @returns {number} Current arena BONK count
-   */
-  getArenaBonkCount() {
-    return this.arenaBonkCount;
-  }
-  
-  /**
-   * Update the player's arena BONK count
-   * @param {number} amount - Amount to add (positive) or subtract (negative)
-   * @returns {number} New arena BONK count
-   */
-  updateArenaBonkCount(amount) {
-    // Add the amount to the arena BONK count
-    this.arenaBonkCount += amount;
-    
-    // Ensure it doesn't go below zero
-    if (this.arenaBonkCount < 0) {
-      this.arenaBonkCount = 0;
-    }
-    
-    console.log(`Arena BONK updated: ${this.arenaBonkCount} (${amount > 0 ? '+' : ''}${amount})`);
-    
-    // Notify the UI if we have a scene
-    try {
-      if (this.scene && this.scene.events) {
-        this.scene.events.emit("arenaBonkCountUpdated", this.arenaBonkCount);
-      }
-    } catch (error) {
-      console.error("Error emitting arenaBonkCountUpdated event:", error);
-    }
-    
-    return this.arenaBonkCount;
-  }
-  
-  /**
-   * Reset the arena BONK count to 0 (should be called at start of each new game)
-   */
-  resetArenaBonkCount() {
-    this.arenaBonkCount = 0;
-    console.log("Arena BONK count reset to 0");
-    
-    // Notify the UI if we have a scene
-    try {
-      if (this.scene && this.scene.events) {
-        this.scene.events.emit("arenaBonkCountUpdated", 0);
-      }
-    } catch (error) {
-      console.error("Error emitting arenaBonkCountUpdated event:", error);
-    }
-    
-    return 0;
-  }
 
   /**
    * Update the player's game account balance
@@ -500,80 +444,42 @@ export class PlayerAccount {
     return this.gameAccountBalance;
   }
 
-  /**
+    /**
    * Update the player's BONK balance
    * @param {number} amount - Amount to add (positive) or subtract (negative)
    * @returns {number} New BONK balance
    */
-  updateBonkBalance(amount) {
-    this.bonkBalance += amount;
-
-    // Ensure balance doesn't go below zero
-    if (this.bonkBalance < 0) {
-      this.bonkBalance = 0;
-    }
-
-    // Update player data and save
-    this.playerData.bonkBalance = this.bonkBalance;
-    this.savePlayerData();
-
-    // FIXED: Emit an event so UI elements can update - with try/catch for safety
-    try {
-      if (this.scene && this.scene.events) {
-        console.log(
-          `Emitting bonkBalanceUpdated event with balance: ${this.bonkBalance}`
-        );
-        this.scene.events.emit("bonkBalanceUpdated", this.bonkBalance);
-      } else {
-        console.warn(
-          "Cannot emit bonkBalanceUpdated event - scene or events not available"
-        );
-      }
-    } catch (error) {
-      console.error("Error emitting bonkBalanceUpdated event:", error);
-    }
-
-    return this.bonkBalance;
-  }
+    updateBonkBalance(amount) {
+      this.bonkBalance += amount;
   
-  /**
-   * Update the player's earn count (BONK tokens) in the database
-   * @param {number} earn - New earn count value (total BONK balance)
-   * @returns {Promise<Object>} Response from API
-   */
-  async setEarnCount(earn) {
-    if (!this.isAuthenticated || !this.authToken) {
-      console.error("Cannot update earn count: Not authenticated");
-      console.log("Estado de autenticación:", { 
-        isAuthenticated: this.isAuthenticated, 
-        hasToken: !!this.authToken, 
-        tokenLength: this.authToken ? this.authToken.length : 0 
-      });
-      throw new Error("Not authenticated");
-    }
-    
-    try {
-      console.log("Preparando actualización de earn (BONK) en DB:", {
-        earn,
-        tokenLongitud: this.authToken ? this.authToken.length : 0,
-        tokenPrimeros10: this.authToken ? this.authToken.substring(0, 10) + '...' : null,
-        userId: this.playerData?._id
-      });
-      const response = await updateEarnCount(this.authToken, earn);
-      console.log("Earn count (BONK) updated successfully in DB", response);
-      return response;
-    } catch (error) {
-      console.error("Error updating earn count (BONK) in DB:", error);
-      if (error.response) {
-        console.error("Detalles del error:", {
-          status: error.response.status,
-          data: error.response.data
-        });
+      // Ensure balance doesn't go below zero
+      if (this.bonkBalance < 0) {
+        this.bonkBalance = 0;
       }
-      throw error;
+  
+      // Update player data and save
+      this.playerData.bonkBalance = this.bonkBalance;
+      this.savePlayerData();
+  
+      // FIXED: Emit an event so UI elements can update - with try/catch for safety
+      try {
+        if (this.scene && this.scene.events) {
+          console.log(
+            `Emitting bonkBalanceUpdated event with balance: ${this.bonkBalance}`
+          );
+          this.scene.events.emit("bonkBalanceUpdated", this.bonkBalance);
+        } else {
+          console.warn(
+            "Cannot emit bonkBalanceUpdated event - scene or events not available"
+          );
+        }
+      } catch (error) {
+        console.error("Error emitting bonkBalanceUpdated event:", error);
+      }
+  
+      return this.bonkBalance;
     }
-  }
-
+  
   /**
    * Deposit from Solana wallet to game account
    * @param {number} solAmount - Amount of SOL to deposit
@@ -612,32 +518,35 @@ export class PlayerAccount {
   }
 
   /**
-   * Withdraw from game account to Solana wallet
-   * @param {number} gameCredits - Amount of game credits to withdraw
-   * @param {number} solAmount - Equivalent SOL to receive
+   * Withdraw all credits from game account to Solana wallet
    * @returns {boolean} Whether the transaction succeeded
    */
-  async withdrawFromGameAccount(amount) {
+  async withdrawFromGameAccount() {
     if (!this.isAuthenticated || !this.authToken) {
       throw new Error("Not authenticated");
     }
 
     try {
-      await withdrawCredit(this.authToken, this.wallet.getPublicKey(), amount);
+      // Get current credit count from player data
+      const totalCredits = this.gameAccountBalance || 0;
+      
+      if (totalCredits <= 0) {
+        console.log("No credits to withdraw");
+        return false;
+      }
+      
+      // Withdraw all credits
+      await withdrawCredit(this.authToken, this.wallet.getPublicKey(), totalCredits);
 
       // Update local state
-      this.playerData.credit_count = Math.max(
-        0,
-        this.playerData.credit_count - amount
-      );
+      this.gameAccountBalance = 0;
+      this.playerData.gameAccountBalance = 0;
       this.savePlayerData();
 
       // Emit update event
-      this.scene.events.emit(
-        "gameAccountUpdated",
-        this.playerData.credit_count
-      );
+      this.scene.events.emit("gameAccountUpdated", 0);
 
+      console.log(`Successfully withdrew all credits (${totalCredits})`);
       return true;
     } catch (error) {
       console.error("Error withdrawing from game account:", error);
@@ -956,7 +865,7 @@ export class PlayerAccount {
   async setCreditCount(creditCount) {
     if (!this.isAuthenticated || !this.authToken) {
       console.error("Cannot update credit count: Not authenticated");
-      console.log("Estado de autenticación:", { 
+      console.log("Authentication state:", { 
         isAuthenticated: this.isAuthenticated, 
         hasToken: !!this.authToken, 
         tokenLength: this.authToken ? this.authToken.length : 0 
@@ -985,35 +894,4 @@ export class PlayerAccount {
       throw error;
     }
   }
-
-  /**
-   * Withdraw Bonk from arena
-   * @param {number} amount - Amount of Bonk to withdraw
-   */
-  async withdrawBonkFromArena(amount) {
-    if (!this.isAuthenticated) {
-      console.error("Not authenticated");
-      return;
-    }
-
-    try {
-      const response = await api.patch('/users/withdrawBonk', { amount }, {
-        headers: {
-          Authorization: `Bearer ${this.authToken}`
-        }
-      });
-
-      if (response.data.success) {
-        this.bonkBalance = response.data.bonkBalance;
-        this.arenaBonkCount -= amount; // Assuming arenaBonkCount is only client-side
-        this.savePlayerData();
-        console.log(`Successfully withdrew ${amount} Bonk from arena. New balance: ${this.bonkBalance}`);
-      } else {
-        console.error("Failed to withdraw Bonk from arena:", response.data.error);
-      }
-    } catch (error) {
-      console.error("Error withdrawing Bonk from arena:", error);
-    }
-  }
-
 }
