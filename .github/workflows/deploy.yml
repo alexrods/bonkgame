@@ -20,7 +20,6 @@ jobs:
 
     - name: Install dependencies & Build
       run: |
-        cd bonkgames-app
         npm ci
         npm run build
 
