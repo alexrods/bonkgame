@@ -8,6 +8,7 @@ import { DroneWheel } from '../ui/DroneWheel.js';
 import { DialogSystem } from '../ui/DialogSystem.js';
 import { LabEnvironment } from '../environment/LabEnvironment.js';
 import { PlayerAccount } from '../web3/PlayerAccount.js';
+import { AIPlayerManager } from '../managers/AIPlayerManager.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -411,8 +412,8 @@ export class GameScene extends Phaser.Scene {
     // Initialize UI for score display
     this.ui = new GameUI(this);
     this.ui.init();
-
-    // Inicializa el contador de BONK de la arena
+    
+    // initialize the arena bonk counter
     this.arenaBonkCount = 0;
     
     // Initialize player with reference to scene
@@ -421,11 +422,10 @@ export class GameScene extends Phaser.Scene {
     
     // Always load AIPlayerManager, even if not in versus mode.
     // We'll need it for milestone AI players in single player mode too
-    const setupAI = async () => {
+    const setupAI = () => {
       try {
-        // Dynamic import of AIPlayerManager
-        const { AIPlayerManager } = await import('../managers/AIPlayerManager.js');
-        console.log('AI Player Manager loaded successfully');
+        // Use the imported AIPlayerManager class directly
+        console.log('Setting up AI Player Manager with imported class');
         
         // Create and initialize the AI player
         this.aiPlayerManager = new AIPlayerManager(this, this.playerManager);
@@ -953,21 +953,14 @@ export class GameScene extends Phaser.Scene {
     if (!this.aiPlayerManager) {
       console.log("Initializing AIPlayerManager for milestone events");
       
-      // Immediately try to import and initialize AIPlayerManager
+      // Create and initialize the AIPlayerManager using imported class
       try {
-        // This is a synchronous approach since we need it immediately
-        import('../managers/AIPlayerManager.js').then(({ AIPlayerManager }) => {
-          console.log('AI Player Manager loaded successfully');
-          
-          // Create and initialize the AI player manager
-          this.aiPlayerManager = new AIPlayerManager(this, this.playerManager);
-          this.aiPlayerManager.init();
-          console.log('AI Player Manager initialized for milestone events');
-          
-          // For update calls, we'll handle this in the spawnEnemyAIPlayer method
-        }).catch(error => {
-          console.error('Failed to import AIPlayerManager:', error);
-        });
+        // Create and initialize the AI player manager
+        this.aiPlayerManager = new AIPlayerManager(this, this.playerManager);
+        this.aiPlayerManager.init();
+        console.log('AI Player Manager initialized for milestone events');
+        
+        // For update calls, we'll handle this in the spawnEnemyAIPlayer method
       } catch (error) {
         console.error('Error initializing AIPlayerManager:', error);
       }
@@ -2037,6 +2030,7 @@ export class GameScene extends Phaser.Scene {
   
   // Show SURVIVE message at game start
   showSurviveMessage() {
+    this.droneWheel.enabled = true;
     this.showSurviveTextMessage('💀 SURVIVE', true);
     // Enemy drones will start after 50 kills milestone dialog
   }
@@ -3322,7 +3316,7 @@ export class GameScene extends Phaser.Scene {
       tauntImage.setScale(scaleFactor);
       
       tauntImage.setDepth(1001); // Ensure it's above the overlay
-      tauntImage.setScrollFactor(0); // Fixed to camera view
+      tauntImage.setScrollFactor(0); // Fixed to camera
       
       // Create scanlines overlay for the taunt image
       const scanlines = this.add.graphics();
