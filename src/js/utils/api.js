@@ -5,7 +5,8 @@ const myCipher = cipher("transactionsalt");
 
 // Create an instance of axios
 const api = axios.create({
-  baseURL: "http://localhost:9031/api",
+  // baseURL: "http://localhost:9031/api", // for dev mode
+  baseURL: "https://bonkgames.io/api/api",
   headers: {
     "Content-Type": "application/json",
   },
