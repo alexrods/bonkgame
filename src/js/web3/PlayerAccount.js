@@ -24,7 +24,7 @@ export class PlayerAccount {
     this.gameAccountBalance = 0;
 
     // BONK balance - separate from game account and arena
-    this.bonkBalance = 0;
+    this.bonkBalance = 0;  // Balance total en la DB
 
     // Initialize whitelist manager
     this.whitelistManager = new WhitelistManager();
@@ -517,32 +517,35 @@ export class PlayerAccount {
   }
 
   /**
-   * Withdraw from game account to Solana wallet
-   * @param {number} gameCredits - Amount of game credits to withdraw
-   * @param {number} solAmount - Equivalent SOL to receive
+   * Withdraw all credits from game account to Solana wallet
    * @returns {boolean} Whether the transaction succeeded
    */
-  async withdrawFromGameAccount(amount) {
+  async withdrawFromGameAccount() {
     if (!this.isAuthenticated || !this.authToken) {
       throw new Error("Not authenticated");
     }
 
     try {
-      await withdrawCredit(this.authToken, this.wallet.getPublicKey(), amount);
+      // Get current credit count from player data
+      const totalCredits = this.gameAccountBalance || 0;
+      
+      if (totalCredits <= 0) {
+        console.log("No credits to withdraw");
+        return false;
+      }
+      
+      // Withdraw all credits
+      await withdrawCredit(this.authToken, this.wallet.getPublicKey(), totalCredits);
 
       // Update local state
-      this.playerData.credit_count = Math.max(
-        0,
-        this.playerData.credit_count - amount
-      );
+      this.gameAccountBalance = 0;
+      this.playerData.gameAccountBalance = 0;
       this.savePlayerData();
 
       // Emit update event
-      this.scene.events.emit(
-        "gameAccountUpdated",
-        this.playerData.credit_count
-      );
+      this.scene.events.emit("gameAccountUpdated", 0);
 
+      console.log(`Successfully withdrew all credits (${totalCredits})`);
       return true;
     } catch (error) {
       console.error("Error withdrawing from game account:", error);
@@ -842,6 +845,7 @@ export class PlayerAccount {
 
     return true;
   }
+  
   /**
    * Returns the public address of the connected wallet * Miguel Addition
    * @returns {string|null}
@@ -860,7 +864,7 @@ export class PlayerAccount {
   async setCreditCount(creditCount) {
     if (!this.isAuthenticated || !this.authToken) {
       console.error("Cannot update credit count: Not authenticated");
-      console.log("Estado de autenticación:", { 
+      console.log("Authentication state:", { 
         isAuthenticated: this.isAuthenticated, 
         hasToken: !!this.authToken, 
         tokenLength: this.authToken ? this.authToken.length : 0 
