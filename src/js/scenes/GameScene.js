@@ -411,13 +411,9 @@ export class GameScene extends Phaser.Scene {
     // Initialize UI for score display
     this.ui = new GameUI(this);
     this.ui.init();
-    
-    // Make sure the UI's Bonk counter is updated with the latest value from player account
-    if (this.playerAccount && this.ui && this.ui.updateBonkDisplay) {
-      const currentBonkBalance = this.playerAccount.getBonkBalance();
-      console.log(`Setting initial Bonk balance in UI: ${currentBonkBalance}`);
-      this.ui.updateBonkDisplay(currentBonkBalance);
-    }
+
+    // Inicializa el contador de BONK de la arena
+    this.arenaBonkCount = 0;
     
     // Initialize player with reference to scene
     this.playerManager = new PlayerManager(this);
@@ -1704,30 +1700,30 @@ export class GameScene extends Phaser.Scene {
         onComplete: () => {
           // Add Bonk tokens to player's account
           const bonkAmount = item.bonkAmount || 1;
-          
-          // Update BONK balance if PlayerAccount is available
+
+          // Incrementa el contador de BONK de la arena
+          this.arenaBonkCount += bonkAmount;
+
+          // Actualiza SOLO la UI con el contador de la arena
+          this.time.delayedCall(50, () => {
+            if (this.ui && typeof this.ui.updateBonkDisplay === 'function') {
+              this.ui.updateBonkDisplay(this.arenaBonkCount);
+            }
+          });
+
+          // También actualiza el balance de la cuenta en segundo plano (si quieres mantenerlo actualizado)
           if (this.playerAccount) {
-            // Update player account balance
-            const newBalance = this.playerAccount.updateBonkBalance(bonkAmount);
-            
-            // Update the UI safely with a small delay to avoid texture errors
-            this.time.delayedCall(50, () => {
-              // Directly update UI
-              if (this.ui && typeof this.ui.updateBonkDisplay === 'function') {
-                console.log(`Directly updating UI Bonk display: ${newBalance}`);
-                this.ui.updateBonkDisplay(newBalance);
-              }
-            });
-            
-            // Show floating text for BONK collection
-            this.events.emit('showFloatingText', {
-              x: player.x,
-              y: player.y - 40,
-              text: `+${bonkAmount} BONK`,
-              color: '#ffe234' // Bonk yellow color
-            });
+            this.playerAccount.updateBonkBalance(bonkAmount);
           }
-          
+
+          // Show floating text for BONK collection
+          this.events.emit('showFloatingText', {
+            x: player.x,
+            y: player.y - 40,
+            text: `+${bonkAmount} BONK`,
+            color: '#ffe234' // Bonk yellow color
+          });
+
           // Remove the bonk item
           item.destroy();
         }
