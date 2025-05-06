@@ -28,6 +28,18 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.DEPLOY_SSH_KEY }}
 
+    - name: Add server to known_hosts
+      run: |
+        mkdir -p ~/.ssh
+        # extrae solo el host (sin usuario) de tu secret DEPLOY_SERVER
+        SERVER_HOST=${{ secrets.DEPLOY_SERVER }}
+        ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+      
+    - name: Sync dist to server
+      run: |
+        rsync -avz --delete bonkgames-app/dist/ \
+          ${{ secrets.DEPLOY_SERVER }}:/var/www/html/bonkgames-app/dist/
+
     - name: Sync files to server
       run: |
         rsync -avz --delete \
