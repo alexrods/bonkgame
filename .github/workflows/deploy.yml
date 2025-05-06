@@ -31,9 +31,12 @@ jobs:
     - name: Add server to known_hosts
       run: |
         mkdir -p ~/.ssh
-        # extrae solo el host (sin usuario) de tu secret DEPLOY_SERVER
-        SERVER_HOST=${{ secrets.DEPLOY_SERVER }}
-        ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+        # toma todo DEPLOY_SERVER
+        server="${{ secrets.DEPLOY_SERVER }}"
+        # extrae lo que venga después de la "@"
+        host="${server#*@}"
+        echo "Adding $host to known_hosts"
+        ssh-keyscan -H "$host" >> ~/.ssh/known_hosts
       
     - name: Sync dist to server
       run: |
