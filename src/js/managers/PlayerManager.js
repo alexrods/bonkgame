@@ -1122,7 +1122,7 @@ export class PlayerManager {
     this.healthContainer.add(this.shieldIcon);
     
     // Initialize health and maxHealth if they're undefined
-    if (this.health === undefined) this.health = 3;
+    if (this.health === undefined) this.health = 5;
     if (this.maxHealth === undefined) this.maxHealth = 10;
     
     // Add a text display showing health value - centered in the health bar
