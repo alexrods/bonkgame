@@ -18,6 +18,13 @@ jobs:
       with:
         node-version: 18
 
+    - name: Debug mostrar estructura del repo
+      run: |
+        echo "PWD: $PWD"
+        ls -la .
+        echo "--- contenido recursivo ---"
+        ls -R .
+
     - name: Install dependencies & Build
       run: |
         npm ci
@@ -38,11 +45,12 @@ jobs:
         echo "Adding $host to known_hosts"
         ssh-keyscan -H "$host" >> ~/.ssh/known_hosts
 
-    - name: Debug FS structure
+    - name: Debug listado del workspace del runner
       run: |
-        pwd
-        ls -R . | sed -e 's/^/   /'
-      
+        echo "PWD: $PWD"
+        ls -la .
+        echo "--- contenido recursivo ---"
+        ls -R .
       
     - name: Sync dist to server
       run: |
