@@ -18,13 +18,6 @@ jobs:
       with:
         node-version: 18
 
-    - name: Debug mostrar estructura del repo
-      run: |
-        echo "PWD: $PWD"
-        ls -la .
-        echo "--- contenido recursivo ---"
-        ls -R .
-
     - name: Install dependencies & Build
       run: |
         npm ci
@@ -38,23 +31,13 @@ jobs:
     - name: Add server to known_hosts
       run: |
         mkdir -p ~/.ssh
-        # toma todo DEPLOY_SERVER
-        server="${{ secrets.DEPLOY_SERVER }}"
-        # extrae lo que venga después de la "@"
-        host="${server#*@}"
-        echo "Adding $host to known_hosts"
-        ssh-keyscan -H "$host" >> ~/.ssh/known_hosts
-
-    - name: Debug listado del workspace del runner
-      run: |
-        echo "PWD: $PWD"
-        ls -la .
-        echo "--- contenido recursivo ---"
-        ls -R .
+        host="${{ secrets.DEPLOY_SERVER }}"
+        ssh-keyscan -H "$host" >> ~/.ssh/known_hostss
       
     - name: Sync dist to server
       run: |
-        rsync -avz --delete bonkgames-app/dist/ \
+        rsync -avz --delete \
+          ./dist/ \
           ${{ secrets.DEPLOY_SERVER }}:/var/www/html/bonkgames-app/dist/
 
 
