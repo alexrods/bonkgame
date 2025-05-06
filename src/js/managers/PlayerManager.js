@@ -724,7 +724,7 @@ export class PlayerManager {
     this.player.speed = 250; // Default movement speed that can be boosted by upgrades
     
     // Initialize player health system
-    this.health = 3; // Player now has 3 hit points
+    this.health = 5; // Player now has 5 hit points
     this.maxHealth = 10; // Maximum health with shields
     
     // Set initial animation with the appropriate character prefix if needed
@@ -2474,8 +2474,8 @@ export class PlayerManager {
     
     // Initialize health if not set (one time only)
     if (typeof this.health === 'undefined') {
-      console.log('Initializing player health to 3');
-      this.health = 3;
+      console.log('Initializing player health to 5');
+      this.health = 5;
       this.maxHealth = 10;
     }
     
