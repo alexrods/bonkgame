@@ -33,6 +33,13 @@ jobs:
         mkdir -p ~/.ssh
         host="${{ secrets.DEPLOY_SERVER }}"
         ssh-keyscan -H "$host" >> ~/.ssh/known_hostss
+
+    - name: Debug listado del workspace del runner
+      run: |
+        echo "PWD: $PWD"
+        ls -la .
+        echo "--- contenido recursivo ---"
+        ls -R .
       
     - name: Sync dist to server
       run: |
@@ -41,6 +48,9 @@ jobs:
           ${{ secrets.DEPLOY_SERVER }}:/var/www/html/bonkgames-app/dist/
 
 
+
     - name: Reload Nginx
       run: |
         ssh ${{ secrets.DEPLOY_SERVER }} "sudo systemctl reload nginx"
+
+
