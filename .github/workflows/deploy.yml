@@ -31,15 +31,12 @@ jobs:
     - name: Add server to known_hosts
       run: |
         mkdir -p ~/.ssh
-        host="${{ secrets.DEPLOY_SERVER }}"
-        ssh-keyscan -H "$host" >> ~/.ssh/known_hostss
-
-    - name: Debug listado del workspace del runner
-      run: |
-        echo "PWD: $PWD"
-        ls -la .
-        echo "--- contenido recursivo ---"
-        ls -R .
+        # toma todo DEPLOY_SERVER
+        server="${{ secrets.DEPLOY_SERVER }}"
+        # extrae lo que venga después de la "@"
+        host="${server#*@}"
+        echo "Adding $host to known_hosts"
+        ssh-keyscan -H "$host" >> ~/.ssh/known_hosts
       
     - name: Sync dist to server
       run: |
@@ -48,9 +45,6 @@ jobs:
           ${{ secrets.DEPLOY_SERVER }}:/var/www/html/bonkgames-app/dist/
 
 
-
     - name: Reload Nginx
       run: |
         ssh ${{ secrets.DEPLOY_SERVER }} "sudo systemctl reload nginx"
-
-
