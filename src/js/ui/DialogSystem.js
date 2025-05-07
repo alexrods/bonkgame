@@ -686,44 +686,34 @@ export class DialogSystem {
         const dialogBoxY = isPortrait ? (height * 0.35) : height * 0.3;
         const dialogBoxHeight = isPortrait ? height * 0.3 : height * 0.25;
         
-        // Update character position relative to the container center
-        const characterX = -width * 0.4; // Left side of the container
-        
-        let characterY;
-        let originY;
-        
-        if (isPortrait) {
-          // In portrait mode, position character above the dialog box
-          characterY = dialogBoxY - (dialogBoxHeight * 0.5);
-          originY = 1.0; // Bottom edge vertically
-        } else {
-          // In landscape mode, align with the bottom of the dialog box
-          characterY = dialogBoxY + (dialogBoxHeight / 2);
-          originY = 1.0; // Bottom edge vertically
+        // Ajuste especial para Drainer: nunca dejar que tape el cuadro de diálogo
+        let characterX = -width * 0.4;
+        let characterY, originY;
+        let drainerExtraScale = 1.0;
+        if (this.currentDialog.character && this.currentDialog.character.includes('Drainer')) {
+          // Coloca a Drainer más a la izquierda y reduce su tamaño si es necesario
+          characterX = -width * 0.43;
+          drainerExtraScale = 0.8; // Reduce tamaño para nunca tapar el cuadro
         }
-        
+        if (isPortrait) {
+          characterY = dialogBoxY - (dialogBoxHeight * 0.5);
+          originY = 1.0;
+        } else {
+          characterY = dialogBoxY + (dialogBoxHeight / 2);
+          originY = 1.0;
+        }
         this.dialogCharacter.setPosition(characterX, characterY);
-        
-        // Set origin to align left-top/bottom of character with position depending on mode
-        this.dialogCharacter.setOrigin(0, originY); // Left edge horizontally, top/bottom vertically
-        
-        // Dynamically calculate appropriate size based on screen dimensions
-        // Make image proportional to screen size rather than fixed pixels
+        this.dialogCharacter.setOrigin(0, originY);
         const frameWidth = this.dialogCharacter.frame.width;
         const frameHeight = this.dialogCharacter.frame.height;
         const aspectRatio = frameWidth / frameHeight;
-        
-        // Use a simple default scaling factor for all images
-        const scaleFactor = 1.0; // Default scaling with no customization
-        console.log(`Using default scaling for image: ${this.dialogCharacter.texture.key}`);
-        
-        // Set responsive size based on screen dimensions
-        // Use percentage of screen height for more consistent sizing across devices
-        // For portrait: reduce by 33%, for landscape: increase by 25%
-        const maxHeight = isPortrait ? height * 0.355 : height * 0.83; // 0.53 * 0.67 = 0.355 (33% reduction) and 0.665 * 1.25 = 0.83 (25% increase)
+        const scaleFactor = 1.0;
+        // Ajuste de tamaño específico para Drainer
+        let maxHeight = isPortrait ? height * 0.355 : height * 0.83;
+        if (this.currentDialog.character && this.currentDialog.character.includes('Drainer')) {
+          maxHeight = maxHeight * drainerExtraScale;
+        }
         const maxWidth = maxHeight * aspectRatio;
-        
-        // Apply sizing that maintains aspect ratio
         this.dialogCharacter.setDisplaySize(maxWidth, maxHeight);
         
         // Origin already set to position the character correctly
