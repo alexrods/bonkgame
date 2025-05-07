@@ -5,8 +5,8 @@ const myCipher = cipher("transactionsalt");
 
 // Create an instance of axios
 const api = axios.create({
-  // baseURL: "http://localhost:9031/api", // for dev mode
-  baseURL: "https://bonkgames.io/api/api",
+  baseURL: "http://localhost:9031/api", // for dev mode
+  // baseURL: "https://bonkgames.io/api/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -110,6 +110,49 @@ export const withdrawCredit = async (token, solanaWallet, amount = null) => {
     throw error;
   }
 };
+
+export const withdrawBonk = async (token, solanaWallet, amount = null) => {
+  try {
+    console.log('API.js - withdrawBonk - Initilizing bonk withdrawal:', {
+      retirarTodo: amount === null,
+      amount: amount
+    });
+    
+    const requestData = {
+      encrypted_solana_wallet: myCipher(solanaWallet),
+    };
+    
+    // If a specific amount is provided, encrypt it and send it
+    // If not, do not send the parameter to withdraw all bonks
+    if (amount !== null) {
+      requestData.encrypted_del_bonk = myCipher(amount.toString());
+    } else {
+      requestData.encrypted_del_bonk = 'all';
+    }
+    
+    const response = await api.post(
+      "/users/withdrawBonk",
+      requestData,
+      {
+        headers: { "x-auth-token": token },
+      }
+    );
+    
+    console.log('API.js - withdrawBonk - Response:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('API.js - withdrawBonk - Error:', {
+      message: error.message,
+      response: error.response ? { status: error.response.status, data: error.response.data } : null
+    });
+    throw error;
+  }
+};
+
 
 export const getUserInfo = async (token) => {
   try {

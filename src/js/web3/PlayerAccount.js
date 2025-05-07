@@ -3,7 +3,9 @@ import {
   getUserInfo,
   updateCredit,
   setCreditCount,
-  withdrawCredit
+  withdrawCredit,
+  withdrawBonk,
+  updateEarnCount
 } from "../utils/api.js";
 import { SolanaWallet } from "./SolanaWallet.js";
 import { WhitelistManager } from "./WhitelistManager.js";
@@ -890,6 +892,58 @@ export class PlayerAccount {
           data: error.response.data
         });
       }
+      throw error;
+    }
+  }
+
+  /**
+   * Withdraw BONK tokens from the game account.
+   * Calls the withdrawBonk function from api.js and explicitly updates the database balance.
+   * @param {number|null} amount - Amount to withdraw, or null to withdraw all.
+   * @returns {Promise<boolean>} - True if successful.
+   */
+  async withdrawBonkFromGameAccount(amount = null) {
+    if (!this.isAuthenticated || !this.authToken) {
+      console.error("Cannot withdraw bonks: Not authenticated");
+      throw new Error("Not authenticated");
+    }
+    const walletAddr = this.getWalletAddress();
+    if (!walletAddr) {
+      console.error("No wallet address available for withdrawal.");
+      throw new Error("No wallet address available.");
+    }
+    // Si no se especifica un monto, se retiran todos los bonks disponibles
+    if (amount === null) {
+      amount = this.bonkBalance;
+    }
+    try {
+      // 1. Primero enviamos los Bonks a la wallet del usuario
+      const result = await withdrawBonk(this.authToken, walletAddr, amount);
+      console.log("WithdrawBonkFromGameAccount result:", result);
+      
+      // 2. Calculamos el nuevo saldo de Bonks
+      const newBonkBalance = amount === this.bonkBalance ? 0 : Math.max(0, this.bonkBalance - amount);
+      
+      // 3. Actualizamos explícitamente el saldo en la base de datos
+      const updateResult = await updateEarnCount(this.authToken, newBonkBalance);
+      console.log("UpdateBonkCount result:", updateResult);
+      
+      // 4. Actualizamos el saldo local con el valor de la base de datos
+      if (updateResult && updateResult.newBonkBalance !== undefined) {
+        this.bonkBalance = updateResult.newBonkBalance;
+        this.playerData.bonkBalance = updateResult.newBonkBalance;
+      } else {
+        // Si no recibimos un nuevo valor, usamos el calculado localmente
+        this.bonkBalance = newBonkBalance;
+        this.playerData.bonkBalance = newBonkBalance;
+      }
+      
+      // 5. Guardamos los datos actualizados localmente
+      this.savePlayerData();
+      
+      return true;
+    } catch (error) {
+      console.error("Failed to withdraw bonks:", error);
       throw error;
     }
   }

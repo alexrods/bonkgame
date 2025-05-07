@@ -273,10 +273,21 @@ export class DepositWithdrawPrompt {
     this.createButton(
       "WITHDRAW CREDITS 🅒",
       this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2,
+      this.scene.cameras.main.height / 2 - 60,
       () => {
         // Llamar a withdrawFromGameAccount sin parámetro para retirar todo
         this.handleGameToWalletWithdraw();
+      },
+      this.gameToWalletButtonsContainer
+    );
+
+    this.createButton(
+      "WITHDRAW BONKS",
+      this.scene.cameras.main.width / 2,
+      this.scene.cameras.main.height / 2,
+      () => {
+        // call withdrawBonk with null amount to withdraw all bonks
+        this.handleGameToWalletWithdrawBonk();
       },
       this.gameToWalletButtonsContainer
     );
@@ -285,7 +296,7 @@ export class DepositWithdrawPrompt {
     this.createButton(
       "BACK",
       this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2 + 120,
+      this.scene.cameras.main.height / 2 + 60,
       () => {
         this.switchToWalletToGameMode();
       },
@@ -1610,8 +1621,143 @@ export class DepositWithdrawPrompt {
     }
   }
 
+  async handleGameToWalletWithdrawBonk() {
+    try {
+      // Obtener el saldo actual de la cuenta del juego antes de retirarlo
+      const currentBonkBalance = this.getBonkBalance();
+      console.log(`Withdrawal amount: ${currentBonkBalance} bonks`);
+      
+      // verify if there are bonks to withdraw
+      if (currentBonkBalance <= 0) {
+        alert("No bonks to withdraw");
+        return;
+      }
+      
+      // show waiting screen
+      this.showWaitingScreen(`PROCESSING WITHDRAWAL...`);
+      
+      try {
+        // Retirar todos los bonks
+        await this.scene.playerAccount.withdrawBonkFromGameAccount();
+        
+        // CRITICAL: Ensure enemies are reset to normal speed if needed
+        if (this.scene.timeScaleManager) {
+          console.log(
+            "DepositWithdrawPrompt: Pre-emptively restoring enemy speeds before hide/reset"
+          );
+          this.scene.timeScaleManager.restoreEnemySpeeds();
+        }
+        
+        // Report withdraw to analytics
+        if (window.gtag) {
+          window.gtag("event", "withdraw_all_credits", {
+            event_category: "economy",
+            event_label: "Withdraw all credits",
+            value: currentBonkBalance,
+          });
+        }
+        
+        // Call callback if provided
+        if (this.onWithdrawCallback) {
+          console.log("Calling onWithdrawCallback");
+          this.onWithdrawCallback(currentBonkBalance);
+        }
+        
+        // Mostrar mensaje de éxito
+        this.hideWaitingScreen(
+          () => {
+            // Mostrar texto flotante de éxito
+            if (this.scene.playerManager && this.scene.playerManager.player) {
+              this.scene.events.emit("showFloatingText", {
+                x: this.scene.playerManager.player.x,
+                y: this.scene.playerManager.player.y - 50,
+                text: `WITHDREW ${currentBonkBalance} BONKS`,
+                color: "#00ffff",
+              });
+            } else {
+              console.log(`Withdrawal successful: ${currentBonkBalance} bonks to wallet`);
+            }
+            
+            // update displays
+            this.updateBalanceDisplays();
+            
+            // verify if we need to reset the wheel state
+            const comingFromWheel =
+              this.scene.droneWheel && this.scene.droneWheel.openingAtmFromWheel;
+            if (comingFromWheel) {
+              this.scene.droneWheel.openingAtmFromWheel = false;
+            }
+            
+            // reset time scales
+            this.forceTimeScaleReset();
+            
+            // normalize enemy speeds
+            this.ensureEnemiesAtNormalSpeed();
+            
+            // enable player controls
+            if (this.scene.playerManager) {
+              this.scene.playerManager.controlsEnabled = true;
+            }
+            
+            // show main container
+            this.container.setVisible(true);
+            this.container.setAlpha(1);
+            
+            // switch to wallet to game mode
+            this.switchToWalletToGameMode();
+          },
+          "WITHDRAWAL SUCCESSFUL!"
+        );
+      } catch (error) {
+        console.error("Withdrawal transaction failed:", error);
+        
+        // show error message
+        this.hideWaitingScreen(
+          () => {
+            alert("Withdrawal failed. Please try again later.");
+            
+            // reset time scales
+            this.forceTimeScaleReset();
+            
+            // normalize enemy speeds
+            this.ensureEnemiesAtNormalSpeed();
+            
+            // Habilitar controles del jugador
+            if (this.scene.playerManager) {
+              this.scene.playerManager.controlsEnabled = true;
+            }
+            
+            // Mostrar contenedor principal
+            this.container.setVisible(true);
+            this.container.setAlpha(1);
+            
+            // Volver al modo wallet to game
+            this.switchToWalletToGameMode();
+          },
+          "WITHDRAWAL FAILED!"
+        );
+      }
+    } catch (error) {
+      console.error("Error in handleGameToWalletWithdrawBonk:", error);
+      
+      // handle general error
+      alert("An unexpected error occurred. Please try again later.");
+      
+      // reset time scales
+      this.forceTimeScaleReset();
+      
+      // normalize enemy speeds
+      this.ensureEnemiesAtNormalSpeed();
+      
+      // enable player controls
+      if (this.scene.playerManager) {
+        this.scene.playerManager.controlsEnabled = true;
+      }
+    }
+  }
+
   // From game account to arena - IMPROVED VERSION
-  handleGameToArenaDeposit(gameCredits) {
+  async handleGameToArenaDeposit(gameCredits) {
     console.log(
       "IMPROVED handleGameToArenaDeposit called with amount:",
       gameCredits
