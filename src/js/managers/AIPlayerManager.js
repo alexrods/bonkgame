@@ -68,7 +68,13 @@ export class AIPlayerManager {
     console.log(`AI Player Manager initializing in ${this.isVersusMode ? 'versus' : 'story'} mode`);
 
     // Select random character for AI if not already set
+    // Sincroniza con el personaje global de la escena si existe
+    if (this.scene && this.scene.aiCharacterKey) {
+      this.aiCharacter = this.scene.aiCharacterKey;
+      console.log(`---------s[AIPlayerManager] Sincronizado aiCharacter desde GameScene: ${this.aiCharacter}`);
+    }
     if (!this.aiCharacter) {
+      console.log("AICharacter no está definido, usando valor actual:", this.aiCharacter);
       // Get player's character
       const playerChar = this.scene.registry.get('selectedCharacter') || 'default';
       
@@ -89,28 +95,7 @@ export class AIPlayerManager {
       console.log(`Retrieved AI character from registry: ${this.aiCharacter}`);
     }
     
-    // Set difficulty based on selected character
-    if (this.aiCharacter === 'character2') { // Drainer
-      this.difficultyLevel = 'hard';
-      this.shootAccuracy = 0.85;
-      this.reactionTime = 300;
-      this.decisionInterval = 400;
-    } else if (this.aiCharacter === 'character5') { // Flex
-      this.difficultyLevel = 'medium';
-      this.shootAccuracy = 0.7;
-      this.reactionTime = 500;
-      this.decisionInterval = 500;
-    } else if (this.aiCharacter === 'character3') { // Toaster
-      this.difficultyLevel = 'easy';
-      this.shootAccuracy = 0.6;
-      this.reactionTime = 700;
-      this.decisionInterval = 600;
-    } else { // Default/Degen
-      this.difficultyLevel = 'medium';
-      this.shootAccuracy = 0.75;
-      this.reactionTime = 450;
-      this.decisionInterval = 450;
-    }
+    
     
     // Initialize animation prefix
     this.animPrefix = this.aiCharacter !== 'default' ? `${this.aiCharacter}_` : '';
@@ -452,14 +437,21 @@ export class AIPlayerManager {
   }
 
   createAIPlayer(x, y) {
-    // Ensure character is properly set, with fallbacks
+    // Siempre sincroniza con el personaje global de la escena justo antes de crear el AI
+    if (this.scene && this.scene.aiCharacterKey) {
+      this.aiCharacter = this.scene.aiCharacterKey;
+      console.log(`[AIPlayerManager] [createAIPlayer] Forzando aiCharacter desde GameScene: ${this.aiCharacter}`);
+    } else {
+      console.warn('[AIPlayerManager] [createAIPlayer] GameScene.aiCharacterKey no está definido, usando valor actual:', this.aiCharacter);
+    }
+    // Si sigue sin estar definido, solo entonces intenta fallback
     if (!this.aiCharacter || this.aiCharacter === '') {
       // First check if we have a character in the registry
       const registryChar = this.scene.registry.get('aiCharacter');
-      
+      const iaCharacter = this.aiCharacter;
       if (registryChar) {
         // Use the character stored in registry
-        this.aiCharacter = registryChar;
+        //this.aiCharacter = iaCharacter;
         console.log(`Using AI character from registry: ${this.aiCharacter}`);
       } else {
         // Get player's character
@@ -478,10 +470,13 @@ export class AIPlayerManager {
     }
     
     const characterKey = this.aiCharacter;
-    
+    console.log(`[AIPlayerManager] [createAIPlayer] Personaje FINAL que se usará para el AI: ${characterKey}`);
+    if (characterKey === 'default') {
+      console.warn('[AIPlayerManager] [createAIPlayer] ADVERTENCIA: Se está usando "default" como personaje AI. Esto NO debería pasar a los 100 kills. Revisar lógica previa.');
+    }
     // Update versus mode flag
     this.isVersusMode = this.scene.versusMode === true;
-    console.log(`Creating AI player with character: ${characterKey} in ${this.isVersusMode ? 'versus' : 'story'} mode`);
+    console.log(`MODO VERSUS Creating AI player with character: ${characterKey} in ${this.isVersusMode ? 'versus' : 'story'} mode`);
     
     // Ensure animations are created before creating the sprite
     if (!this.animationsCreated) {
@@ -577,6 +572,7 @@ export class AIPlayerManager {
       this.aiPlayerShadows.push({ sprite: shadow, offset: offset });
     });
     
+    console.log("Modo versus: " + this.isVersusMode);
     // Check if we're in versus mode
     if (this.isVersusMode) {
       // Add red marker for AI player in versus mode
@@ -1675,6 +1671,7 @@ export class AIPlayerManager {
           if (this.scene.anims.exists(key) && 
               (this.aiPlayer.anims.currentAnim?.key !== key || forceAnimUpdate)) {
             this.aiPlayer.play(key, true);
+            console.log(`[AIPlayerManager] Animación reproducida para AI: personaje=${this.aiCharacter}, anim=${key}, textura=${this.aiPlayer.texture ? this.aiPlayer.texture.key : 'N/A'}, animActual=${this.aiPlayer.anims.currentAnim ? this.aiPlayer.anims.currentAnim.key : 'N/A'}`);
             //console.log(`Playing alternate AI animation: ${key} (original: ${animationKey})`);
             foundValidAnimation = true;
             break;

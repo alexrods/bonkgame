@@ -61,6 +61,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyDronesTriggered = false;
     this.milestone50Crossed = false;
     
+    console.log("GameScene MODO VERSUS init called - setting up fresh game state");
     // Pre-select AI opponents for milestone encounters
     this.selectedAIOpponents = this.preSelectAIOpponents();
     
@@ -229,6 +230,8 @@ export class GameScene extends Phaser.Scene {
   
   // Pre-select which AI characters will appear at each milestone
   preSelectAIOpponents() {
+    console.log("Pre-selecting AI opponents for milestones");
+    
     // Available AI character options
     const characterOptions = ['default', 'character2', 'character3', 'character5'];
     
@@ -238,21 +241,32 @@ export class GameScene extends Phaser.Scene {
     // Filter out player's character
     const availableCharacters = characterOptions.filter(char => char !== playerCharacter);
     
-    // Create a shuffled copy of available characters for randomness
-    const shuffled = [...availableCharacters];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
+    // Función para obtener un elemento aleatorio único
+    const getUniqueRandomCharacter = (usedCharacters) => {
+      const remainingChars = availableCharacters.filter(char => !usedCharacters.includes(char));
+      
+      // Si no quedan caracteres, reinicia el pool
+      if (remainingChars.length === 0) {
+        return Phaser.Utils.Array.GetRandom(availableCharacters);
+      }
+      
+      return Phaser.Utils.Array.GetRandom(remainingChars);
+    };
     
     // Pre-select 4 AI opponents for milestones (100, 200, 300, 400+ kills)
-    // If we run out of unique characters, cycle through them again
     const aiOpponents = [];
+    const usedCharacters = [];
+    
     for (let i = 0; i < 4; i++) {
-      aiOpponents[i] = shuffled[i % shuffled.length];
+      const selectedChar = getUniqueRandomCharacter(usedCharacters);
+      aiOpponents.push(selectedChar);
+      usedCharacters.push(selectedChar);
     }
     
-    console.log("Pre-selected AI opponents for milestones:", aiOpponents);
+    // Asignar un personaje aleatorio como aiCharacterKey global
+    this.aiCharacterKey = Phaser.Utils.Array.GetRandom(aiOpponents);
+    
+    console.log("Pre-selected AI opponents for milestones:", aiOpponents, "Global AI Character:", this.aiCharacterKey);
     return aiOpponents;
   }
   
@@ -429,6 +443,7 @@ export class GameScene extends Phaser.Scene {
         
         // Create and initialize the AI player
         this.aiPlayerManager = new AIPlayerManager(this, this.playerManager);
+        this.aiPlayerManager.aiCharacter = this.aiCharacterKey;
         this.aiPlayerManager.init();
         
         // Only immediately spawn AI player if in versus mode
@@ -885,38 +900,7 @@ export class GameScene extends Phaser.Scene {
       console.log("100 kill milestone reached - showing dialog");
       const characterImagePath = `story/${this.selectedCharacter}/intro/${this.selectedCharacter}`;
       const networkExecImagePath = "story/networkExec";
-      const dialog = [
-        {
-          character: this.characterName || "Player",
-          text: "100 kills? The crowd is loving this carnage!",
-          image: characterImagePath
-        },
-        {
-          character: "Network Exec",
-          text: "Keep it up. The ratings are through the roof!",
-          image: networkExecImagePath
-        }
-      ];
       
-      // Call dialogSystem.start directly instead of using a fixed delay
-      this.dialogSystem.start(dialog, () => {
-        // Pre-initialize the AI for el encuentro (opcional, pero no cambia la selección)
-        const aiCharacter = this.selectedAIOpponents[0];
-        if (this.aiPlayerManager && !this.aiPlayerManager.animationsCreated) {
-          console.log(`Pre-initializing AIPlayerManager for ${aiCharacter} at 100-kill mark`);
-          this.aiPlayerManager.aiCharacter = aiCharacter;
-          this.aiPlayerManager.init();
-        }
-        // Cuando termina el diálogo, espera 2s y spawnea el AI correcto
-        this.time.delayedCall(2000, () => {
-          console.log("Spawning AI after 100-kill dialog + 2s delay");
-          if (this.aiPlayerManager) {
-            this.spawnEnemyAIPlayer(aiCharacter);
-          } else {
-            console.error("Cannot spawn AI player: AIPlayerManager not available");
-          }
-        });
-      });
     }
     
     else if (killCount >= 200 && killCount < 300 && !this.messageShownFlags[200]) {
@@ -950,11 +934,12 @@ export class GameScene extends Phaser.Scene {
   ensureAIPlayerManager() {
     // Only proceed if we don't already have an AIPlayerManager
     if (!this.aiPlayerManager) {
-      console.log("Initializing AIPlayerManager for milestone events");
+      console.log("------------Initializing AIPlayerManager for milestone events");
       
       // Create and initialize the AIPlayerManager using imported class
       try {
         // Create and initialize the AI player manager
+        this.aiPlayerManager.aiCharacter = this.aiCharacterKey;
         this.aiPlayerManager = new AIPlayerManager(this, this.playerManager);
         this.aiPlayerManager.init();
         console.log('AI Player Manager initialized for milestone events');
@@ -968,7 +953,7 @@ export class GameScene extends Phaser.Scene {
   
   // Spawn an AI-controlled player at milestone kill counts
   spawnEnemyAIPlayer(aiCharacterKey) {
-    console.log("MILESTONE: Spawning enemy AI player");
+    console.log("------------MILESTONE: Spawning enemy AI player");
     
     // Ensure AIPlayerManager is available
     if (!this.aiPlayerManager) {
@@ -983,8 +968,8 @@ export class GameScene extends Phaser.Scene {
         // Retry in 500ms
         this.time.delayedCall(500, () => {
           if (this.aiPlayerManager) {
-            console.log("AIPlayerManager now available, spawning milestone AI player");
-            this.spawnEnemyAIPlayer(aiCharacterKey);
+            console.log("----------------AIPlayerManager now available, spawning milestone AI player");
+            //this.spawnEnemyAIPlayer();
           } else {
             console.error("Failed to initialize AIPlayerManager for milestone event!");
           }
@@ -1007,7 +992,7 @@ export class GameScene extends Phaser.Scene {
     const y = player.y + Math.sin(angle) * spawnDistance;
     
     // El personaje AI debe ser pasado explícitamente
-    const aiCharacter = aiCharacterKey;
+    const aiCharacter = this.aiCharacterKey;
     console.log(`[SPAWN ENEMY AI] Spawning AI character "${aiCharacter}"`);
     // Elimina cualquier AI anterior
     if (this.aiPlayerManager.aiPlayer) {
@@ -1015,9 +1000,15 @@ export class GameScene extends Phaser.Scene {
     }
     // Setea el personaje AI antes de inicializar
     this.aiPlayerManager.aiCharacter = aiCharacter;
+    console.log(`[SPAWN ENEMY AI] [DEBUG] aiPlayerManager.aiCharacter asignado:`, this.aiPlayerManager.aiCharacter);
     this.aiPlayerManager.init();
     // Crea el AI player
-    this.aiPlayerManager.createAIPlayer(x, y);
+    const aiPlayer = this.aiPlayerManager.createAIPlayer(x, y);
+    if (aiPlayer) {
+      console.log(`[SPAWN ENEMY AI] [DEBUG] AIPlayer creado con textura:`, aiPlayer.texture ? aiPlayer.texture.key : 'Sin textura');
+    } else {
+      console.warn(`[SPAWN ENEMY AI] [DEBUG] AIPlayer no se pudo crear correctamente.`);
+    }
     
     // Set up collision between player bullets and AI player
     this.physics.add.overlap(
@@ -1117,6 +1108,12 @@ export class GameScene extends Phaser.Scene {
     
     // Preload dialog images with error handling
     this.loadDialogAssets();
+
+    // Precarga explícita para Drainer si es el personaje seleccionado
+    const selectedCharacter = this.registry.get('selectedCharacter') || 'default';
+    if (selectedCharacter === 'character2') {
+      this.loadDrainerDialogAssets();
+    }
     
     // Check if this is a multiplayer game
     this.isMultiplayer = this.registry.get('multiplayer') || false;
@@ -3076,7 +3073,7 @@ export class GameScene extends Phaser.Scene {
   showIntroDialog() {
     // Get the selected character
     const selectedCharacter = this.registry.get('selectedCharacter') || 'default';
-    
+
     // Get the dialog from DialogSystem's static methods based on character
     let introDialog;
     if (selectedCharacter === 'default') {
@@ -3086,11 +3083,11 @@ export class GameScene extends Phaser.Scene {
     } else if (selectedCharacter === 'character5') {
       introDialog = DialogSystem.getFlexIntroDialog();
     } else if (selectedCharacter === 'character2') {
-      // For character2 (Drainer), still use inline dialog definition until it's migrated
-      introDialog = [
-        {
-          character: "Network Exec",
-          text: "Listen carefully, Drainer. We need this quick and clean—no mistakes.",
+        // For character2 (Drainer), still use inline dialog definition until it's migrated
+        introDialog = [
+          {
+            character: "Network Exec",
+            text: "Listen carefully, Drainer. We need this quick and clean—no mistakes.",
           image: "story/character2/intro/networkExec",
           sound: "character2_dialog1"
         },
@@ -3663,12 +3660,14 @@ export class GameScene extends Phaser.Scene {
     console.log(`Spawning AI player at position (${x}, ${y}) relative to player (${player.x}, ${player.y})`)
     
     // Get the current player character to pick a different one for the AI
-    const selectedCharacter = this.registry.get('selectedCharacter') || 'default';
+    const selectedCharacter = this.aiCharacterKey;
     
     // Choose a different character for the AI opponent - one of the other 3 characters
-    const characterOptions = ['character2', 'character3', 'character5'].filter(char => char !== selectedCharacter);
-    const aiCharacter = Phaser.Utils.Array.GetRandom(characterOptions);
-    console.log(`Player is ${selectedCharacter}, AI opponent will be ${aiCharacter}`);
+    //const characterOptions = ['character2', 'character3', 'character5'].filter(char => char !== selectedCharacter);
+    //const aiCharacter = Phaser.Utils.Array.GetRandom(characterOptions);
+    const aiCharacter = this.aiCharacterKey;
+
+    console.log(`---------Player is ${selectedCharacter}, AI opponent will be ${aiCharacter}`);
     
     // Ensure AIPlayerManager is initialized
     if (!this.aiPlayerManager) {
@@ -3684,7 +3683,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(500, () => {
           if (this.aiPlayerManager) {
             console.log("AIPlayerManager now available, spawning milestone AI player");
-            this.spawnEnemyAIPlayer();
+            //this.spawnEnemyAIPlayer();
           } else {
             console.error("Failed to initialize AIPlayerManager for milestone event!");
           }
@@ -4024,19 +4023,11 @@ export class GameScene extends Phaser.Scene {
     } else if (killCount >= 100 && killCount < 200) {
       // For 100 kills milestone
       if (selectedCharacter === "default") {
-        // Elegir oponente AI consistente para este milestone (100 kills)
-        const allOpponents = ["character2", "character3", "character5", "character6", "character7"];
-        let aiCharacter = this.selectedAIOpponents && this.selectedAIOpponents[0];
-        if (!aiCharacter || !allOpponents.includes(aiCharacter)) {
-          aiCharacter = allOpponents[Math.floor(Math.random() * allOpponents.length)];
-          if (!this.selectedAIOpponents) this.selectedAIOpponents = [];
-          this.selectedAIOpponents[0] = aiCharacter;
-          console.log('[MILESTONE 100] Seleccionado AI aleatorio para milestone:', aiCharacter);
-        } else {
-          console.log('[MILESTONE 100] Usando AI preseleccionado para milestone:', aiCharacter);
-        }
+        // Usar aiCharacterKey global directamente
+        let aiCharacter = this.aiCharacterKey;
+        console.log(`[MILESTONE 100] Usando AI character global: ${aiCharacter}`);
         let aiImage = `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}`;
-        console.log(`[MILESTONE 100] AI para dialog:`, aiCharacter, 'selectedAIOpponents:', this.selectedAIOpponents);
+        console.log(`[MILESTONE 100] AI para dialog:`, aiCharacter);
         // Usar aiCharacter para diálogo y para el spawn
         switch (aiCharacter) {
           case "character2":
