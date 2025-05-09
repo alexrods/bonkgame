@@ -3,12 +3,12 @@ import {
   getUserInfo,
   updateCredit,
   setCreditCount,
-  withdrawCredit,
-  withdrawBonk,
-  updateEarnCount
+  withdrawCredit
 } from "../utils/api.js";
 import { SolanaWallet } from "./SolanaWallet.js";
 import { WhitelistManager } from "./WhitelistManager.js";
+import { BonkGameAccount } from "./BonkGameAccount.js";
+import { ArenaBonkAccount } from "./ArenaBonkAccount.js";
 
 /**
  * PlayerAccount - Manages player account integration with web3
@@ -25,8 +25,17 @@ export class PlayerAccount {
     // Game account balance - separate from wallet and arena
     this.gameAccountBalance = 0;
 
-    // BONK balance - separate from game account and arena
-    this.bonkBalance = 0;  // Balance total en la DB
+    // BONK account classes
+    this.bonkGameAccount = new BonkGameAccount(scene);
+    this.arenaBonkAccount = new ArenaBonkAccount(scene);
+    
+    // Make sure arena BONK account is properly initialized to 0
+    if (this.arenaBonkAccount) {
+      this.arenaBonkAccount.init();
+    }
+
+    // BONK balance - legacy - we'll keep this for backward compatibility
+    this.bonkBalance = 0;
 
     // Initialize whitelist manager
     this.whitelistManager = new WhitelistManager();
@@ -50,7 +59,7 @@ export class PlayerAccount {
       highScore: 0,
       lastPlayedDate: null,
       gameAccountBalance: 0, // Add game account balance to player data
-      bonkBalance: 0, // Add BONK token balance to player data
+      bonkBalance: 0, // Add BONK token balance to player data (for backward compatibility)
       gameSettings: {
         soundEnabled: true,
         difficulty: "normal",
@@ -67,8 +76,24 @@ export class PlayerAccount {
         // Make sure to sync the gameAccountBalance with the playerData
         this.gameAccountBalance = this.playerData.gameAccountBalance || 0;
 
-        // Sync BONK balance with playerData
-        this.bonkBalance = this.playerData.bonkBalance || 0;
+        // Sync global BONK balance with bonkGameAccount
+        // Note: We're also keeping the legacy bonkBalance property for backward compatibility
+        const globalBonkBalance = this.playerData.bonkBalance || 0;
+        this.bonkBalance = globalBonkBalance;
+        
+        // Update the bonkGameAccount with the global balance
+        if (this.bonkGameAccount) {
+          this.bonkGameAccount.setBonkBalance(globalBonkBalance);
+        }
+        
+        // Arena bonk account always starts at 0 for each session
+        if (this.arenaBonkAccount) {
+          // Call init() to properly reset and initialize the arena account
+          this.arenaBonkAccount.init();
+          // Explicitly set balance to 0 again for extra safety
+          this.arenaBonkAccount.setBonkBalance(0);
+          console.log("Arena BONK account initialized and set to 0 during player data init");
+        }
       }
     } catch (error) {
       console.error("Error loading player data from localStorage:", error);
@@ -97,7 +122,60 @@ export class PlayerAccount {
       // Get user info including balances
       const userInfo = await getUserInfo(this.authToken);
       this.gameAccountBalance = userInfo.credit_count || 0;
-      this.bonkBalance = userInfo.earn || 0;
+      
+      // Check for BONK balance in the database
+      let serverBonkBalance = userInfo.earn || 0;
+      
+      // Check for backup BONK balance in localStorage (could be from previous sessions)
+      let localBackupBonkBalance = 0;
+      try {
+        const backupBalanceStr = localStorage.getItem("bonkBalanceBackup");
+        if (backupBalanceStr && !isNaN(parseFloat(backupBalanceStr))) {
+          localBackupBonkBalance = parseFloat(backupBalanceStr);
+          console.log(`Found local BONK balance backup: ${localBackupBonkBalance}`);
+        }
+      } catch (lsError) {
+        console.warn("Error checking for BONK backup in localStorage:", lsError);
+      }
+      
+      // Use the higher of the database value and local backup
+      const highestBonkBalance = Math.max(serverBonkBalance, localBackupBonkBalance);
+      console.log(`Using highest BONK balance: ${highestBonkBalance} (server: ${serverBonkBalance}, local: ${localBackupBonkBalance})`);
+      
+      // If there's a discrepancy and the local backup is higher, update the database
+      if (localBackupBonkBalance > serverBonkBalance && this.authToken) {
+        try {
+          // Import updateEarnCount
+          const { updateEarnCount } = require("../utils/api.js");
+          
+          // Update the database with the higher value
+          updateEarnCount(this.authToken, localBackupBonkBalance)
+            .then(() => console.log(`Updated DB with backed up BONK balance: ${localBackupBonkBalance}`))
+            .catch(err => console.error('Error updating BONK balance on connect:', err));
+            
+          // After successful backup restoration, clear the backup
+          localStorage.removeItem("bonkBalanceBackup");
+        } catch (updateErr) {
+          console.error("Error updating DB with backup BONK balance:", updateErr);
+        }
+      }
+      
+      // Set the BONK balance to the highest value found (for backward compatibility)
+      this.bonkBalance = highestBonkBalance;
+      
+      // Also update the bonkGameAccount with the global balance
+      if (this.bonkGameAccount) {
+        this.bonkGameAccount.setBonkBalance(highestBonkBalance);
+      }
+      
+      // Arena bonk account always starts at 0 for each session
+      if (this.arenaBonkAccount) {
+        // Call init() to properly reset and initialize the arena account
+        this.arenaBonkAccount.init();
+        // Explicitly set balance to 0 again for extra safety
+        this.arenaBonkAccount.setBonkBalance(0);
+        console.log("Arena BONK account initialized and set to 0 during wallet connect");
+      }
 
       // Update local state
       this.isAuthenticated = true;
@@ -105,7 +183,7 @@ export class PlayerAccount {
         ...this.playerData,
         address: publicKey,
         gameAccountBalance: userInfo.credit_count || 0,
-        bonkBalance: userInfo.earn || 0,
+        bonkBalance: highestBonkBalance, // Use the highest balance
       };
 
       // Save updated player data
@@ -115,11 +193,11 @@ export class PlayerAccount {
       this.scene.events.emit("player-authenticated", this.playerData);
       this.scene.events.emit(
         "gameAccountUpdated",
-        this.playerData.credit_count
+        this.playerData.gameAccountBalance
       );
       this.scene.events.emit(
         "bonkBalanceUpdated",
-        this.playerData.bonk_balance
+        this.playerData.bonkBalance
       );
 
       console.log("Player authenticated:", publicKey);
@@ -133,15 +211,46 @@ export class PlayerAccount {
    * Handle wallet disconnection
    */
   handleWalletDisconnect() {
+    // Before disconnecting, ensure current BONK balance is saved to DB
+    if (this.isAuthenticated && this.authToken && this.playerData && this.playerData.bonkBalance > 0) {
+      try {
+        // Import the updateEarnCount function if available
+        const { updateEarnCount } = require("../utils/api.js");
+        
+        // Make a final attempt to save the player's BONK balance to the database
+        updateEarnCount(this.authToken, this.playerData.bonkBalance)
+          .then(() => console.log(`Disconnect: Final DB update of BONK balance: ${this.playerData.bonkBalance}`))
+          .catch(err => console.error('Error updating BONK balance during disconnect:', err));
+      } catch (error) {
+        console.error('Could not import updateEarnCount during disconnect:', error);
+      }
+    }
+    
     this.isAuthenticated = false;
 
     // Don't clear playerData completely, just mark as not authenticated
+    // IMPORTANT: Save the data even though we're disconnecting
+    const savedAddress = this.playerData.address;
     this.playerData.address = null;
+    
+    // Save the current state to localStorage
+    try {
+      this.savePlayerData();
+      console.log(`Saved player data during disconnect with bonkBalance: ${this.playerData.bonkBalance}`);
+    } catch (saveErr) {
+      console.error('Error saving player data during disconnect:', saveErr);
+    }
 
     // Clear authenticated flag in localStorage
     try {
       localStorage.removeItem("walletAuthenticated");
       localStorage.removeItem("connectedWalletAddress");
+      
+      // Save a dedicated backup of BONK balance
+      if (this.playerData && this.playerData.bonkBalance > 0) {
+        localStorage.setItem("bonkBalanceBackup", this.playerData.bonkBalance);
+        console.log(`Saved BONK balance backup: ${this.playerData.bonkBalance}`);
+      }
     } catch (err) {
       console.warn("Could not clear wallet auth status from localStorage", err);
     }
@@ -149,16 +258,26 @@ export class PlayerAccount {
     // Notify the game that player is no longer authenticated
     this.scene.events.emit("player-disconnected");
 
-    console.log("Player disconnected");
+    console.log(`Player disconnected (wallet: ${savedAddress}, BONK balance: ${this.playerData.bonkBalance})`);
   }
 
   /**
    * Save player data to localStorage
    */
   savePlayerData() {
-    // Make sure gameAccountBalance and bonkBalance are synced to playerData before saving
+    // Make sure gameAccountBalance is synced to playerData before saving
     this.playerData.gameAccountBalance = this.gameAccountBalance;
-    this.playerData.bonkBalance = this.bonkBalance;
+    
+    // Sync bonk balances from the account classes to playerData
+    if (this.bonkGameAccount) {
+      const globalBonkBalance = this.bonkGameAccount.getBonkBalance();
+      this.playerData.bonkBalance = globalBonkBalance;
+      // Also update the legacy property for backward compatibility
+      this.bonkBalance = globalBonkBalance;
+    } else {
+      // Fallback to legacy property
+      this.playerData.bonkBalance = this.bonkBalance;
+    }
 
     try {
       localStorage.setItem("playerData", JSON.stringify(this.playerData));
@@ -406,10 +525,14 @@ export class PlayerAccount {
 
   /**
    * Get the player's BONK balance
+   * @param {boolean} [fromArena=false] - Whether to get the arena balance instead of global
    * @returns {number} Current BONK balance
    */
-  getBonkBalance() {
-    return this.bonkBalance;
+  getBonkBalance(fromArena = false) {
+    if (fromArena) {
+      return this.arenaBonkAccount ? this.arenaBonkAccount.getBonkBalance() : 0;
+    }
+    return this.bonkGameAccount ? this.bonkGameAccount.getBonkBalance() : this.bonkBalance;
   }
 
   /**
@@ -448,37 +571,61 @@ export class PlayerAccount {
   /**
    * Update the player's BONK balance
    * @param {number} amount - Amount to add (positive) or subtract (negative)
+   * @param {boolean} [toArena=false] - Whether to update the arena balance instead of global
    * @returns {number} New BONK balance
    */
-  updateBonkBalance(amount) {
-    this.bonkBalance += amount;
-
-    // Ensure balance doesn't go below zero
-    if (this.bonkBalance < 0) {
-      this.bonkBalance = 0;
-    }
-
-    // Update player data and save
-    this.playerData.bonkBalance = this.bonkBalance;
-    this.savePlayerData();
-
-    // FIXED: Emit an event so UI elements can update - with try/catch for safety
-    try {
-      if (this.scene && this.scene.events) {
-        console.log(
-          `Emitting bonkBalanceUpdated event with balance: ${this.bonkBalance}`
-        );
-        this.scene.events.emit("bonkBalanceUpdated", this.bonkBalance);
+  updateBonkBalance(amount, toArena = false) {
+    let newBalance = 0;
+    
+    if (toArena) {
+      // Update the arena-specific BONK balance
+      if (this.arenaBonkAccount) {
+        newBalance = this.arenaBonkAccount.updateBonkBalance(amount);
+        console.log(`Updated arena BONK balance by ${amount} to ${newBalance}`);
       } else {
-        console.warn(
-          "Cannot emit bonkBalanceUpdated event - scene or events not available"
-        );
+        console.warn("Cannot update arena BONK balance: ArenaBonkAccount not available");
+        return 0;
       }
-    } catch (error) {
-      console.error("Error emitting bonkBalanceUpdated event:", error);
+    } else {
+      // Update the global BONK balance
+      if (this.bonkGameAccount) {
+        newBalance = this.bonkGameAccount.updateBonkBalance(amount);
+        console.log(`Updated global BONK balance by ${amount} to ${newBalance}`);
+        
+        // Also update legacy property for backward compatibility
+        this.bonkBalance = newBalance;
+        
+        // Update player data and save
+        this.playerData.bonkBalance = newBalance;
+        this.savePlayerData();
+      } else {
+        // Fallback to legacy behavior
+        this.bonkBalance += amount;
+        
+        // Ensure balance doesn't go below zero
+        if (this.bonkBalance < 0) {
+          this.bonkBalance = 0;
+        }
+        
+        newBalance = this.bonkBalance;
+        
+        // Update player data and save
+        this.playerData.bonkBalance = this.bonkBalance;
+        this.savePlayerData();
+        
+        // Emit event manually (since we're not using the account class)
+        try {
+          if (this.scene && this.scene.events) {
+            console.log(`Emitting bonkBalanceUpdated event with balance: ${this.bonkBalance}`);
+            this.scene.events.emit("bonkBalanceUpdated", this.bonkBalance);
+          }
+        } catch (error) {
+          console.error("Error emitting bonkBalanceUpdated event:", error);
+        }
+      }
     }
 
-    return this.bonkBalance;
+    return newBalance;
   }
 
   /**
@@ -519,39 +666,77 @@ export class PlayerAccount {
   }
 
   /**
-   * Withdraw all credits from game account to Solana wallet
+   * Withdraw from game account to Solana wallet
+   * @param {number} gameCredits - Amount of game credits to withdraw
+   * @param {number} solAmount - Equivalent SOL to receive
    * @returns {boolean} Whether the transaction succeeded
    */
-  async withdrawFromGameAccount() {
+  async withdrawFromGameAccount(amount) {
     if (!this.isAuthenticated || !this.authToken) {
       throw new Error("Not authenticated");
     }
 
+    // Create a deliberate delay to show the waiting screen
+    // This is important so users don't think the transaction is happening instantly
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     try {
-      // Get current credit count from player data
-      const totalCredits = this.gameAccountBalance || 0;
+      console.log(`Starting withdrawal of ${amount} credits to wallet ${this.wallet.getPublicKey()}`);
       
-      if (totalCredits <= 0) {
-        console.log("No credits to withdraw");
-        return false;
-      }
+      // Call the backend API to withdraw funds
+      const result = await withdrawCredit(this.authToken, this.wallet.getPublicKey(), amount);
       
-      // Withdraw all credits
-      await withdrawCredit(this.authToken, this.wallet.getPublicKey(), totalCredits);
+      // Add a second delay to simulate blockchain transaction time
+      // This gives users confidence that something is actually happening
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      console.log("Withdrawal transaction successful:", result);
 
       // Update local state
-      this.gameAccountBalance = 0;
-      this.playerData.gameAccountBalance = 0;
+      this.playerData.credit_count = Math.max(
+        0,
+        this.playerData.credit_count - amount
+      );
       this.savePlayerData();
 
       // Emit update event
-      this.scene.events.emit("gameAccountUpdated", 0);
+      this.scene.events.emit(
+        "gameAccountUpdated",
+        this.playerData.credit_count
+      );
 
-      console.log(`Successfully withdrew all credits (${totalCredits})`);
       return true;
     } catch (error) {
       console.error("Error withdrawing from game account:", error);
-      return false;
+      
+      // Let's add some basic error categorization
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error("Server error response:", {
+          status: error.response.status,
+          data: error.response.data
+        });
+        
+        // Check for specific status codes
+        if (error.response.status === 401) {
+          throw new Error("Authentication error. Please reconnect your wallet.");
+        } else if (error.response.status === 400) {
+          throw new Error("Invalid withdrawal request. Please check your balance.");
+        } else if (error.response.status === 429) {
+          throw new Error("Too many withdrawal attempts. Please try again later.");
+        }
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error("No response from server:", error.request);
+        throw new Error("Server not responding. Please check your connection.");
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error("Request setup error:", error.message);
+      }
+      
+      // If we haven't thrown a specific error yet, throw a generic one
+      throw new Error("Withdrawal failed: " + (error.message || "Unknown error"));
     }
   }
 
@@ -847,7 +1032,6 @@ export class PlayerAccount {
 
     return true;
   }
-  
   /**
    * Returns the public address of the connected wallet * Miguel Addition
    * @returns {string|null}
@@ -866,7 +1050,7 @@ export class PlayerAccount {
   async setCreditCount(creditCount) {
     if (!this.isAuthenticated || !this.authToken) {
       console.error("Cannot update credit count: Not authenticated");
-      console.log("Authentication state:", { 
+      console.log("Estado de autenticación:", { 
         isAuthenticated: this.isAuthenticated, 
         hasToken: !!this.authToken, 
         tokenLength: this.authToken ? this.authToken.length : 0 
@@ -892,58 +1076,6 @@ export class PlayerAccount {
           data: error.response.data
         });
       }
-      throw error;
-    }
-  }
-
-  /**
-   * Withdraw BONK tokens from the game account.
-   * Calls the withdrawBonk function from api.js and explicitly updates the database balance.
-   * @param {number|null} amount - Amount to withdraw, or null to withdraw all.
-   * @returns {Promise<boolean>} - True if successful.
-   */
-  async withdrawBonkFromGameAccount(amount = null) {
-    if (!this.isAuthenticated || !this.authToken) {
-      console.error("Cannot withdraw bonks: Not authenticated");
-      throw new Error("Not authenticated");
-    }
-    const walletAddr = this.getWalletAddress();
-    if (!walletAddr) {
-      console.error("No wallet address available for withdrawal.");
-      throw new Error("No wallet address available.");
-    }
-    // Si no se especifica un monto, se retiran todos los bonks disponibles
-    if (amount === null) {
-      amount = this.bonkBalance;
-    }
-    try {
-      // 1. Primero enviamos los Bonks a la wallet del usuario
-      const result = await withdrawBonk(this.authToken, walletAddr, amount);
-      console.log("WithdrawBonkFromGameAccount result:", result);
-      
-      // 2. Calculamos el nuevo saldo de Bonks
-      const newBonkBalance = amount === this.bonkBalance ? 0 : Math.max(0, this.bonkBalance - amount);
-      
-      // 3. Actualizamos explícitamente el saldo en la base de datos
-      const updateResult = await updateEarnCount(this.authToken, newBonkBalance);
-      console.log("UpdateBonkCount result:", updateResult);
-      
-      // 4. Actualizamos el saldo local con el valor de la base de datos
-      if (updateResult && updateResult.newBonkBalance !== undefined) {
-        this.bonkBalance = updateResult.newBonkBalance;
-        this.playerData.bonkBalance = updateResult.newBonkBalance;
-      } else {
-        // Si no recibimos un nuevo valor, usamos el calculado localmente
-        this.bonkBalance = newBonkBalance;
-        this.playerData.bonkBalance = newBonkBalance;
-      }
-      
-      // 5. Guardamos los datos actualizados localmente
-      this.savePlayerData();
-      
-      return true;
-    } catch (error) {
-      console.error("Failed to withdraw bonks:", error);
       throw error;
     }
   }

@@ -105,6 +105,9 @@ export function preloadSprites(scene) {
     scene.load.audio('dialog2', '/assets/sound/story/degen/intro/dialog2.mp3');
     scene.load.audio('dialog3', '/assets/sound/story/degen/intro/dialog3.mp3');
     scene.load.audio('dialog4', '/assets/sound/story/degen/intro/dialog4.mp3');
+
+
+
     
     // Load character3 (Toaster) dialog sounds
     console.log("Loading toaster dialog sound files...");
@@ -131,17 +134,35 @@ export function preloadSprites(scene) {
     scene.load.image('story/character3/intro/toaster', '/assets/story/character3/intro/toaster.png');
     scene.load.image('story/character3/intro/kid', '/assets/story/character3/intro/kid.png');
     scene.load.image('story/character3/intro/networkExec', '/assets/story/character3/intro/networkExec.png');
+
+    // Load character2 (Drainer) dialog portraits
+    console.log("Loading drainer dialog portrait images...");
+    scene.load.image('story/character2/intro/drainer', '/assets/story/character2/intro/drainer.png');
+    scene.load.image('story/character2/intro/networkExec', '/assets/story/character2/intro/networkExec.png');
     
     // Load character5 (Flex) dialog portraits
     console.log("Loading flex dialog portrait images...");
     scene.load.image('story/character5/intro/flex', '/assets/story/character5/intro/flex.png');
     scene.load.image('story/character5/intro/grandma', '/assets/story/character5/intro/grandma.png');
     scene.load.image('story/character5/intro/networkExec', '/assets/story/character5/intro/networkExec.png');
+
+    // Load 100 kills character 6  portrait
+    console.log("Loading 100 kills milestone portrait...");
+    scene.load.image('story/vibe', '/assets/story/vibe.png');
+    //scene.load.image('story/degen', '/assets/story/degen.png');
+
+
+    // Load 100 kills character 6  portrait
+    console.log("Loading 100 kills milestone portrait...");
+    scene.load.image('story/dvd', '/assets/story/dvd.png');
+    //scene.load.image('story/degen', '/assets/story/degen.png');
     
     // Load Network Drone Pilot portrait and sound
     console.log("Loading Network Drone Pilot portrait image and sound...");
     scene.load.image('story/networkDronePilot', '/assets/story/networkDronePilot.png');
     scene.load.audio('dronePilot_50kills', '/assets/sound/story/all/50kills/dronePilot.mp3');
+    
+    
     
     // Load degen 50 kills sounds
     console.log("Loading degen 50 kills sounds...");
@@ -157,6 +178,11 @@ export function preloadSprites(scene) {
     console.log("Loading toaster 50 kills sounds...");
     scene.load.audio('toaster50kills', '/assets/sound/story/toaster/50kills/toaster50kills.mp3');
     scene.load.audio('toaster50kills1', '/assets/sound/story/toaster/50kills/toaster50kills1.mp3');
+
+    // Load 300 kills Omen and Degen portrait
+    console.log("Loading 300 kills milestone portrait...");
+    scene.load.image('story/omen', '/assets/story/omen.png');
+    //scene.load.image('story/degen', '/assets/story/degen.png');
     
     // Load credit collection sound effects
     scene.load.audio('credit', [
@@ -440,7 +466,10 @@ export function preloadSprites(scene) {
     // Add more character IDs here as they become available
     'character2',
     'character3',
+    'character4',
     'character5',
+    'character6',
+    'character7',
     // etc...
   ];
   

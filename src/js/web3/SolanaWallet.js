@@ -26,9 +26,9 @@ export class SolanaWallet {
     this.walletDropdownVisible = false;
 
     this.Credit_DECIMALS = 6;
-    this.Credit_MINT_ADDRESS = "7d7HjBSdPP6jixeUpoQKxoF7vfEUU87XG3mgTCvTbjD1";
+    this.Credit_MINT_ADDRESS = "dsitAJapavcqf2UsXzP4jBz2wBC6nu3od7D45idwiSU";
     this.Bonk_DECIMALS = 6;
-    this.Bonk_MINT_ADDRESS = "BSxABLGQjQgaUxLisb4bc9hFSzSkbbTGfeKWgAC8Ygc7";
+    this.Bonk_MINT_ADDRESS = "dsitAJapavcqf2UsXzP4jBz2wBC6nu3od7D45idwiSU";
     this.ADMIN_WALLET_ADDRESS = "CGacpojgdVcuUBZuFJqWu3eiEVcbXAxQcXXridgvFhRg";
 
     // Supported wallets

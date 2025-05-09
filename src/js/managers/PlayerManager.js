@@ -724,8 +724,8 @@ export class PlayerManager {
     this.player.speed = 250; // Default movement speed that can be boosted by upgrades
     
     // Initialize player health system
-    this.health = 5; // Player now has 3 hit points
-    this.maxHealth = 10; // Maximum health with shields
+    this.health = 5; // Player now has 5 hit points
+    this.maxHealth = 10; // Maximum health 10 with shields
     
     // Set initial animation with the appropriate character prefix if needed
     const animPrefix = selectedCharacter !== 'default' ? `${selectedCharacter}_` : '';
@@ -1122,7 +1122,7 @@ export class PlayerManager {
     this.healthContainer.add(this.shieldIcon);
     
     // Initialize health and maxHealth if they're undefined
-    if (this.health === undefined) this.health = 5;
+    if (this.health === undefined) this.health = 5; // Changed from 3 to 5 to match player's initial health
     if (this.maxHealth === undefined) this.maxHealth = 10;
     
     // Add a text display showing health value - centered in the health bar
@@ -1427,7 +1427,9 @@ export class PlayerManager {
   
   // Clean up other player's bullets
   cleanupOtherPlayerBullets() {
-    if (!this.otherPlayerBullets) return;
+    if (!this.otherPlayerBullets || !this.otherPlayerBullets.children) {
+      return;
+    }
     
     // Remove off-screen bullets - use a larger boundary
     const buffer = 200;
@@ -1787,6 +1789,12 @@ export class PlayerManager {
   }
   
   cleanupBullets() {
+    // Check that bullets and children exist before attempting cleanup
+    if (!this.bullets || !this.bullets.children) {
+      console.warn('Cannot cleanup bullets: bullets group or children is null');
+      return;
+    }
+    
     // Remove off-screen bullets - use a larger boundary to prevent premature cleanup
     // Add a 200px buffer to each dimension
     const buffer = 200;
@@ -1838,7 +1846,7 @@ export class PlayerManager {
         return;
       }
       
-      //console.log(`Trying to play animation: ${primaryKey}, exists: ${this.scene.anims.exists(primaryKey)}`);
+      console.log(`Trying to play animation: ${primaryKey}, exists: ${this.scene.anims.exists(primaryKey)}`);
       if (this.scene.anims.exists(primaryKey)) {
         this.player.play(primaryKey, true);
       } else {
@@ -2474,8 +2482,8 @@ export class PlayerManager {
     
     // Initialize health if not set (one time only)
     if (typeof this.health === 'undefined') {
-      console.log('Initializing player health to 5');
-      this.health = 5;
+      console.log('Initializing player health to 3');
+      this.health = 3;
       this.maxHealth = 10;
     }
     

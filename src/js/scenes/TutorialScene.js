@@ -2492,7 +2492,10 @@ export class TutorialScene extends Phaser.Scene {
   checkPlayerEnemyCollisions() {
     const player = this.playerManager.getPlayer();
     
-    this.enemyManager.getEnemies().children.each(enemy => {
+    const enemies = this.enemyManager.getEnemies();
+    if (!enemies || !enemies.children) return;
+    
+    enemies.children.each(enemy => {
       if (enemy.isAttacking) return;
       
       const dx = player.x - enemy.x;

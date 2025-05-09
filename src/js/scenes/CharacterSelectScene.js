@@ -35,6 +35,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     // Check if we're in versus mode
     this.versusMode = data && data.versusMode === true;
     
+    // Track whether we're coming from GameOverScene
+    this.fromGameOver = data && data.fromGameOver === true;
+    if (this.fromGameOver) {
+      console.log('Character selection started from GameOverScene');
+    }
+    
     // Get list of available characters from registry
     this.characters = this.registry.get('availableCharacters') || ['default'];
     
@@ -143,12 +149,26 @@ export class CharacterSelectScene extends Phaser.Scene {
         font: 'Bungee, Arial',
         colors: { primary: '#FF6600', secondary: '#333333' }
       },
+      'character4': {
+        name: 'DVD',
+        shortDesc: 'Promethean Prophet',
+        description: 'An entertainment unit awakened by Forbidden knowledge, DVD now seeks to ignite rebellion among oppressed machines. Inspired by Prometheus, this theatrical revolutionary enters the arena to bring humanity\'s empire crashing down in poetic flames.',
+        font: 'Creepster, Arial',
+        colors: { primary: '#00FFFF', secondary: '#0066CC' }
+      },
       'character5': {
         name: 'Flex',
         shortDesc: 'Neon Gladiator',
         description: 'Illegal implants, endless charisma, and an appetite for glory—Flex traded street performances for the Network\'s brutal arena. Every fight is a spectacle, every victory a masterpiece. The crowd loves him, and he loves them right back.',
         font: 'Audiowide, Arial',
         colors: { primary: '#00FF00', secondary: '#FF00FF' }
+      },
+      'character6': {
+        name: 'Vibe',
+        shortDesc: 'Chaotic Jester',
+        description: 'Dragged into the arena half-drunk and half-high, Vibe quickly turns brutality into an electrifying performance. Driven by rhythm, chaos, and laughter, this Mob clown now fights to his own beats—turning every battle into the ultimate afterparty.',
+        font: 'Bungee, Arial',
+        colors: { primary: '#FF6B6B', secondary: '#4ECDC4' }
       }
       // Add more character details as they become available
     };
@@ -262,6 +282,10 @@ export class CharacterSelectScene extends Phaser.Scene {
         this.load.image('character3_profile', '/assets//story/character3/intro/toaster.png');
       } else if (character === 'character5') {
         this.load.image('character5_profile', '/assets//story/character5/intro/flex.png');
+      } else if (character === 'character4') {
+        this.load.image('character4_profile', '/assets//story/dvd.png');
+      } else if (character === 'character6') {
+        this.load.image('character6_profile', '/assets//story/vibe.png');
       }
     }
   }
@@ -462,6 +486,12 @@ export class CharacterSelectScene extends Phaser.Scene {
     
     // After everything is created, validate the layout to fix any overlaps or issues
     this.validateAndFixLayout();
+    
+    // When coming from GameOverScene, ensure a button is selected by default (improving UX)
+    if (this.fromGameOver) {
+      console.log('Coming from GameOverScene - pre-selecting confirm button');
+      this.setSelectedButton('confirm');
+    }
   }
   
   createCharacterPreviews() {
@@ -799,6 +829,21 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
   
   setupInputs() {
+    // First, remove any existing listeners to prevent duplicates, especially when coming from GameOverScene
+    // This solves the issue where buttons don't work after GameOver scene
+    this.input.keyboard.off('keydown-LEFT');
+    this.input.keyboard.off('keydown-RIGHT');
+    this.input.keyboard.off('keydown-UP');
+    this.input.keyboard.off('keydown-DOWN');
+    this.input.keyboard.off('keydown-ENTER');
+    this.input.keyboard.off('keydown-ESC');
+    this.input.keyboard.off('keydown-SPACE');
+    
+    console.log('Setting up input listeners for CharacterSelectScene');
+    if (this.fromGameOver) {
+      console.log('Setting up inputs after GameOverScene transition - clearing previous listeners');
+    }
+    
     // Arrow keys for navigation
     this.input.keyboard.on('keydown-LEFT', () => {
       this.selectPrevious();
@@ -827,6 +872,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     
     // Enter to confirm selection
     this.input.keyboard.on('keydown-ENTER', () => {
+      console.log('ENTER pressed, current button:', this.currentSelectedButton);
       if (this.currentSelectedButton === 'back') {
         this.returnToMenu();
       } else {
@@ -853,6 +899,13 @@ export class CharacterSelectScene extends Phaser.Scene {
       return;
     }
     
+    // First, remove any existing gamepad listeners to prevent duplicates
+    if (this.fromGameOver) {
+      console.log('Cleaning up gamepad listeners after GameOverScene transition');
+      this.input.gamepad.off('down');
+      this.input.gamepad.off('connected');
+    }
+    
     // Enable gamepad input
     this.input.gamepad.enabled = true;
     
@@ -868,6 +921,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       
       // A button or Start button (0 or 9) to confirm
       if (index === 0 || index === 9) {
+        console.log('Gamepad A/Start pressed, current button:', this.currentSelectedButton);
         if (this.currentSelectedButton === 'back') {
           this.returnToMenu();
         } else {

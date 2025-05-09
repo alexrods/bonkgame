@@ -1304,7 +1304,7 @@ export class DroneManager {
       
       // Find the nearest enemy
       const enemies = this.scene.enemyManager.getEnemies();
-      if (!enemies || enemies.getChildren().length === 0) return;
+      if (!enemies || !enemies.getChildren || enemies.getChildren().length === 0) return;
       
       let nearestEnemy = null;
       let minDistance = Number.MAX_VALUE;
@@ -1522,7 +1522,7 @@ export class DroneManager {
       
       // Find nearest enemy for direction facing
       const enemies = this.scene.enemyManager.getEnemies();
-      if (enemies && enemies.getChildren().length > 0) {
+      if (enemies && enemies.getChildren && enemies.getChildren().length > 0) {
         let nearestEnemy = null;
         let minDistance = Number.MAX_VALUE;
         

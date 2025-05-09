@@ -1,0 +1,1206 @@
+import { GAME_WIDTH, GAME_HEIGHT, BULLET_TIME_SLOWDOWN } from '../../config.js';
+import { BonkRhythmGame } from './BonkRhythmGame.js';
+import { DepositWithdrawPrompt } from './DepositWithdrawPrompt.js';
+import { WeaponsMenu } from './WeaponsMenu.js';
+
+export class DroneWheel {
+  constructor(scene) {
+    this.scene = scene;
+    this.isVisible = false;
+    this.wheelContainer = null;
+    this.centerX = GAME_WIDTH / 2;
+    this.centerY = GAME_HEIGHT / 2;
+    this.radius = 120;
+    this.selectedIndex = -1; // No option preselected by default
+    this.upgradeOptions = [];
+    this.selectedSegment = null;
+    this.selectionCursor = null;
+    this.rhythmGame = null;
+    this.depositWithdrawPrompt = null;
+    this.weaponsMenu = null;
+    
+    console.log("DroneWheel constructor called");
+    
+    // Define available upgrades with costs and levels
+    this.availableUpgrades = [
+      { 
+        type: 'speed', 
+        name: 'Speed Boots', 
+        emoji: '👢', 
+        color: 0x00ffff,
+        levels: [
+          { level: 1, cost: 25, effect: 1.1, description: '+10% Speed' },
+          { level: 2, cost: 50, effect: 1.2, description: '+20% Speed' },
+          { level: 3, cost: 100, effect: 1.3, description: '+30% Speed' },
+          { level: 4, cost: 200, effect: 1.4, description: '+40% Speed' }
+        ]
+      },
+      { 
+        type: 'fireRate', 
+        name: 'Rapid Fire', 
+        emoji: '🔫', 
+        color: 0xff0000,
+        levels: [
+          { level: 1, cost: 100, effect: 0.7, description: 'Weapon Select' }
+        ]
+      },
+      { 
+        type: 'armor', 
+        name: 'Shield', 
+        emoji: null,
+        sprite: 'shield',
+        color: 0xffff00,
+        levels: [
+          { level: 1, cost: 100, effect: 1, description: '+1 HP (max 10)' }
+        ]
+      },
+      {
+        type: 'withdraw',
+        name: 'HACK',
+        emoji: '🏧',
+        color: 0xff6600,
+        levels: [
+          { level: 1, cost: 0, effect: 1, description: 'Earn BONK Tokens' }
+        ]
+      },
+      {
+        type: 'magazine',
+        name: 'Ammo',
+        emoji: null,
+        sprite: 'bullets',
+        color: 0x00ff00,
+        levels: [
+          { level: 1, cost: 20, effect: 4, description: '4 Magazines' }
+        ]
+      },
+      {
+        type: 'bulletTime',
+        name: 'Stimulants',
+        emoji: null,
+        sprite: 'pills',
+        color: 0x9966ff,
+        levels: [
+          { level: 1, cost: 50, effect: 0.3, description: '30s Stimulants' }
+        ]
+      },
+      {
+        type: 'emote',
+        name: 'Emote',
+        emoji: '😊',
+        color: 0xcc6600,
+        levels: [
+          { level: 1, cost: 10, effect: 1, description: 'Express yourself' }
+        ]
+      },
+      {
+        type: 'robot',
+        name: 'Combat Robot',
+        emoji: '🤖',
+        color: 0x0099cc,
+        levels: [
+          { level: 1, cost: 100, effect: 1, description: 'Combat Robot' }
+        ]
+      }
+    ];
+
+    // Store upgrade level progress
+    this.currentUpgradeLevels = {
+      speed: 0,
+      fireRate: 0,
+      armor: 0,
+      withdraw: 0,
+      magazine: 0,
+      bulletTime: 0,
+      emote: 0,
+      robot: 0
+    };
+  }
+
+  init() {
+    // Create the main container for the wheel - position will be updated in show()
+    this.wheelContainer = this.scene.add.container(0, 0);
+    this.wheelContainer.setDepth(1000); // Set high depth to appear above everything
+    this.wheelContainer.setAlpha(0); // Initially hidden
+    
+    // Create the background panel - darker and slightly transparent
+    const background = this.scene.add.circle(0, 0, this.radius + 40, 0x000000, 0.7);
+    this.wheelContainer.add(background);
+    
+    // Create segments for each upgrade
+    this.createUpgradeSegments();
+    
+    // Create a selection cursor
+    this.createSelectionCursor();
+    
+    // Add a title with better styling
+    const title = this.scene.add.text(0, -this.radius - 25, 'DRONE UPGRADES', {
+      fontFamily: 'Tektur, Arial',
+      fontSize: '20px',
+      color: '#00ffff',
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 3
+    });
+    title.setOrigin(0.5);
+    this.wheelContainer.add(title);
+    
+    // Add credit display with improved styling
+    this.creditText = this.scene.add.text(0, this.radius + 20, 'TOKENS: $0', {
+      fontFamily: 'Tektur, Arial',
+      fontSize: '16px',
+      color: '#ffff00',
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 2
+    });
+    this.creditText.setOrigin(0.5);
+    this.wheelContainer.add(this.creditText);
+    
+    // Add description text with improved styling
+    this.descriptionText = this.scene.add.text(0, this.radius + 45, '', {
+      fontFamily: 'Tektur, Arial',
+      fontSize: '14px',
+      color: '#ffffff',
+      align: 'center',
+      stroke: '#000000',
+      strokeThickness: 2
+    });
+    this.descriptionText.setOrigin(0.5);
+    this.wheelContainer.add(this.descriptionText);
+    
+    // Initialize rhythm game
+    this.rhythmGame = new BonkRhythmGame(this.scene);
+    this.rhythmGame.preload();
+    
+    // Initialize deposit/withdraw prompt (initially null in tutorial mode)
+    if (this.scene.scene.key !== 'TutorialScene') {
+      this.depositWithdrawPrompt = new DepositWithdrawPrompt(this.scene);
+      this.depositWithdrawPrompt.create();
+    } else {
+      // In tutorial mode, don't create the deposit/withdraw prompt yet
+      this.depositWithdrawPrompt = null;
+    }
+    
+    // Initialize weapons menu
+    this.weaponsMenu = new WeaponsMenu(this.scene);
+    
+    // Initial setup
+    this.updateSelection();
+  }
+
+  createUpgradeSegments() {
+    const segmentCount = this.availableUpgrades.length;
+    console.log(`Creating wheel with ${segmentCount} upgrade options`);
+    const segmentAngle = (Math.PI * 2) / segmentCount;
+    
+    this.upgradeOptions = [];
+    
+    // Load the drone wheel image
+    const wheelImage = this.scene.add.image(0, 0, 'dronewheel');
+    wheelImage.setAlpha(0.9);
+    wheelImage.setScale(0.45); // 20% larger than 0.375
+    wheelImage.setAngle(22.5); // Rotate 22.5 degrees clockwise
+    this.wheelContainer.add(wheelImage);
+    
+    // Create segments for each upgrade
+    for (let i = 0; i < segmentCount; i++) {
+      const angle = i * segmentAngle;
+      const upgrade = this.availableUpgrades[i];
+      console.log(`Creating segment ${i}: ${upgrade.name} (${upgrade.type})`);
+      // Move icons inward by 20% of the radius
+      const adjustedRadius = this.radius * 0.8; 
+      const x = Math.cos(angle) * adjustedRadius;
+      const y = Math.sin(angle) * adjustedRadius;
+      
+      // Create segment background (smaller and more transparent with the wheel image behind it)
+      const segment = this.scene.add.circle(x, y, 28, upgrade.color, 0.25);
+      this.wheelContainer.add(segment);
+      
+      // Add icon (either emoji or sprite)
+      let icon;
+      if (upgrade.sprite) {
+        // For shield, position it slightly further from center
+        let posX = x;
+        let posY = y;
+        
+        if (upgrade.type === 'armor') {
+          // Calculate position 5% further away from wheel center
+          const angle = Math.atan2(y, x);
+          const distanceAdjust = this.radius * 0.05; // 5% of radius
+          posX = x + Math.cos(angle) * distanceAdjust;
+          posY = y + Math.sin(angle) * distanceAdjust;
+        }
+        
+        // Use sprite image
+        icon = this.scene.add.image(posX, posY, upgrade.sprite);
+        icon.setScale(0.05); // Halved again to 1/20 original size
+      } else {
+        // Use emoji as fallback
+        icon = this.scene.add.text(x, y, upgrade.emoji, {
+          fontSize: '24px'
+        });
+      }
+      icon.setOrigin(0.5);
+      this.wheelContainer.add(icon);
+      
+      // Add price display aligned with center of wheel
+      let levelText;
+      
+      // Calculate position that points to center with specified distance
+      const angleToCenter = Math.atan2(y, x) + Math.PI; // Add PI to point toward center
+      const textDistance = 38; // Set to exactly 38px as requested
+      const textX = x + Math.cos(angleToCenter) * textDistance;
+      const textY = y + Math.sin(angleToCenter) * textDistance;
+      
+      // Reduce font size by 25% from the increased size (21px * 0.75 = ~16px)
+      const fontSize = '16px';
+      
+      if (upgrade.type === 'withdraw') {
+        levelText = this.scene.add.text(textX, textY, '', {
+          fontFamily: 'Arial',
+          fontSize: fontSize,
+          color: '#ffffff'
+        });
+      } else if (upgrade.type === 'robot') {
+        levelText = this.scene.add.text(textX, textY, '100🅒', {
+          fontFamily: 'Arial',
+          fontSize: fontSize,
+          color: '#ffffff'
+        });
+      } else {
+        levelText = this.scene.add.text(textX, textY, upgrade.levels[0].cost + '🅒', {
+          fontFamily: 'Arial',
+          fontSize: fontSize,
+          color: '#ffffff'
+        });
+      }
+      levelText.setOrigin(0.5);
+      this.wheelContainer.add(levelText);
+      
+      // Store references
+      this.upgradeOptions.push({
+        segment,
+        icon,
+        levelText,
+        type: upgrade.type,
+        name: upgrade.name,
+        levels: upgrade.levels,
+        index: i
+      });
+    }
+    
+    console.log(`Total upgrade options created: ${this.upgradeOptions.length}`);
+  }
+
+  createSelectionCursor() {
+    this.selectionCursor = this.scene.add.graphics();
+    this.wheelContainer.add(this.selectionCursor);
+    this.updateSelectionCursor();
+  }
+
+  updateSelectionCursor() {
+    if (!this.selectionCursor) return;
+    
+    this.selectionCursor.clear();
+    
+    // If no selection (-1) or no options, don't draw cursor
+    if (this.selectedIndex === -1 || this.upgradeOptions.length === 0) return;
+    
+    const selected = this.upgradeOptions[this.selectedIndex];
+    const segment = selected.segment;
+    
+    // Draw a more attractive glowing ring around the selected segment
+    // First draw a slightly larger outer glow
+    this.selectionCursor.lineStyle(5, 0x00ffff, 0.3);
+    this.selectionCursor.strokeCircle(segment.x, segment.y, 42);
+    
+    // Then draw a bright inner ring
+    this.selectionCursor.lineStyle(3, 0x00ffff, 0.8);
+    this.selectionCursor.strokeCircle(segment.x, segment.y, 38);
+    
+    // Add a pulsing animation to the selection cursor
+    if (!this.pulseAnimation) {
+      this.pulseAnimation = this.scene.tweens.add({
+        targets: this.selectionCursor,
+        alpha: { from: 0.8, to: 1 },
+        duration: 800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
+      });
+    }
+  }
+
+  updateSelection() {
+    console.log(`updateSelection with selectedIndex=${this.selectedIndex}, options length=${this.upgradeOptions.length}`);
+    
+    // Reset all segments to default appearance
+    this.upgradeOptions.forEach(option => {
+      option.segment.setAlpha(0.3);
+    });
+    
+    // If no selection (-1), don't highlight any segment or show description
+    if (this.selectedIndex === -1) {
+      // Clear description text
+      this.descriptionText.setText('Use arrow keys to select an upgrade');
+      
+      // Update selection cursor (will hide it)
+      this.updateSelectionCursor();
+      return;
+    }
+    
+    // Safety check to ensure valid selected index
+    if (this.selectedIndex < 0 || this.selectedIndex >= this.upgradeOptions.length) {
+      console.error(`Invalid selectedIndex: ${this.selectedIndex}. Resetting to 0`);
+      this.selectedIndex = 0;
+    }
+    
+    // Highlight the selected segment
+    const selected = this.upgradeOptions[this.selectedIndex];
+    if (!selected) {
+      console.error(`No option found at index ${this.selectedIndex}`);
+      return;
+    }
+    selected.segment.setAlpha(0.8);
+    
+    // Update selection cursor
+    this.updateSelectionCursor();
+    
+    // Update description text
+    const upgrade = this.availableUpgrades[this.selectedIndex];
+    if (!upgrade) {
+      console.error(`No upgrade found at index ${this.selectedIndex}`);
+      return;
+    }
+    
+    // Special case for each upgrade type
+    if (upgrade.type === 'withdraw') {
+      this.descriptionText.setText(
+        `${upgrade.name}\nHack Network\nEarn BONK Tokens`
+      );
+    } else if (upgrade.type === 'armor') {
+      const shieldCost = upgrade.levels[0].cost;
+      this.descriptionText.setText(
+        `${upgrade.name}\n${upgrade.levels[0].description}\n$${shieldCost} per shield`
+      );
+    } else if (upgrade.type === 'magazine') {
+      const magazineCost = upgrade.levels[0].cost;
+      this.descriptionText.setText(
+        `${upgrade.name}\n${upgrade.levels[0].description}\n$${magazineCost}`
+      );
+    } else if (upgrade.type === 'bulletTime') {
+      const stimCost = upgrade.levels[0].cost;
+      this.descriptionText.setText(
+        `${upgrade.name}\n${upgrade.levels[0].description}\n$${stimCost}`
+      );
+    } else if (upgrade.type === 'robot') {
+      const robotCost = upgrade.levels[0].cost;
+      this.descriptionText.setText(
+        `${upgrade.name}\n${upgrade.levels[0].description}\n$${robotCost}`
+      );
+    } else if (upgrade.type === 'fireRate') {
+      this.descriptionText.setText(
+        `${upgrade.name}\n${upgrade.levels[0].description}\n$${upgrade.levels[0].cost}`
+      );
+    } else if (upgrade.type === 'shotgun') {
+      this.descriptionText.setText(
+        `${upgrade.name}\n${upgrade.levels[0].description}\n$${upgrade.levels[0].cost}`
+      );
+    } else if (upgrade.type === 'speed') {
+      // Speed boots have multiple levels
+      const currentLevel = this.currentUpgradeLevels[upgrade.type];
+      const nextLevel = currentLevel + 1;
+      
+      if (nextLevel <= upgrade.levels.length) {
+        const nextUpgrade = upgrade.levels[nextLevel - 1];
+        this.descriptionText.setText(
+          `${upgrade.name} Lvl ${nextLevel}\n${nextUpgrade.description}\n$${nextUpgrade.cost}`
+        );
+      } else {
+        this.descriptionText.setText(`${upgrade.name}\nMAX LEVEL REACHED`);
+      }
+    }
+  }
+
+  /**
+   * Obtiene el balance total disponible (arena + cuenta del juego)
+   * @returns {Object} Objeto con gameBalance, arenaBalance y totalBalance
+   */
+  getTotalBalance() {
+    let gameBalance = 0;
+    let arenaBalance = 0;
+    
+    // Obtener balance de cuenta de juego
+    if (this.scene.playerAccount) {
+      gameBalance = this.scene.playerAccount.getGameAccountBalance();
+    }
+    
+    // Obtener balance de la arena
+    if (this.scene.ui && typeof this.scene.ui.getMoney === 'function') {
+      arenaBalance = this.scene.ui.getMoney();
+    } else if (this.scene.ui && typeof this.scene.ui.money === 'number') {
+      arenaBalance = this.scene.ui.money;
+    }
+    
+    // Calcular balance total disponible
+    const totalBalance = gameBalance + arenaBalance;
+    
+    return { gameBalance, arenaBalance, totalBalance };
+  }
+
+  show() {
+    // Actualizar el texto de créditos con el balance total
+    this.updateCredits();
+    
+    // Don't show if it's already visible
+    if (this.isVisible) return;
+    
+    this.isVisible = true;
+    
+    // Position the wheel relative to the camera center, not the world center
+    const camera = this.scene.cameras.main;
+    const centerX = camera.scrollX + camera.width / 2;
+    const centerY = camera.scrollY + camera.height / 2;
+    this.wheelContainer.setPosition(centerX, centerY);
+    
+    // Force update credit text with the latest amount
+    this.updateCredits();
+    
+    // Log wheel state for debugging
+    console.log(`Opening drone wheel with ${this.upgradeOptions.length} upgrade options:`);
+    this.upgradeOptions.forEach((option, index) => {
+      console.log(`Option ${index}: ${option.name} (${option.type})`);
+    });
+    
+    // Start with no selection when opened by keyboard
+    this.selectedIndex = -1;
+    
+    // Obtener el balance total y actualizarlo en el texto
+    const { gameBalance, arenaBalance, totalBalance } = this.getTotalBalance();
+    
+    // Log para debugging
+    console.log(`Current balances - Game: $${gameBalance.toFixed(2)}, Arena: $${arenaBalance.toFixed(2)}, Total: $${totalBalance.toFixed(2)}`);
+    
+    // Actualizar el saldo en la UI
+    this.updateCredits();
+    
+    // Pause other game elements
+    this.pauseGame();
+    
+    // Emit event to pause enemy spawning (for additional safety/redundancy)
+    this.scene.events.emit('droneWheelOpened');
+    
+    // Reset scale to prepare for animation
+    this.wheelContainer.setScale(0.7);
+    
+    // Enhanced opening animation without rotation
+    this.scene.tweens.add({
+      targets: this.wheelContainer,
+      alpha: 1,
+      scale: 1,
+      duration: 300,
+      ease: 'Back.easeOut'
+    });
+    
+    // Update selection to ensure cursor is visible
+    this.updateSelection();
+  }
+
+  hide() {
+    // Don't hide if it's already hidden
+    if (!this.isVisible) return;
+    
+    this.isVisible = false;
+    
+    // Resume game elements
+    // Note: We don't resume the game if it's a withdrawal and rhythm game is running
+    if (!this.rhythmGame || !this.rhythmGame.isActive) {
+      this.resumeGame();
+      
+      // Emit event to resume enemy spawning only if rhythm game isn't active (for additional safety/redundancy)
+      this.scene.events.emit('droneWheelClosed');
+    }
+    
+    // No rotation animation to stop anymore
+    
+    // Stop the pulse animation if it exists
+    if (this.pulseAnimation) {
+      this.pulseAnimation.stop();
+      this.pulseAnimation = null;
+    }
+    
+    // Enhanced closing animation
+    this.scene.tweens.add({
+      targets: this.wheelContainer,
+      alpha: 0,
+      scale: 0.8,
+      duration: 250,
+      ease: 'Back.easeIn'
+    });
+  }
+
+  pauseGame() {
+    // Store time scales for later restoration
+    this.previousTimeScale = this.scene.time.timeScale;
+    this.previousAnimsTimeScale = this.scene.anims.globalTimeScale;
+    this.previousPhysicsTimeScale = this.scene.physics.world.timeScale;
+    this.previousPhysicsPaused = this.scene.physics.world.isPaused;
+    
+    console.log(`Drone wheel pauseGame - storing previous timeScale: ${this.previousTimeScale}`);
+    
+    // Pause enemies behavior and stop enemy spawning
+    if (this.scene.enemyManager) {
+      this.scene.enemyManager.paused = true;
+      // Pause spawn timers to prevent new enemies while wheel is open
+      if (this.scene.enemyManager.spawner && this.scene.enemyManager.spawner.enemySpawnTimer) {
+        this.scene.enemyManager.spawner.enemySpawnTimer.paused = true;
+      }
+      if (this.scene.enemyManager.spawner && this.scene.enemyManager.spawner.waveTimer) {
+        this.scene.enemyManager.spawner.waveTimer.paused = true;
+      }
+    }
+    
+    // Disable player controls during wheel
+    if (this.scene.playerManager) {
+      this.scene.playerManager.controlsEnabled = false;
+    }
+    
+    // Store and pause projectiles
+    if (this.scene.projectiles) {
+      this.projectilesState = [];
+      this.scene.projectiles.getChildren().forEach(projectile => {
+        this.projectilesState.push({
+          obj: projectile,
+          velX: projectile.body.velocity.x,
+          velY: projectile.body.velocity.y
+        });
+        projectile.body.setVelocity(0, 0); // Completely stop projectiles
+      });
+    }
+    
+    // Use TimeScaleManager if available, otherwise apply time scales directly
+    if (this.scene.timeScaleManager) {
+      // Use TimeScaleManager to activate drone wheel time
+      this.scene.timeScaleManager.activateDroneWheelTime();
+    } else {
+      // Fallback to direct time scale adjustment
+      this.scene.time.timeScale = BULLET_TIME_SLOWDOWN;
+      this.scene.physics.world.timeScale = BULLET_TIME_SLOWDOWN;
+      this.scene.anims.globalTimeScale = BULLET_TIME_SLOWDOWN;
+    }
+    
+    // Store player's previous velocity
+    if (this.scene.playerManager && this.scene.playerManager.player) {
+      const player = this.scene.playerManager.player;
+      this.previousVelocity = {
+        x: player.body.velocity.x,
+        y: player.body.velocity.y
+      };
+      // Stop player movement during wheel
+      player.setVelocity(0, 0);
+    }
+  }
+
+  resumeGame() {
+    console.log(`Drone wheel resumeGame - restoring previous timeScale: ${this.previousTimeScale || 1.0}`);
+    
+    // Use TimeScaleManager if available, otherwise restore time scales directly
+    if (this.scene.timeScaleManager) {
+      console.log("DroneWheel: Using TimeScaleManager to restore time");
+      
+      // Force restore enemy speeds first to make sure they're reset
+      if (this.scene.timeScaleManager.enemiesWithStoredSpeeds && 
+          this.scene.timeScaleManager.enemiesWithStoredSpeeds.length > 0) {
+        console.log("DroneWheel: Forcing enemy speed restoration");
+        this.scene.timeScaleManager.restoreEnemySpeeds();
+      }
+      
+      // Use TimeScaleManager to deactivate drone wheel time
+      this.scene.timeScaleManager.deactivateDroneWheelTime();
+    } else {
+      // Fallback to direct time scale restoration
+      console.log("DroneWheel: No TimeScaleManager, restoring time directly");
+      this.scene.time.timeScale = this.previousTimeScale || 1.0;
+      this.scene.anims.globalTimeScale = this.previousAnimsTimeScale || 1.0;
+      this.scene.physics.world.timeScale = this.previousPhysicsTimeScale || this.previousTimeScale || 1.0;
+    }
+    
+    // If physics world was paused before, resume it
+    if (this.previousPhysicsPaused) {
+      this.scene.physics.world.resume();
+    }
+    
+    // Re-enable player controls
+    if (this.scene.playerManager) {
+      this.scene.playerManager.controlsEnabled = true;
+    }
+    
+    // Restore player velocity if needed
+    if (this.scene.playerManager && this.scene.playerManager.player && this.previousVelocity) {
+      const player = this.scene.playerManager.player;
+      // Only restore velocity if it was changed
+      if (player.body.velocity.x === 0 && player.body.velocity.y === 0) {
+        player.setVelocity(this.previousVelocity.x, this.previousVelocity.y);
+      }
+    }
+    
+    // Unpause enemies and resume enemy spawning
+    if (this.scene.enemyManager) {
+      this.scene.enemyManager.paused = false;
+      // Resume spawn timers to restart enemy spawning when wheel is closed
+      if (this.scene.enemyManager.spawner && this.scene.enemyManager.spawner.enemySpawnTimer) {
+        this.scene.enemyManager.spawner.enemySpawnTimer.paused = false;
+      }
+      if (this.scene.enemyManager.spawner && this.scene.enemyManager.spawner.waveTimer) {
+        this.scene.enemyManager.spawner.waveTimer.paused = false;
+      }
+    }
+    
+    // Restore projectile velocities if any were stored
+    if (this.projectilesState && this.projectilesState.length > 0) {
+      this.projectilesState.forEach(pState => {
+        if (pState.obj && pState.obj.active) {
+          pState.obj.body.setVelocity(pState.velX, pState.velY);
+        }
+      });
+      this.projectilesState = [];
+    }
+  }
+  
+  // Clean up resources - call this when shutting down or changing scenes
+  shutdown() {
+    // Clean up rhythm game if it exists
+    if (this.rhythmGame) {
+      this.rhythmGame.cleanup();
+    }
+    
+    // Clean up deposit/withdraw prompt if it exists
+    if (this.depositWithdrawPrompt) {
+      this.depositWithdrawPrompt.cleanup();
+    }
+    
+    // Clean up weapons menu if it exists
+    if (this.weaponsMenu) {
+      this.weaponsMenu.cleanup();
+    }
+  }
+  
+  // Method to create and initialize deposit/withdraw prompt (can be called when needed)
+  createDepositWithdrawPrompt() {
+    if (!this.depositWithdrawPrompt) {
+      console.log("Creating deposit/withdraw prompt on demand");
+      this.depositWithdrawPrompt = new DepositWithdrawPrompt(this.scene);
+      this.depositWithdrawPrompt.create();
+    }
+  }
+
+  selectNext() {
+    console.log(`Before selectNext: selectedIndex=${this.selectedIndex}, upgradeOptions.length=${this.upgradeOptions.length}`);
+    // If no selection, start at index 0
+    if (this.selectedIndex === -1) {
+      this.selectedIndex = 0;
+    } else {
+      this.selectedIndex = (this.selectedIndex + 1) % this.upgradeOptions.length;
+    }
+    console.log(`After selectNext: new selectedIndex=${this.selectedIndex}`);
+    this.updateSelection();
+  }
+
+  selectPrevious() {
+    console.log(`Before selectPrevious: selectedIndex=${this.selectedIndex}, upgradeOptions.length=${this.upgradeOptions.length}`);
+    // If no selection, start at last index
+    if (this.selectedIndex === -1) {
+      this.selectedIndex = this.upgradeOptions.length - 1;
+    } else {
+      this.selectedIndex = (this.selectedIndex - 1 + this.upgradeOptions.length) % this.upgradeOptions.length;
+    }
+    console.log(`After selectPrevious: new selectedIndex=${this.selectedIndex}`);
+    this.updateSelection();
+  }
+
+  confirmSelection() {
+    if (!this.isVisible) return;
+    
+    // If no option is selected, do nothing
+    if (this.selectedIndex === -1) return false;
+    
+    const upgrade = this.availableUpgrades[this.selectedIndex];
+    let upgradeCost = 0;
+    let upgradeLevel = 1;
+    let upgradeEffect = 0;
+    let upgradeDuration = 0;
+    
+    // Handle different upgrade types differently
+    if (upgrade.type === 'speed') {
+      // Speed boots have multiple levels
+      const currentLevel = this.currentUpgradeLevels[upgrade.type];
+      const nextLevel = currentLevel + 1;
+      
+      // Check if there's a next level available
+      if (nextLevel <= upgrade.levels.length) {
+        const nextUpgrade = upgrade.levels[nextLevel - 1];
+        upgradeCost = nextUpgrade.cost;
+        upgradeLevel = nextLevel;
+        upgradeEffect = nextUpgrade.effect;
+        
+        // Get duration from droneManager if available
+        const droneUpgrade = this.scene.droneManager.upgradeTypes.find(u => u.type === upgrade.type);
+        if (droneUpgrade && droneUpgrade.levels && droneUpgrade.levels[0]) {
+          upgradeDuration = droneUpgrade.levels[0].duration;
+        } else {
+          upgradeDuration = 10000; // Default duration
+        }
+      } else {
+        // Already at max level
+        console.log(`Purchase failed: Already at max level (${currentLevel}/${upgrade.levels.length})`);
+        this.flashDescriptionText();
+        return false;
+      }
+    } else if (upgrade.type === 'withdraw') {
+      // Special handling for network hack to earn BONK tokens
+      console.log("Showing network hack prompt");
+      
+      // Check if we're in tutorial mode or if the deposit/withdraw prompt is not available
+      if (this.scene.scene.key === 'TutorialScene' || !this.depositWithdrawPrompt) {
+        console.log("In tutorial mode or depositWithdrawPrompt not initialized, showing message");
+        
+        // In tutorial mode, show a message that this feature is not available yet
+        this.scene.events.emit('showFloatingText', {
+          x: this.scene.playerManager.player.x,
+          y: this.scene.playerManager.player.y - 50,
+          text: "FEATURE LOCKED",
+          color: '#ff0000'
+        });
+        
+        // Flash the description text to indicate this option is not available
+        this.flashDescriptionText();
+        
+        return false;
+      }
+      
+      // Normal game mode continues below
+      // Store the fact that we're coming from the wheel
+      this.openingAtmFromWheel = true;
+      
+      // Also make sure time scales are properly set
+      if (this.scene.timeScaleManager) {
+        console.log("DroneWheel: Setting time effects for ATM");
+        
+        // First deactivate rhythm game if it's active
+        if (this.scene.timeScaleManager.activeTimeEffects.rhythmGame) {
+          this.scene.timeScaleManager.deactivateRhythmGameTime();
+        }
+        
+        // Make sure drone wheel is active and time scales are applied
+        this.scene.timeScaleManager.activeTimeEffects.droneWheel = true;
+        this.scene.timeScaleManager.activateDroneWheelTime();
+        
+        // Force time scales to be applied immediately to prevent race conditions
+        this.scene.timeScaleManager.updateTimeScales();
+      }
+      
+      // Keep the wheel fully open and active (don't hide it)
+      // This simulates holding E/LB while using the ATM
+      
+      // Show the direct transfer prompt
+      this.depositWithdrawPrompt.show(
+        // Success callback
+        (amount) => {
+          console.log(`Transfer operation completed for ${amount} credits`);
+          
+          // Don't close the wheel, just let the player continue using it
+          // Update our money display in case it changed
+          this.updateCredits();
+        },
+        
+        // Withdraw callback using rhythm game - just for BONK token mini-game now
+        () => {
+          console.log("Starting BONK Withdrawal Rhythm Hack");
+          
+          // Initialize rhythm game if not already initialized
+          if (!this.rhythmGame.gameContainer) {
+            this.rhythmGame.create();
+          }
+          
+          // Start the rhythm game with success and fail callbacks
+          this.rhythmGame.start(
+            // Success callback
+            (successPercent) => {
+              console.log(`Rhythm hack successful with ${successPercent}% accuracy!`);
+              
+              // The withdrawal logic is now handled directly in the BonkRhythmGame
+              
+              // Update credits display to reflect the change
+              this.updateCredits();
+            },
+            // Fail callback
+            () => {
+              console.log("Rhythm hack failed!");
+              
+              // Show a failure message
+              this.scene.events.emit('showFloatingText', {
+                x: this.scene.playerManager.player.x,
+                y: this.scene.playerManager.player.y - 50,
+                text: "HACK FAILED",
+                color: '#ff0000'
+              });
+              
+              // Just return to the wheel UI
+              this.updateCredits();
+            }
+          );
+        },
+        
+        // Cancel callback
+        () => {
+          console.log("Transfer operation cancelled");
+          
+          // Don't close the wheel, just let the player continue using it
+          // Update our money display in case it changed
+          this.updateCredits();
+        }
+      );
+      
+      return true;
+    } else if (upgrade.type === 'armor') {
+      // Shield gives +1 HP, up to 10 shields
+      upgradeCost = upgrade.levels[0].cost;
+      upgradeLevel = 1;
+      upgradeEffect = upgrade.levels[0].effect;
+      upgradeDuration = 0; // Permanent effect
+      
+      // Maximum of 10 shields at a time
+      if (this.currentUpgradeLevels[upgrade.type] >= 10) {
+        console.log("Purchase failed: Maximum shields (10) reached");
+        this.flashDescriptionText();
+        return false;
+      }
+    } else {
+      // Handle other upgrades (magazine, bulletTime, etc.)
+      upgradeCost = upgrade.levels[0].cost;
+      upgradeLevel = 1;
+      upgradeEffect = upgrade.levels[0].effect;
+      
+      // Get duration from droneManager if available
+      const droneUpgrade = this.scene.droneManager.upgradeTypes.find(u => u.type === upgrade.type);
+      if (droneUpgrade && droneUpgrade.levels && droneUpgrade.levels[0]) {
+        upgradeDuration = droneUpgrade.levels[0].duration;
+      } else {
+        upgradeDuration = 10000; // Default duration
+      }
+    }
+    
+    // Obtener saldo de ambas cuentas
+    const gameAccountBalance = this.scene.playerAccount.getGameAccountBalance();
+    const arenaBalance = this.scene.ui && typeof this.scene.ui.getMoney === 'function' ? this.scene.ui.getMoney() : 0;
+    
+    console.log(`Attempting to purchase ${upgrade.name} (${upgrade.type})`);
+    console.log(`Arena balance: $${arenaBalance.toFixed(2)}, Game account balance: $${gameAccountBalance.toFixed(2)}, Upgrade cost: $${upgradeCost}`);
+    
+    // Verificar si hay suficiente dinero combinando ambas cuentas
+    const totalBalance = arenaBalance + gameAccountBalance;
+    
+    if (totalBalance >= upgradeCost) {
+      // Primero usar el saldo de arena hasta donde alcance
+      let remainingCost = upgradeCost;
+      let arenaSpent = 0;
+      let gameAccountSpent = 0;
+      
+      if (arenaBalance > 0) {
+        arenaSpent = Math.min(arenaBalance, remainingCost);
+        remainingCost -= arenaSpent;
+        
+        // Actualizar el balance de arena
+        if (arenaSpent > 0 && this.scene.ui) {
+          // Primero obtener el balance actual para evitar race conditions
+          const currentArenaBalance = this.scene.ui.getMoney ? this.scene.ui.getMoney() : this.scene.ui.money || 0;
+          const newArenaBalance = currentArenaBalance - arenaSpent;
+          
+          console.log(`Using ${arenaSpent.toFixed(2)} from arena balance. New arena balance: $${newArenaBalance.toFixed(2)}`);
+          
+          // Actualizar usando métodos UI
+          if (typeof this.scene.ui.updateMoney === 'function') {
+            this.scene.ui.updateMoney(-arenaSpent);
+          } else {
+            // Actualización directa si no hay método updateMoney
+            this.scene.ui.money = newArenaBalance;
+            
+            // Actualizar texto si existe
+            if (this.scene.ui.moneyText) {
+              this.scene.ui.moneyText.setText("💵 Arena: $" + newArenaBalance.toFixed(2));
+            }
+            
+            // Emitir eventos
+            this.scene.events.emit("moneyUpdated", newArenaBalance);
+            this.scene.events.emit("arenaBalanceUpdated", newArenaBalance);
+          }
+        }
+      }
+      
+      // Si queda costo por cubrir, usar la cuenta del juego
+      if (remainingCost > 0) {
+        gameAccountSpent = remainingCost;
+        
+        // Actualizar el balance de la cuenta del juego
+        this.scene.playerAccount.updateGameAccountBalance(-gameAccountSpent);
+        console.log(`Using ${gameAccountSpent.toFixed(2)} from game account. New game account balance: $${this.scene.playerAccount.getGameAccountBalance().toFixed(2)}`);
+      }
+      
+      console.log(`Purchase successful! Used: $${arenaSpent.toFixed(2)} from arena + $${gameAccountSpent.toFixed(2)} from game account = $${upgradeCost.toFixed(2)} total`);
+      
+      // Update credit display
+      this.updateCredits();
+      
+      // For magazine, call drone to deliver
+      if (upgrade.type === 'magazine') {
+        // The effect value (4) is the number of magazines to add
+        const magazinesToAdd = upgradeEffect;
+        console.log(`Calling drone to deliver ${magazinesToAdd} magazines`);
+        
+        // Call drone to deliver magazines
+        const nextUpgrade = {
+          level: upgradeLevel,
+          effect: magazinesToAdd,
+          duration: 0
+        };
+        
+        this.requestDroneDelivery(upgrade, nextUpgrade);
+        
+        // Hide the wheel
+        this.hide();
+        return true;
+      }
+      
+      // For fireRate (weapon select), show the weapons menu
+      if (upgrade.type === 'fireRate') {
+        console.log("Opening weapons menu");
+        
+        // Hide the wheel first
+        this.hide();
+        
+        // Show the weapons menu
+        this.weaponsMenu.show(
+          // Weapon selected callback
+          (weaponType) => {
+            console.log(`Selected weapon: ${weaponType}`);
+            
+            // Deduct the cost here before delivering the upgrade
+            this.scene.playerAccount.updateGameAccountBalance(-upgradeCost);
+            console.log(`Purchase cost deducted from game account. New balance: $${this.scene.playerAccount.getGameAccountBalance().toFixed(2)}`);
+            
+            // Determine which upgrade to deliver based on weapon choice
+            if (weaponType === 'shotgun') {
+              // For shotgun, deliver shotgun upgrade
+              this.scene.droneManager.deliverSpecificUpgrade(
+                'shotgun',
+                1,
+                1,
+                30000  // 30 second duration for weapon upgrades
+              );
+            } else {
+              // For rifle, always deliver rapid fire upgrade
+              this.scene.droneManager.deliverSpecificUpgrade(
+                'fireRate',
+                1,
+                0.7,  // This is the fire rate multiplier (smaller = faster firing)
+                30000  // 30 second duration for weapon upgrades
+              );
+            }
+          },
+          // Cancel callback
+          () => {
+            console.log("Weapon selection cancelled");
+          }
+        );
+        
+        return true;
+      }
+      
+      // For speed, update level 
+      if (upgrade.type === 'speed') {
+        this.currentUpgradeLevels[upgrade.type] = upgradeLevel;
+        
+        // Update price display to show next level price
+        const option = this.upgradeOptions[this.selectedIndex];
+        if (upgradeLevel < upgrade.levels.length) {
+          const nextLevelCost = upgrade.levels[upgradeLevel].cost;
+          option.levelText.setText(`${nextLevelCost}🅒`);
+        } else {
+          option.levelText.setText(`MAX`);
+        }
+      }
+      
+      // For shield, increment level (counts number of shields)
+      if (upgrade.type === 'armor') {
+        this.currentUpgradeLevels[upgrade.type]++;
+      }
+      
+      // Special handling for direct activation upgrades
+      if (upgrade.type === 'robot') {
+        console.log("Directly activating combat drone");
+        // Hide the wheel first
+        this.hide();
+        
+        // Deduct the cost here before applying the upgrade
+        this.scene.playerAccount.updateGameAccountBalance(-upgradeCost);
+        console.log(`Purchase cost deducted from game account. New balance: $${this.scene.playerAccount.getGameAccountBalance().toFixed(2)}`);
+        // Actualizar credit_count en la base de datos
+        if (
+          this.scene.playerAccount &&
+          this.scene.playerAccount.authToken &&
+          this.scene.playerAccount.playerData &&
+          this.scene.playerAccount.playerData._id
+        ) {
+          // Usar el método setCreditCount directo desde playerAccount
+          this.scene.playerAccount.setCreditCount(
+            this.scene.playerAccount.getGameAccountBalance()
+          ).catch((err) => {
+            console.error('Error updating credit_count in DB:', err);
+          });
+        }
+        
+        // Apply upgrade directly
+        const player = this.scene.playerManager.getPlayer();
+        
+        // Create an upgrade object matching what the DroneManager expects
+        const upgradeData = {
+          upgradeType: upgrade.type,
+          upgradeName: upgrade.name,
+          upgradeEmoji: upgrade.emoji,
+          upgradeLevel: upgradeLevel,
+          upgradeEffect: upgradeEffect,
+          upgradeDuration: upgradeDuration,
+          // Add dummy properties if needed by the tween in applyUpgrade
+          y: player.y,
+          active: true
+        };
+        
+        this.scene.droneManager.applyUpgrade(player, upgradeData);
+      } else {
+        // Call drone to deliver other upgrades
+        const nextUpgrade = {
+          level: upgradeLevel,
+          effect: upgradeEffect,
+          duration: upgradeDuration
+        };
+        
+        this.requestDroneDelivery(upgrade, nextUpgrade);
+        
+        // Hide the wheel
+        this.hide();
+      }
+      
+      return true;
+    } else {
+      // Not enough money in game account, flash the credit text red
+      console.log(`Purchase failed: Not enough credits. Need $${upgradeCost}, have $${totalBalance.toFixed(2)}`);
+      // Show floating notification and close the wheel
+      this.scene.events.emit('showFloatingText', {
+        x: this.scene.playerManager.player.x,
+        y: this.scene.playerManager.player.y - 50,
+        text: 'NOT ENOUGH CREDITS',
+        color: '#ff0000'
+      });
+
+      this.hide();
+      return false;
+    }
+  }
+
+  flashCreditText() {
+    const originalColor = '#ffff00';
+    this.creditText.setColor('#ff0000');
+    
+    this.scene.time.delayedCall(300, () => {
+      this.creditText.setColor(originalColor);
+    });
+  }
+
+  flashDescriptionText() {
+    const originalColor = '#ffffff';
+    this.descriptionText.setColor('#ff0000');
+    
+    this.scene.time.delayedCall(300, () => {
+      this.descriptionText.setColor(originalColor);
+    });
+  }
+
+  updateCredits() {
+    if (this.creditText) {
+      // Obtener el balance total usando el método centralizado
+      const { totalBalance } = this.getTotalBalance();
+      
+      // Mostrar el balance total
+      this.creditText.setText(`CREDITS: $${totalBalance.toFixed(2)}`);
+    }
+  }
+
+  requestDroneDelivery(upgrade, levelData) {
+    if (this.scene.droneManager) {
+      // Find the matching upgrade type in the drone manager to get the duration
+      const droneUpgrade = this.scene.droneManager.upgradeTypes.find(u => u.type === upgrade.type);
+      let duration = 10000; // Default duration if not found
+      
+      // Get the duration from the drone manager's upgrade levels
+      if (droneUpgrade && droneUpgrade.levels && droneUpgrade.levels[levelData.level - 1]) {
+        duration = droneUpgrade.levels[levelData.level - 1].duration;
+      }
+      
+      // Call the drone manager with all necessary parameters including duration
+      this.scene.droneManager.deliverSpecificUpgrade(
+        upgrade.type, 
+        levelData.level, 
+        levelData.effect,
+        duration
+      );
+      
+      console.log(`Requesting drone delivery: ${upgrade.type} Level ${levelData.level} (Effect: ${levelData.effect}, Duration: ${duration}ms)`);
+      
+      // Reset magazine upgrade level so it can be purchased again if it's a magazine
+      if (upgrade.type === 'magazine') {
+        this.currentUpgradeLevels.magazine = 0;
+      }
+    }
+  }
+
+  toggle() {
+    if (this.isVisible) {
+      this.hide();
+    } else {
+      this.show();
+    }
+  }
+  
+  // New method to handle wheel navigation by direction
+  selectByDirection(directionX, directionY) {
+    // Don't process if wheel isn't visible
+    if (!this.isVisible) return;
+    
+    console.log(`selectByDirection called with x=${directionX}, y=${directionY}`);
+    
+    // Using angle calculation to determine which segment to select
+    const angle = Math.atan2(directionY, directionX);
+    const degrees = (Math.atan2(directionY, directionX) * 180 / Math.PI + 360) % 360;
+    
+    // Calculate segment size based on actual number of options
+    const segmentCount = this.upgradeOptions.length;
+    const segmentSize = 360 / segmentCount;
+    
+    // Convert angle to segment index
+    const segmentIndex = Math.floor(((degrees + (segmentSize / 2)) % 360) / segmentSize);
+    
+    console.log(`Calculated segmentIndex=${segmentIndex} from angle=${degrees.toFixed(2)}°, segmentSize=${segmentSize.toFixed(2)}°`);
+    
+    // Only update if the direction magnitude is significant
+    const magnitude = Math.sqrt(directionX * directionX + directionY * directionY);
+    if (magnitude > 0.3) { // Threshold to avoid accidental selection
+      if (this.selectedIndex !== segmentIndex) {
+        console.log(`Changing selectedIndex from ${this.selectedIndex} to ${segmentIndex}`);
+        this.selectedIndex = segmentIndex;
+        this.updateSelection();
+      }
+    } else {
+      console.log(`Direction magnitude ${magnitude.toFixed(2)} too small, ignoring`);
+    }
+  }
+}

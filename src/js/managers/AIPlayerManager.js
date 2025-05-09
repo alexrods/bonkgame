@@ -37,7 +37,7 @@ export class AIPlayerManager {
     this.decisionInterval = 400; // Reduced from 500ms for more frequent decisions
     this.lastPositionChangeTime = 0;
     this.positionChangeInterval = 1500; // Reduced from 2000ms for more frequent movement changes
-    this.availableCharacters = ['character2', 'character3', 'character5', 'default'];
+    this.availableCharacters = ['character2', 'character3', 'character4', 'character5', 'character6', 'character7', 'default'];
     this.startingHealth = 1; // Reduced to 1 HP
     this.shields = 5; // Starting with 5 shields
     this.maxShields = 5; // Maximum shield value
@@ -57,6 +57,47 @@ export class AIPlayerManager {
     
     // Create this flag to track if animations have been created yet
     this.animationsCreated = false;
+    
+    // Teleport tracking for Omen
+    this.isTeleporting = false;
+    this.teleportCooldown = 5000; // 5 seconds cooldown between teleports
+    this.lastTeleportTime = 0;
+  }
+
+  teleportBehindPlayer() {
+    const currentTime = this.scene.time.now;
+    
+    // Check teleport cooldown
+    if (this.isTeleporting || currentTime - this.lastTeleportTime < this.teleportCooldown) {
+      return;
+    }
+    
+    this.isTeleporting = true;
+    this.lastTeleportTime = currentTime;
+    
+    // Visual effect before teleport
+    if (this.aiPlayer) {
+      this.aiPlayer.alpha = 0.5;
+      console.log('Omen preparing to teleport');
+    }
+    
+    // Get position behind player
+    const playerPos = this.targetPlayer.getCenter();
+    const playerDir = this.targetPlayer.body.velocity;
+    const magnitude = 150;
+    const teleportX = playerPos.x - (playerDir.x !== 0 ? Math.sign(playerDir.x) * magnitude : 0);
+    const teleportY = playerPos.y - (playerDir.y !== 0 ? Math.sign(playerDir.y) * magnitude : 0);
+    
+    // Teleport after delay
+    this.scene.time.delayedCall(500, () => {
+      if (this.aiPlayer) {
+        this.aiPlayer.x = teleportX;
+        this.aiPlayer.y = teleportY;
+        this.aiPlayer.alpha = 1;
+        console.log('Omen teleported successfully');
+      }
+      this.isTeleporting = false;
+    });
   }
 
   init() {
@@ -1898,6 +1939,29 @@ export class AIPlayerManager {
       // Play shot sound
       if (this.scene.sound.get('shot')) {
         this.scene.sound.play('shot', { volume: 0.3 });
+      }
+      
+      // Special behavior for Omen character
+      if (this.aiCharacter === 'omen') {
+        // Teleport occasionally
+        if (Math.random() < 0.01 && !this.isTeleporting) {
+          console.log('Attempting Omen teleport');
+          this.teleportBehindPlayer();
+        }
+        
+        // Enhanced aggression for Omen
+        if (this.targetPlayer && this.aiPlayer) {
+          const distanceToPlayer = Phaser.Math.Distance.Between(
+            this.aiPlayer.x, this.aiPlayer.y, 
+            this.targetPlayer.x, this.targetPlayer.y
+          );
+          
+          // If too close, try to teleport more aggressively
+          if (distanceToPlayer < 200 && Math.random() < 0.05) {
+            console.log('Omen teleporting due to close proximity');
+            this.teleportBehindPlayer();
+          }
+        }
       }
       
       // If out of ammo, reload

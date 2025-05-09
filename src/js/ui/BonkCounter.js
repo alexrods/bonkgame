@@ -7,10 +7,13 @@ export class BonkCounter {
     this.container = null;
     this.segmentDisplays = [];
     this.decimalPoints = [];
-    this.currentAmount = 0;
+    this.currentAmount = 0; // Always start at 0
     this.hasBeenShown = false;
     this.isPortrait = scene.registry.get('isPortrait');
     this.init();
+    
+    // Always initialize with zero display
+    this.updateBonkCount(0);
   }
 
   init() {

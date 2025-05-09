@@ -608,7 +608,7 @@ export class EnemyEffects {
         moneyMultiplier = 2;
         lootType = 'coins';
         lootScale = 0.08; // Increased by factor of 2 from previous 0.04
-        // Blue enemies have a 25% chance to drop bonk
+        // Blue enemies have a 50% chance to drop bonk (increased from 25%)
         dropBonk = Math.random() < 0.99;
       } else if (enemy.enemyType === 'green') {
         moneyMultiplier = 3;

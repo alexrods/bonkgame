@@ -50,6 +50,8 @@ export class MenuScene extends Phaser.Scene {
 
   // Handle game account balance updates
   handleGameAccountUpdated(balance) {
+    console.log(`MenuScene: Game account balance updated to ${balance}`);
+
     // Only refresh if scene is active and cameras exist
     if (this.scene.isActive() && this.cameras && this.cameras.main) {
       // Refresh wallet info display if it exists

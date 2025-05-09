@@ -77,10 +77,21 @@ export class GameOverScene extends Phaser.Scene {
       
       // Reset bonk tokens on player death (tokens are lost unless withdrawn)
       // This fixes the issue where bonk tokens persisted between death sessions
+      
+      // Reset global bonk balance
       const currentBonkBalance = this.playerAccount.getBonkBalance();
       if (currentBonkBalance > 0) {
-        console.log(`Resetting bonk balance on death: ${currentBonkBalance} -> 0`);
+        console.log(`Resetting global bonk balance on death: ${currentBonkBalance} -> 0`);
         this.playerAccount.updateBonkBalance(-currentBonkBalance); // Subtract all bonk tokens
+      }
+      
+      // Also reset arena-specific bonk balance
+      if (this.playerAccount.arenaBonkAccount) {
+        const currentArenaBonkBalance = this.playerAccount.arenaBonkAccount.getBonkBalance();
+        if (currentArenaBonkBalance > 0) {
+          console.log(`Resetting arena bonk balance on death: ${currentArenaBonkBalance} -> 0`);
+          this.playerAccount.arenaBonkAccount.reset(); // Reset arena balance to 0
+        }
       }
     } else {
       // Create player account if not in registry (should not happen normally)
@@ -667,11 +678,11 @@ export class GameOverScene extends Phaser.Scene {
         // Mark that they've had their first game
         localStorage.setItem('hadFirstGame', 'true');
         // Now send them to character select for their second game
-        this.scene.start('CharacterSelectScene');
+        this.scene.start('CharacterSelectScene', { fromGameOver: true });
       } else if (tutorialCompleted && hadFirstGame) {
         // Returning player who has completed tutorial and first game
         // Always go to character select for subsequent games
-        this.scene.start('CharacterSelectScene');
+        this.scene.start('CharacterSelectScene', { fromGameOver: true });
       } else {
         // Default case - should not reach here normally
         this.scene.start('MenuScene');
@@ -1021,11 +1032,11 @@ export class GameOverScene extends Phaser.Scene {
         // Mark that they've had their first game
         localStorage.setItem('hadFirstGame', 'true');
         // Now send them to character select for their second game
-        this.scene.start('CharacterSelectScene');
+        this.scene.start('CharacterSelectScene', { fromGameOver: true });
       } else if (tutorialCompleted && hadFirstGame) {
         // Returning player who has completed tutorial and first game
         // Always go to character select for subsequent games
-        this.scene.start('CharacterSelectScene');
+        this.scene.start('CharacterSelectScene', { fromGameOver: true });
       } else {
         // Default case - should not reach here normally
         this.scene.start('MenuScene');

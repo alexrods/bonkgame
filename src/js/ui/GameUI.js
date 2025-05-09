@@ -86,9 +86,25 @@ export class GameUI {
       
       // Position BONK counter below money counter with responsive spacing
       this.bonkCounter = new BonkCounter(this.scene, counterX, 25 + (counterSpacing * 2) + 20);
-      // Initialize arena BONK counter only with arena count (not account balance)
-      const arenaBonkCount = this.scene.registry.get('bonkCount') || 0;
-      this.bonkCounter.updateBonkCount(arenaBonkCount);
+      
+      // Always start with 0 BONK in the arena
+      let arenaBonkBalance = 0;
+      
+      // Initialize arena account to 0 if available
+      if (this.scene.playerAccount && this.scene.playerAccount.arenaBonkAccount) {
+        // Make sure arena account is initialized with 0
+        if (typeof this.scene.playerAccount.arenaBonkAccount.init === 'function') {
+          this.scene.playerAccount.arenaBonkAccount.init();
+        }
+        // Force set the balance to 0
+        if (typeof this.scene.playerAccount.arenaBonkAccount.setBonkBalance === 'function') {
+          this.scene.playerAccount.arenaBonkAccount.setBonkBalance(0);
+        }
+        console.log(`GameUI: Initialized arena BONK balance to 0`);
+      }
+      
+      // Always update counter with 0 balance at start
+      this.bonkCounter.updateBonkCount(0);
       
       // In portrait mode, immediately hide the bonk counter until it changes
       if (isPortrait) {
@@ -169,8 +185,7 @@ export class GameUI {
       // Listen for game account and BONK balance updates
       if (this.scene.events) {
         this.scene.events.on('gameAccountUpdated', this.updateGameAccountDisplay, this);
-        // Listen for arena BONK count updates (new hack/minigame tokens)
-        this.scene.events.on('arenaBonkCountUpdated', this.updateBonkDisplay, this);
+        this.scene.events.on('bonkBalanceUpdated', this.updateBonkDisplay, this);
       }
     } else {
       // In tutorial, create dummy text objects that aren't visible
@@ -268,10 +283,30 @@ export class GameUI {
   updateBonkDisplay(newBalance) {
     console.log(`GameUI.updateBonkDisplay called with balance: ${newBalance}`);
     
+    // FIXED: Only use arena-specific bonk balance, not the global account balance
+    let validBalance = 0;
+    
+    // First priority: Try to get the arena-specific balance directly
+    if (this.scene.playerAccount && this.scene.playerAccount.arenaBonkAccount) {
+      // Get ONLY the arena balance (not the global balance)
+      validBalance = this.scene.playerAccount.arenaBonkAccount.getBonkBalance();
+      console.log('Using arena-specific BONK balance:', validBalance);
+    } 
+    // Second priority: Use the parameter if it's valid and we couldn't get arena balance
+    else if (typeof newBalance === 'number' && !isNaN(newBalance)) {
+      validBalance = newBalance;
+      console.log('Using provided balance parameter:', validBalance);
+    }
+    // If all else fails, use 0
+    else {
+      validBalance = 0;
+      console.log('Using default balance of 0');
+    }
+    
     // Update hidden text for compatibility
     if (this.bonkText && this.bonkText.scene) {
       try {
-        this.bonkText.setText('🪙 BONK: ' + newBalance);
+        this.bonkText.setText('🪙 BONK: ' + validBalance);
         console.log('BONK text updated successfully');
       } catch (error) {
         console.warn('Error updating BONK text:', error.message);
@@ -284,14 +319,14 @@ export class GameUI {
     if (this.bonkCounter) {
       // BONK is typically shown as a whole number, but our display includes decimals
       // Parse as float to handle both formats
-      const bonkAmount = parseFloat(newBalance);
+      const bonkAmount = parseFloat(validBalance);
       this.bonkCounter.updateBonkCount(bonkAmount);
     } else {
       // Create the bonk counter if it doesn't exist yet
       const bgHeight = 50 * 1.5 * 0.5;
       const padding = 5;
       this.bonkCounter = new BonkCounter(this.scene, 120, 50 + (bgHeight + padding) * 2);
-      this.bonkCounter.updateBonkCount(parseFloat(newBalance));
+      this.bonkCounter.updateBonkCount(parseFloat(validBalance));
     }
   }
   

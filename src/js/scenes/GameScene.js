@@ -233,7 +233,8 @@ export class GameScene extends Phaser.Scene {
     console.log("Pre-selecting AI opponents for milestones");
     
     // Available AI character options
-    const characterOptions = ['default', 'character2', 'character3', 'character5'];
+    //const characterOptions = ['character2', 'character3','character4', 'character5','character6'];
+    const characterOptions = ['character4'];
     
     // Get player's selected character to avoid duplicates
     const playerCharacter = this.registry.get('selectedCharacter') || 'default';
@@ -253,11 +254,11 @@ export class GameScene extends Phaser.Scene {
       return Phaser.Utils.Array.GetRandom(remainingChars);
     };
     
-    // Pre-select 4 AI opponents for milestones (100, 200, 300, 400+ kills)
+    // Pre-select 5 AI opponents for milestones (100, 200, 300, 400+ kills)
     const aiOpponents = [];
     const usedCharacters = [];
     
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const selectedChar = getUniqueRandomCharacter(usedCharacters);
       aiOpponents.push(selectedChar);
       usedCharacters.push(selectedChar);
@@ -925,6 +926,48 @@ export class GameScene extends Phaser.Scene {
         strokeColor: '#000000',
         centered: true
       });
+    }
+    
+    else if (killCount >= 300 && killCount < 400 && !this.milestoneFlags[300]) {
+      this.milestoneFlags[300] = true;
+      console.log("300 KILLS MILESTONE! CHARACTER7 APPEARS!");
+      
+      // Spawn character7 AI player
+      this.spawnEnemyAIPlayer('character7');
+      
+      // Play 300 kills sound effect
+      if (this.sound.get('kills_300')) {
+        this.sound.play('kills_300', { volume: 1.0 });
+      } else if (this.cachedAudioElements['kills_300']) {
+        this.cachedAudioElements['kills_300'].play();
+      }
+      
+      // Camera flash effect for dramatic entrance
+      this.cameras.main.flash(500, 255, 0, 0);
+      
+      // Optional spawn explosion effect
+      const playerPos = this.playerManager.player.getCenter();
+      const spawnEffect = this.add.sprite(playerPos.x, playerPos.y, 'explosion');
+      spawnEffect.setScale(2);
+      spawnEffect.play('explosion_anim');
+      spawnEffect.on('animationcomplete', () => {
+        spawnEffect.destroy();
+      });
+      
+      // Show 300 kills message
+      this.showFloatingText({
+        x: this.cameras.main.centerX,
+        y: this.cameras.main.centerY - 100,
+        text: "300 KILLS! OMEN APPEARS!",
+        color: '#ff3333',
+        fontSize: '42px',
+        strokeThickness: 4,
+        strokeColor: '#000000',
+        centered: true
+      });
+      
+      // Log Omen spawn for debugging
+      console.log('Omen character spawned at 300 kills milestone');
     }
     
     // Additional milestones can be handled similarly
@@ -2357,7 +2400,7 @@ export class GameScene extends Phaser.Scene {
         newKillCount === 300 ||
         newKillCount === 400 ||
         newKillCount === 500 ||
-        newKillCount === 666 ||
+        newKillCount === 600 ||
         // Keep every 100 after the special milestones (but not if it matches a special one)
         (newKillCount > 100 && newKillCount % 100 === 0 && 
          newKillCount !== 200 && newKillCount !== 300 && 
@@ -3884,8 +3927,17 @@ export class GameScene extends Phaser.Scene {
     } else if (selectedCharacter === 'character3') {
       characterName = "Toaster";
       console.log("Character name set to Toaster");
+    } else if (selectedCharacter === 'character4') {
+      characterName = "DVD";
+      console.log("Character name set to DVD");
     } else if (selectedCharacter === 'character5') {
       characterName = "Flex";
+    } else if (selectedCharacter === 'character6') {
+      characterName = "Vibe";
+      console.log("Character name set to Vibe");
+    } else if (selectedCharacter === 'character7') {
+      characterName = "Omen";
+      console.log("Character name set to Omen");
     } else {
       characterName = "Degen"; // Default fallback
       console.log(`Using default character name because '${selectedCharacter}' was not recognized`);
@@ -4051,17 +4103,17 @@ export class GameScene extends Phaser.Scene {
               { character: "Degen", text: "None at all.", image: characterImagePath }
             ];
             break;
-          case "character6":
+          case "character4":
             dialog = [
               { character: "Degen", text: "Philosopher bot—now I've seen it all.", image: characterImagePath },
-              { character: "DVD", text: "My words bite deeper than blades.", image: aiImage},
+              { character: "DVD", text: "My words bite deeper than blades.", image: "story/dvd"},
               { character: "Degen", text: "Let's test that theory.", image: characterImagePath }
             ];
             break;
-          case "character7":
+          case "character6":
             dialog = [
               { character: "Degen", text: "Do you realize how serious this is?", image: characterImagePath },
-              { character: "Vibe", text: "Chill—just dance to the beat.", image: aiImage },
+              { character: "Vibe", text: "Chill—just dance to the beat.", image: "story/vibe" },
               { character: "Degen", text: "I'm done dancing.", image: characterImagePath }
             ];
             break;
@@ -4092,35 +4144,55 @@ export class GameScene extends Phaser.Scene {
           }
         ];
       }
-    } else if (killCount >= 200 && killCount < 300) {
-      // For 200 kills milestone
-      dialog = [
-        {
-          character: characterName,
-          text: "200 down. How many more do you want?",
-          image: characterImagePath
-        },
-        {
-          character: "Network Exec",
-          text: "As many as it takes. Don't stop now.",
-          image: networkExecImagePath
-        }
-      ];
+      // } else if (killCount >= 200 && killCount < 300) {
+      //   // For 200 kills milestone
+      //   dialog = [
+      //     {
+      //       character: characterName,
+      //       text: "200 down. How many more do you want?",
+      //       image: characterImagePath
+      //     },
+      //     {
+      //       character: "Network Exec",
+      //       text: "As many as it takes. Don't stop now.",
+      //       image: networkExecImagePath
+      //     }
+      //   ];
     } else if (killCount >= 300 && killCount < 400) {
+      const omenImagePath = "story/omen";
       // For 300 kills milestone
-      dialog = [
-        {
-          character: characterName,
-          text: "300 kills... They just keep coming.",
-          image: characterImagePath
-        },
-        {
-          character: "Network Exec",
-          text: "We're making history here. This will be remembered.",
-          image: networkExecImagePath
-        }
-      ];
-    // Removed fallback for 50+ kills since it's now handled by the wider range check above
+      if (characterName === 'Degen') {
+        dialog = [
+          {
+            character: 'Omen',
+            text: "They say you're a legend. I see only weakness.",
+            image: omenImagePath
+          },
+          {
+            character: 'Degen',
+            text: "You're just another Network puppet hiding behind a mask.",
+            image: characterImagePath
+          },
+          {
+            character: 'Omen',
+            text: "Then let's see who breaks first.",
+            image: omenImagePath
+          }
+        ];
+      } else {
+        dialog = [
+          {
+            character: characterName,
+            text: "300 kills... They just keep coming.",
+            image: characterImagePath          },
+          {
+            character: "Network Exec",
+            text: "We're making history here. This will be remembered.",
+            image: networkExecImagePath
+          }
+        ];
+      }
+      // Removed fallback for 50+ kills since it's now handled by the wider range check above
     } else {
       // Default dialog as fallback
       dialog = [
