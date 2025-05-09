@@ -233,8 +233,8 @@ export class GameScene extends Phaser.Scene {
     console.log("Pre-selecting AI opponents for milestones");
     
     // Available AI character options
-    //const characterOptions = ['character2', 'character3','character4', 'character5','character6'];
-    const characterOptions = ['character4'];
+    const characterOptions = ['character2', 'character3','character4', 'character5','character6'];
+    //const characterOptions = ['character4'];
     
     // Get player's selected character to avoid duplicates
     const playerCharacter = this.registry.get('selectedCharacter') || 'default';
