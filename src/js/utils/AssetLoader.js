@@ -578,7 +578,7 @@ export function preloadSprites(scene) {
     console.log(`Loading ${characterId} character death animation frames`);
     
     // Handle character3 and character5's different death animation file naming
-    if (characterId === 'character3' || characterId === 'character5') {
+    if (characterId === 'character3' || characterId === 'character5' || characterId === 'character6' || characterId === 'character7' || characterId === 'character4') {
       for (let i = 1; i <= 12; i++) {
         scene.load.image(`${prefix}player_death_${i}`, `${basePath}PlayerDeath/${i}.png`);
       }
