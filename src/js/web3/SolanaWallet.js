@@ -15,7 +15,7 @@ import bs58 from "bs58";
  * Solana Wallet Integration for Web3 functionality
  * Handles wallet connection, disconnection and transactions
  */
-export class SolanaWallet {
+export class SolanaWallet { 
   constructor() {
     this.connection = null;
     this.wallet = null;
@@ -26,10 +26,10 @@ export class SolanaWallet {
     this.walletDropdownVisible = false;
 
     this.Credit_DECIMALS = 6;
-    this.Credit_MINT_ADDRESS = "dsitAJapavcqf2UsXzP4jBz2wBC6nu3od7D45idwiSU";
+    this.Credit_MINT_ADDRESS = "";
     this.Bonk_DECIMALS = 6;
-    this.Bonk_MINT_ADDRESS = "dsitAJapavcqf2UsXzP4jBz2wBC6nu3od7D45idwiSU";
-    this.ADMIN_WALLET_ADDRESS = "CGacpojgdVcuUBZuFJqWu3eiEVcbXAxQcXXridgvFhRg";
+    this.Bonk_MINT_ADDRESS = "";
+    this.ADMIN_WALLET_ADDRESS = "";
 
     // Supported wallets
     this.supportedWallets = [
