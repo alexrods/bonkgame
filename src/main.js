@@ -1,3 +1,6 @@
+// Importar polyfills necesarios para Web3 y Metaplex
+import './js/utils/polyfills.js';
+
 import { config, WEB3_CONFIG } from './config.js';
 
 // Detect if the device is mobile

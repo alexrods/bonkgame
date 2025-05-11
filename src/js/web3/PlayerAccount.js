@@ -9,6 +9,7 @@ import { SolanaWallet } from "./SolanaWallet.js";
 import { WhitelistManager } from "./WhitelistManager.js";
 import { BonkGameAccount } from "./BonkGameAccount.js";
 import { ArenaBonkAccount } from "./ArenaBonkAccount.js";
+import { nftCollectionChecker } from "../utils/nftCollectionChecker.js";
 
 /**
  * PlayerAccount - Manages player account integration with web3
@@ -199,6 +200,49 @@ export class PlayerAccount {
         "bonkBalanceUpdated",
         this.playerData.bonkBalance
       );
+      
+      // Verificar si el usuario posee NFTs de la colección configurada
+      try {
+        // Inicializar el verificador de NFTs si no está inicializado
+        if (!nftCollectionChecker.wallet.isConnected) {
+          // Usar la misma conexión que ya tenemos establecida
+          nftCollectionChecker.wallet = this.wallet;
+          nftCollectionChecker.nftReader.setConnection(this.wallet.connection);
+          nftCollectionChecker.authToken = this.authToken;
+        }
+        
+        // Verificar la colección de NFTs
+        console.log("Verificando colección de NFTs para el usuario...");
+        const hasNFT = await nftCollectionChecker.checkCollection();
+        
+        // Almacenar el resultado en playerData
+        this.playerData.hasCollectionNFT = hasNFT;
+        this.savePlayerData();
+        
+        // Emitir evento con el resultado
+        this.scene.events.emit("nft-collection-check", {
+          hasNFT,
+          collectionAddress: nftCollectionChecker.defaultCollectionAddress
+        });
+        
+        // Mostrar mensaje en el juego usando el sistema de notificaciones existente
+        if (hasNFT) {
+          this.wallet.showNotification("¡Felicidades! Posees NFTs de la colección especial.");
+          console.log("El usuario posee NFTs de la colección configurada");
+          
+          // También emitimos un evento para que otros componentes puedan reaccionar
+          this.scene.events.emit("nft-collection-found", true);
+        } else {
+          this.wallet.showNotification("No se encontraron NFTs de la colección especial en tu wallet.");
+          console.log("El usuario NO posee NFTs de la colección configurada");
+          
+          // También emitimos un evento para que otros componentes puedan reaccionar
+          this.scene.events.emit("nft-collection-found", false);
+        }
+      } catch (nftError) {
+        console.error("Error al verificar colección de NFTs:", nftError);
+        // No interrumpimos el flujo de autenticación si falla la verificación de NFTs
+      }
 
       console.log("Player authenticated:", publicKey);
     } catch (error) {
