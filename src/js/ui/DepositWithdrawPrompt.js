@@ -19,6 +19,7 @@ export class DepositWithdrawPrompt {
     this.promptMode = "main"; // 'main', 'wallet-to-game', 'game-to-arena', or 'waiting'
     this.waitingContainer = null; // Container for the waiting screen
     this.isWaiting = false; // Flag to track if waiting screen is shown
+    this.backgroundBlocker = null; // Elemento para bloquear interacciones con el fondo
   }
 
   create() {
@@ -69,6 +70,22 @@ export class DepositWithdrawPrompt {
       0.7
     );
     this.container.add(bg);
+    
+    // Crear un bloqueador de interacción para el fondo
+    this.backgroundBlocker = this.scene.add.rectangle(
+      this.scene.cameras.main.width / 2,
+      this.scene.cameras.main.height / 2,
+      this.scene.cameras.main.width * 2, // Hacerlo extra grande para cubrir toda la pantalla
+      this.scene.cameras.main.height * 2,
+      0x000000,
+      0.01 // Casi transparente
+    );
+    this.backgroundBlocker.setInteractive();
+    this.backgroundBlocker.on('pointerdown', (pointer) => {
+      // Consumir el evento para evitar que llegue a elementos del fondo
+      pointer.event.stopPropagation();
+    });
+    this.container.add(this.backgroundBlocker);
 
     // Create main content container that will hold all UI elements except scanlines
     this.contentContainer = this.scene.add.container(0, 0);
@@ -610,6 +627,17 @@ export class DepositWithdrawPrompt {
       this.onDepositCallback = depositCallback;
       this.onWithdrawCallback = withdrawCallback;
       this.onCancelCallback = cancelCallback;
+      
+      // Asegurar que el bloqueador de fondo esté activo y al frente
+      if (this.backgroundBlocker) {
+        this.backgroundBlocker.setVisible(true);
+        // Mover el bloqueador al frente del contenedor
+        this.container.bringToTop(this.backgroundBlocker);
+        // Luego mover el contenido por encima del bloqueador
+        if (this.contentContainer) {
+          this.container.bringToTop(this.contentContainer);
+        }
+      }
 
       // Use multiple approaches to ensure enemy spawning is stopped
 
@@ -897,6 +925,11 @@ export class DepositWithdrawPrompt {
     if (this.isWaiting && this.waitingContainer) {
       this.waitingContainer.setVisible(false);
       this.isWaiting = false;
+    }
+    
+    // Ocultar el bloqueador de fondo
+    if (this.backgroundBlocker) {
+      this.backgroundBlocker.setVisible(false);
     }
 
     // Only restart enemy spawning if not transitioning to rhythm game
