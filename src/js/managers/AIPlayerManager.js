@@ -721,7 +721,7 @@ export class AIPlayerManager {
       runChildUpdate: true,
       collideWorldBounds: false
     });
-    
+
     // Add overlap with player if targetPlayer exists
     if (this.targetPlayer && this.targetPlayer.active) {
       this.scene.physics.add.overlap(
@@ -815,7 +815,6 @@ export class AIPlayerManager {
       hasBody: !!player.body
     });
     
-    // Damage the player (use the main game's player damage function)
     try {
       console.log('Attempting to damage player with:', {
         hasPlayerManager: !!this.playerManager,
@@ -823,43 +822,11 @@ export class AIPlayerManager {
         hasSceneDamageMethod: this.scene && typeof this.scene.damagePlayer === 'function'
       });
       
-      if (this.playerManager && typeof this.playerManager.damagePlayer === 'function') {
-        console.log('Using playerManager.damagePlayer method');
-        // Use a smaller damage amount (1 instead of 10) to prevent immediate death
-        this.playerManager.damagePlayer(1); 
-      } else if (this.scene && typeof this.scene.damagePlayer === 'function') {
-        console.log('Using scene.damagePlayer method');
-        this.scene.damagePlayer(1);
+      // Directly call handlePlayerDamage to ensure screen shake
+      if (this.scene && typeof this.scene.handlePlayerDamage === 'function') {
+        this.scene.handlePlayerDamage();
       } else {
-        // Fallback damage handling if neither method is available
-        console.log('No damagePlayer method found, applying direct invincibility and visual effect');
-        
-        // Only apply effects if player is still active
-        if (player.active && !player.isInvincible) {
-          player.isInvincible = true;
-          
-          // Flash effect - make sure we check player is still active on each tween update
-          this.scene.tweens.add({
-            targets: player,
-            alpha: 0.5,
-            duration: 100,
-            yoyo: true,
-            repeat: 3,
-            onUpdate: () => {
-              // Safety check - stop tween if player is no longer valid
-              if (!player || !player.active || player.isDying) {
-                return false; // Stop the tween
-              }
-            },
-            onComplete: () => {
-              // Only update if player is still active
-              if (player && player.active && !player.isDying) {
-                player.isInvincible = false;
-                player.alpha = 1;
-              }
-            }
-          });
-        }
+        console.warn('handlePlayerDamage method not found in scene');
       }
     } catch (error) {
       console.error('Error in bulletHitPlayer:', error);
