@@ -115,6 +115,8 @@ export class DroneWheel {
       emote: 0,
       robot: 0
     };
+    // Disable drone wheel until the game starts (after SURVIVE)
+    this.enabled = false;
   }
 
   init() {
@@ -451,19 +453,7 @@ export class DroneWheel {
 
   show() {
     // Check if the wheel is enabled before showing it
-    if (!this.enabled) {
-      console.log('DroneWheel is disabled - cannot show');
-      // Show a floating text message to inform the player
-      if (this.scene.events && this.scene.playerManager && this.scene.playerManager.player) {
-        this.scene.events.emit('showFloatingText', {
-          x: this.scene.playerManager.player.x,
-          y: this.scene.playerManager.player.y - 50,
-          text: "DRONE UNAVAILABLE",
-          color: '#ff0000'
-        });
-      }
-      return;
-    }
+    if (!this.enabled) return;
     
     // Update credit text with the latest amount
     this.updateCredits();

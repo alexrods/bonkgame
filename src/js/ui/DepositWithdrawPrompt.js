@@ -25,7 +25,7 @@ export class DepositWithdrawPrompt {
     // Create the container
     this.container = this.scene.add.container(0, 0);
     this.container.setDepth(1050); // Higher than DroneWheel
-    
+
     // Create the waiting screen container (initially hidden)
     this.waitingContainer = this.scene.add.container(0, 0);
     this.waitingContainer.setDepth(1060); // Even higher than main container
@@ -38,7 +38,7 @@ export class DepositWithdrawPrompt {
       callbackScope: this,
       loop: true,
     });
-    
+
     // Create the waiting screen
     this.createWaitingScreen();
 
@@ -271,31 +271,23 @@ export class DepositWithdrawPrompt {
 
     // Create withdraw options for game to wallet - pushed down to accommodate higher cancel button
     this.createButton(
-      "WITHDRAW 100 🅒",
+      "WITHDRAW CREDITS 🅒",
       this.scene.cameras.main.width / 2,
       this.scene.cameras.main.height / 2 - 60,
       () => {
-        this.handleGameToWalletWithdraw(100);
+        // Llamar a withdrawFromGameAccount sin parámetro para retirar todo
+        this.handleGameToWalletWithdraw();
       },
       this.gameToWalletButtonsContainer
     );
 
     this.createButton(
-      "WITHDRAW 250 🅒",
+      "WITHDRAW BONKS",
       this.scene.cameras.main.width / 2,
       this.scene.cameras.main.height / 2,
       () => {
-        this.handleGameToWalletWithdraw(250);
-      },
-      this.gameToWalletButtonsContainer
-    );
-
-    this.createButton(
-      "WITHDRAW 500 🅒",
-      this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2 + 60,
-      () => {
-        this.handleGameToWalletWithdraw(500);
+        // call withdrawBonk with null amount to withdraw all bonks
+        this.handleGameToWalletWithdrawBonk();
       },
       this.gameToWalletButtonsContainer
     );
@@ -900,7 +892,7 @@ export class DepositWithdrawPrompt {
     if (!this.isVisible) return;
 
     this.isVisible = false;
-    
+
     // If waiting screen is visible, hide it as well
     if (this.isWaiting && this.waitingContainer) {
       this.waitingContainer.setVisible(false);
@@ -1494,65 +1486,25 @@ export class DepositWithdrawPrompt {
   }
 
   // From game account to Solana wallet
-  async handleGameToWalletWithdraw(gameCredits) {
+  async handleGameToWalletWithdraw() {
     try {
-      // Show waiting screen immediately
-      this.showWaitingScreen(`PROCESSING ${gameCredits} CREDITS WITHDRAWAL...`);
+      // Obtener el saldo actual de la cuenta del juego antes de retirarlo
+      const currentBalance = this.getGameAccountBalance();
+      console.log(`Withdrawal amount: ${currentBalance} credits`);
       
-      // Get game account balance
-      this.onChaincreditBalance = await this.getOnchainGameAccountBalance();
-      
-      let success = false;
-      
-      try {
-        // Withdraw credits from game account to wallet
-        await this.scene.playerAccount.withdrawFromGameAccount(gameCredits);
-        
-        // Transfer credits from game account to wallet in local state
-        if (this.scene.playerAccount) {
-          // Update game account balance (subtract)
-          this.scene.playerAccount.updateGameAccountBalance(-gameCredits);
-          
-          // Update Solana balance (add) for our local tracking
-          this.onChaincreditBalance += gameCredits;
-        }
-        
-        success = true;
-      } catch (withdrawError) {
-        console.error("Withdrawal transaction failed:", withdrawError);
-        
-        // Show error message in waiting screen before hiding
-        this.hideWaitingScreen(
-          () => {
-            // Show alert after waiting screen is hidden
-            alert("Withdrawal failed. Please try again later.");
-            
-            // Force time scale reset
-            this.forceTimeScaleReset();
-            
-            // Run the enemy speed normalization as an extra safety measure
-            this.ensureEnemiesAtNormalSpeed();
-            
-            // Pre-emptively force controls enabled
-            if (this.scene.playerManager) {
-              this.scene.playerManager.controlsEnabled = true;
-            }
-            
-            // Switch back to wallet to game mode
-            this.switchToWalletToGameMode();
-            
-            // Show main container again
-            this.container.setVisible(true);
-            this.container.setAlpha(1);
-          },
-          "WITHDRAWAL FAILED!"
-        );
-        
-        // Exit the function early
+      // Verificar que haya créditos para retirar
+      if (currentBalance <= 0) {
+        alert("No hay créditos para retirar");
         return;
       }
       
-      if (success) {
+      // Mostrar pantalla de espera
+      this.showWaitingScreen(`PROCESSING WITHDRAWAL...`);
+      
+      try {
+        // Retirar todos los créditos
+        await this.scene.playerAccount.withdrawFromGameAccount();
+        
         // CRITICAL: Ensure enemies are reset to normal speed if needed
         if (this.scene.timeScaleManager) {
           console.log(
@@ -1561,93 +1513,251 @@ export class DepositWithdrawPrompt {
           this.scene.timeScaleManager.restoreEnemySpeeds();
         }
         
-        // Update waiting screen with success message
+        // Report withdraw to analytics
+        if (window.gtag) {
+          window.gtag("event", "withdraw_all_credits", {
+            event_category: "economy",
+            event_label: "Withdraw all credits",
+            value: currentBalance,
+          });
+        }
+        
+        // Call callback if provided
+        if (this.onWithdrawCallback) {
+          console.log("Calling onWithdrawCallback");
+          this.onWithdrawCallback(currentBalance);
+        }
+        
+        // Mostrar mensaje de éxito
         this.hideWaitingScreen(
           () => {
-            // Show success floating text after waiting screen is hidden
+            // Mostrar texto flotante de éxito
             if (this.scene.playerManager && this.scene.playerManager.player) {
               this.scene.events.emit("showFloatingText", {
                 x: this.scene.playerManager.player.x,
                 y: this.scene.playerManager.player.y - 50,
-                text: `WITHDREW ${gameCredits} CREDITS`,
+                text: `WITHDREW ${currentBalance} CREDITS`,
                 color: "#00ffff",
               });
             } else {
-              // In menu scene, we can't show floating text tied to player position
-              console.log(`Withdraw successful: ${gameCredits} credits to wallet`);
+              console.log(`Withdrawal successful: ${currentBalance} credits to wallet`);
             }
             
-            // Update balance displays
+            // Actualizar displays de saldo
             this.updateBalanceDisplays();
             
-            // Check if we need to reset wheel state
+            // Verificar si necesitamos resetear el estado de la rueda
             const comingFromWheel =
               this.scene.droneWheel && this.scene.droneWheel.openingAtmFromWheel;
             if (comingFromWheel) {
-              // Reset the flag when done with ATM operation
               this.scene.droneWheel.openingAtmFromWheel = false;
             }
             
-            // Switch back to wallet to game mode
-            this.switchToWalletToGameMode();
-            
-            // Reset time scales AFTER hiding
+            // Resetear escalas de tiempo
             this.forceTimeScaleReset();
             
-            // Run the enemy speed normalization as an extra safety measure
+            // Normalizar velocidad de enemigos
             this.ensureEnemiesAtNormalSpeed();
             
-            // Pre-emptively force control restoration with immediate and delayed attempts
+            // Habilitar controles del jugador
             if (this.scene.playerManager) {
               this.scene.playerManager.controlsEnabled = true;
             }
             
-            // Call callback if provided
-            if (this.onDepositCallback) {
-              this.onDepositCallback(-gameCredits);
-            }
-            
-            // Show main container again
+            // Mostrar contenedor principal
             this.container.setVisible(true);
             this.container.setAlpha(1);
+            
+            // Volver al modo wallet to game
+            this.switchToWalletToGameMode();
           },
           "WITHDRAWAL SUCCESSFUL!"
+        );
+      } catch (error) {
+        console.error("Withdrawal transaction failed:", error);
+        
+        // Mostrar mensaje de error
+        this.hideWaitingScreen(
+          () => {
+            alert("Withdrawal failed. Please try again later.");
+            
+            // Resetear escalas de tiempo
+            this.forceTimeScaleReset();
+            
+            // Normalizar velocidad de enemigos
+            this.ensureEnemiesAtNormalSpeed();
+            
+            // Habilitar controles del jugador
+            if (this.scene.playerManager) {
+              this.scene.playerManager.controlsEnabled = true;
+            }
+            
+            // Mostrar contenedor principal
+            this.container.setVisible(true);
+            this.container.setAlpha(1);
+            
+            // Volver al modo wallet to game
+            this.switchToWalletToGameMode();
+          },
+          "WITHDRAWAL FAILED!"
         );
       }
     } catch (error) {
       console.error("Error in handleGameToWalletWithdraw:", error);
       
-      // Hide waiting screen with error message
-      this.hideWaitingScreen(
-        () => {
-          // Show error alert after waiting screen is hidden
-          alert("Withdrawal failed. Please try again later.");
-          
-          // Force time scale reset
-          this.forceTimeScaleReset();
-          
-          // Run the enemy speed normalization as an extra safety measure
-          this.ensureEnemiesAtNormalSpeed();
-          
-          // Pre-emptively force controls enabled
-          if (this.scene.playerManager) {
-            this.scene.playerManager.controlsEnabled = true;
-          }
-          
-          // Switch back to wallet to game mode
-          this.switchToWalletToGameMode();
-          
-          // Show main container again
-          this.container.setVisible(true);
-          this.container.setAlpha(1);
-        },
-        "WITHDRAWAL FAILED!"
-      );
+      // Manejar error general
+      alert("An unexpected error occurred. Please try again later.");
+      
+      // Resetear escalas de tiempo
+      this.forceTimeScaleReset();
+      
+      // Normalizar velocidad de enemigos
+      this.ensureEnemiesAtNormalSpeed();
+      
+      // Habilitar controles del jugador
+      if (this.scene.playerManager) {
+        this.scene.playerManager.controlsEnabled = true;
+      }
+    }
+  }
+
+  async handleGameToWalletWithdrawBonk() {
+    try {
+      // Obtener el saldo actual de la cuenta del juego antes de retirarlo
+      const currentBonkBalance = this.getBonkBalance();
+      console.log(`Withdrawal amount: ${currentBonkBalance} bonks`);
+      
+      // verify if there are bonks to withdraw
+      if (currentBonkBalance <= 0) {
+        alert("No bonks to withdraw");
+        return;
+      }
+      
+      // show waiting screen
+      this.showWaitingScreen(`PROCESSING WITHDRAWAL...`);
+      
+      try {
+        // Retirar todos los bonks
+        await this.scene.playerAccount.withdrawBonkFromGameAccount();
+        
+        // CRITICAL: Ensure enemies are reset to normal speed if needed
+        if (this.scene.timeScaleManager) {
+          console.log(
+            "DepositWithdrawPrompt: Pre-emptively restoring enemy speeds before hide/reset"
+          );
+          this.scene.timeScaleManager.restoreEnemySpeeds();
+        }
+        
+        // Report withdraw to analytics
+        if (window.gtag) {
+          window.gtag("event", "withdraw_all_credits", {
+            event_category: "economy",
+            event_label: "Withdraw all credits",
+            value: currentBonkBalance,
+          });
+        }
+        
+        // Call callback if provided
+        if (this.onWithdrawCallback) {
+          console.log("Calling onWithdrawCallback");
+          this.onWithdrawCallback(currentBonkBalance);
+        }
+        
+        // Mostrar mensaje de éxito
+        this.hideWaitingScreen(
+          () => {
+            // Mostrar texto flotante de éxito
+            if (this.scene.playerManager && this.scene.playerManager.player) {
+              this.scene.events.emit("showFloatingText", {
+                x: this.scene.playerManager.player.x,
+                y: this.scene.playerManager.player.y - 50,
+                text: `WITHDREW ${currentBonkBalance} BONKS`,
+                color: "#00ffff",
+              });
+            } else {
+              console.log(`Withdrawal successful: ${currentBonkBalance} bonks to wallet`);
+            }
+            
+            // update displays
+            this.updateBalanceDisplays();
+            
+            // verify if we need to reset the wheel state
+            const comingFromWheel =
+              this.scene.droneWheel && this.scene.droneWheel.openingAtmFromWheel;
+            if (comingFromWheel) {
+              this.scene.droneWheel.openingAtmFromWheel = false;
+            }
+            
+            // reset time scales
+            this.forceTimeScaleReset();
+            
+            // normalize enemy speeds
+            this.ensureEnemiesAtNormalSpeed();
+            
+            // enable player controls
+            if (this.scene.playerManager) {
+              this.scene.playerManager.controlsEnabled = true;
+            }
+            
+            // show main container
+            this.container.setVisible(true);
+            this.container.setAlpha(1);
+            
+            // switch to wallet to game mode
+            this.switchToWalletToGameMode();
+          },
+          "WITHDRAWAL SUCCESSFUL!"
+        );
+      } catch (error) {
+        console.error("Withdrawal transaction failed:", error);
+        
+        // show error message
+        this.hideWaitingScreen(
+          () => {
+            alert("Withdrawal failed. Please try again later.");
+            
+            // reset time scales
+            this.forceTimeScaleReset();
+            
+            // normalize enemy speeds
+            this.ensureEnemiesAtNormalSpeed();
+            
+            // Habilitar controles del jugador
+            if (this.scene.playerManager) {
+              this.scene.playerManager.controlsEnabled = true;
+            }
+            
+            // Mostrar contenedor principal
+            this.container.setVisible(true);
+            this.container.setAlpha(1);
+            
+            // Volver al modo wallet to game
+            this.switchToWalletToGameMode();
+          },
+          "WITHDRAWAL FAILED!"
+        );
+      }
+    } catch (error) {
+      console.error("Error in handleGameToWalletWithdrawBonk:", error);
+      
+      // handle general error
+      alert("An unexpected error occurred. Please try again later.");
+      
+      // reset time scales
+      this.forceTimeScaleReset();
+      
+      // normalize enemy speeds
+      this.ensureEnemiesAtNormalSpeed();
+      
+      // enable player controls
+      if (this.scene.playerManager) {
+        this.scene.playerManager.controlsEnabled = true;
+      }
     }
   }
 
   // From game account to arena - IMPROVED VERSION
-  handleGameToArenaDeposit(gameCredits) {
+  async handleGameToArenaDeposit(gameCredits) {
     console.log(
       "IMPROVED handleGameToArenaDeposit called with amount:",
       gameCredits
@@ -1993,19 +2103,17 @@ export class DepositWithdrawPrompt {
     // Only update position if containers are visible
     if (this.scene && this.scene.cameras) {
       const camera = this.scene.cameras.main;
-      
       // Update main container position
       if (this.isVisible && this.container) {
         this.container.setPosition(camera.scrollX, camera.scrollY);
       }
-      
       // Update waiting screen position
       if (this.isWaiting && this.waitingContainer) {
         this.waitingContainer.setPosition(camera.scrollX, camera.scrollY);
       }
     }
   }
-  
+
   /**
    * Show the waiting screen while withdrawing to wallet
    * @param {string} [customMessage] - Optional custom message to display
@@ -2049,6 +2157,118 @@ export class DepositWithdrawPrompt {
         }
       });
     }
+    
+    // IMPORTANTE: Deshabilitar controles del jugador para evitar cambios de escenario
+    this.disableAllControls();
+    
+    // Crear un bloqueador de input que cubra toda la pantalla para evitar clics
+    this.createInputBlocker();
+  }
+      
+  /**
+   * Disable all player controls and UI interactions
+   * This prevents the player from changing scenes or interacting with the game
+   * while a critical operation like withdrawal is in progress
+   */
+  disableAllControls() {
+    console.log("DepositWithdrawPrompt: Disabling all controls during withdrawal");
+    
+    // Disable player controls if available
+    if (this.scene.playerManager) {
+      this.scene.playerManager.controlsEnabled = false;
+      console.log("Player controls disabled");
+    }
+    
+    // Disable scene switching if available
+    if (this.scene.sceneManager) {
+      this.scene._allowSceneChange = false; // Custom flag to prevent scene changes
+      console.log("Scene switching disabled");
+    }
+    
+    // Disable all buttons in the scene
+    if (this.scene.input && this.scene.input.enabled) {
+      // Store original state to restore later
+      this._originalInputEnabled = this.scene.input.enabled;
+      this.scene.input.enabled = false;
+      console.log("Scene input disabled");
+    }
+    
+    // Disable keyboard events
+    if (this.scene.input && this.scene.input.keyboard) {
+      this._originalKeyboardEnabled = this.scene.input.keyboard.enabled;
+      this.scene.input.keyboard.enabled = false;
+      console.log("Keyboard input disabled");
+    }
+  }
+  
+  /**
+   * Create an invisible input blocker that covers the entire screen
+   * This prevents clicks from passing through to UI elements below
+   */
+  createInputBlocker() {
+    // Remove any existing input blocker
+    if (this.inputBlocker) {
+      this.inputBlocker.destroy();
+    }
+    
+    // Create a full-screen rectangle that blocks input
+    this.inputBlocker = this.scene.add.rectangle(
+      this.scene.cameras.main.width / 2,
+      this.scene.cameras.main.height / 2,
+      this.scene.cameras.main.width,
+      this.scene.cameras.main.height,
+      0x000000,
+      0.01 // Almost invisible but still blocks input
+    );
+    
+    // Make sure it's above everything else
+    this.inputBlocker.setDepth(2000);
+    
+    // Make it follow the camera
+    this.inputBlocker.setScrollFactor(0);
+    
+    // Add it to the waiting container
+    this.waitingContainer.add(this.inputBlocker);
+    
+    console.log("Input blocker created");
+  }
+  
+  /**
+   * Re-enable all controls that were disabled
+   */
+  enableAllControls() {
+    console.log("DepositWithdrawPrompt: Re-enabling all controls");
+    
+    // Re-enable player controls
+    if (this.scene.playerManager) {
+      this.scene.playerManager.controlsEnabled = true;
+      console.log("Player controls re-enabled");
+    }
+    
+    // Re-enable scene switching
+    if (this.scene.sceneManager) {
+      this.scene._allowSceneChange = true;
+      console.log("Scene switching re-enabled");
+    }
+    
+    // Re-enable scene input if it was enabled before
+    if (this.scene.input && this._originalInputEnabled !== undefined) {
+      this.scene.input.enabled = this._originalInputEnabled;
+      console.log("Scene input restored to original state");
+    }
+    
+    // Re-enable keyboard if it was enabled before
+    if (this.scene.input && this.scene.input.keyboard && this._originalKeyboardEnabled !== undefined) {
+      this.scene.input.keyboard.enabled = this._originalKeyboardEnabled;
+      console.log("Keyboard input restored to original state");
+    }
+    
+    // Remove input blocker
+    if (this.inputBlocker) {
+      this.inputBlocker.destroy();
+      this.inputBlocker = null;
+      console.log("Input blocker removed");
+    }
   }
   
   /**
@@ -2065,7 +2285,7 @@ export class DepositWithdrawPrompt {
     // If a result message is provided, show it briefly before hiding
     if (resultMessage && this.waitingStatusText) {
       this.waitingStatusText.setText(resultMessage);
-      
+    
       // Wait a moment to show the result message before hiding
       this.scene.time.delayedCall(1500, () => {
         this.fadeOutWaitingScreen(callback);
@@ -2074,27 +2294,31 @@ export class DepositWithdrawPrompt {
       this.fadeOutWaitingScreen(callback);
     }
   }
-  
-  /**
-   * Fade out the waiting screen
-   * @private
-   * @param {Function} [callback] - Optional callback to execute when hidden
-   */
-  fadeOutWaitingScreen(callback) {
-    this.scene.tweens.add({
-      targets: this.waitingContainer,
-      alpha: 0,
-      duration: 300,
-      ease: "Power2",
-      onComplete: () => {
-        this.waitingContainer.setVisible(false);
-        this.isWaiting = false;
-        
-        // Execute callback if provided
-        if (callback) callback();
-      }
-    });
-  }
+    
+    /**
+     * Fade out the waiting screen
+     * @private
+     * @param {Function} [callback] - Optional callback to execute when hidden
+     */
+    fadeOutWaitingScreen(callback) {
+      this.scene.tweens.add({
+        targets: this.waitingContainer,
+        alpha: 0,
+        duration: 300,
+        ease: "Power2",
+        onComplete: () => {
+          this.waitingContainer.setVisible(false);
+          this.isWaiting = false;
+          
+          // IMPORTANTE: Re-habilitar todos los controles que fueron deshabilitados
+          this.enableAllControls();
+          
+          // Execute callback if provided
+          if (callback) callback();
+        }
+      });
+    }
+
 
   /**
    * Force an immediate reset of time scales to normal
@@ -2344,7 +2568,6 @@ export class DepositWithdrawPrompt {
    * @param {number} newBalance - The new game account balance
    */
   updateGameAccountDisplay(newBalance) {
-    console.log(`Updating game account display: $${newBalance}`);
     // Determine if we are in a login process
     const isLoginProcess = this.isLoginProcess(newBalance);
     
@@ -2370,34 +2593,34 @@ export class DepositWithdrawPrompt {
             "function",
         });
         
-        // Attempt to update in the database
-        if (typeof this.scene.playerAccount.setCreditCount === "function") {
-          console.log(
-            "DepositWithdrawPrompt: Attempting to update credit_count in DB with value:",
-            newBalance
-          );
-          try {
-            this.scene.playerAccount.setCreditCount(newBalance)
-              .then((response) => {
-                console.log(
-                  "DepositWithdrawPrompt: credit_count successfully updated in DB:",
-                  response
-                );
-              })
-              .catch((err) => {
-                console.error(
-                  "Error updating credit_count in DB from DepositWithdrawPrompt:",
-                  err
-                );
-              });
-          } catch (error) {
-            console.error("Error calling setCreditCount:", error);
-          }
-        } else {
-          console.error(
-            "DepositWithdrawPrompt: Cannot update DB - setCreditCount method not available"
-          );
-        }
+        // // Attempt to update in the database
+        // if (typeof this.scene.playerAccount.setCreditCount === "function") {
+        //   console.log(
+        //     "DepositWithdrawPrompt: Attempting to update credit_count in DB with value:",
+        //     newBalance
+        //   );
+        //   try {
+        //     this.scene.playerAccount.setCreditCount(newBalance)
+        //       .then((response) => {
+        //         console.log(
+        //           "DepositWithdrawPrompt: credit_count successfully updated in DB:",
+        //           response
+        //         );
+        //       })
+        //       .catch((err) => {
+        //         console.error(
+        //           "Error updating credit_count in DB from DepositWithdrawPrompt:",
+        //           err
+        //         );
+        //       });
+        //   } catch (error) {
+        //     console.error("Error calling setCreditCount:", error);
+        //   }
+        // } else {
+        //   console.error(
+        //     "DepositWithdrawPrompt: Cannot update DB - setCreditCount method not available"
+        //   );
+        // }
       } else {
         console.error(
           "DepositWithdrawPrompt: Cannot update DB - playerAccount not available"
@@ -2429,17 +2652,10 @@ export class DepositWithdrawPrompt {
    * @returns {boolean} true if it appears to be part of a login process
    */
   isLoginProcess(newBalance) {
-    // Feature #1: Balance is exactly 1300
-    // This value appears to be assigned automatically during login
-    if (newBalance === 1300) {
-      console.log("Detected login process: initial balance of 1300");
+    if (newBalance === 0) {
       return true;
     }
     
-    // Feature #2: Check if there are recent authentication logs
-    // We could use a globally stored login timestamp
-    
-    // For now, we only use the specific balance characteristic
     return false;
   }
 
@@ -2465,58 +2681,58 @@ export class DepositWithdrawPrompt {
   createWaitingScreen() {
     // Create background overlay
     const bg = this.scene.add.rectangle(
-      this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2,
-      this.scene.cameras.main.width,
-      this.scene.cameras.main.height,
-      0x000000,
-      0.85
+    this.scene.cameras.main.width / 2,
+    this.scene.cameras.main.height / 2,
+    this.scene.cameras.main.width,
+    this.scene.cameras.main.height,
+    0x000000,
+    0.85
     );
     this.waitingContainer.add(bg);
 
     // Create panel background (terminal style screen)
     const panel = this.scene.add.rectangle(
-      this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2,
-      500,
-      300,
-      0x000000,
-      0.95
+    this.scene.cameras.main.width / 2,
+    this.scene.cameras.main.height / 2,
+    500,
+    300,
+    0x000000,
+    0.95
     );
     panel.setStrokeStyle(2, 0x00ff00);
     this.waitingContainer.add(panel);
-
+    
     // Add title
     const title = this.scene.add.text(
-      this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2 - 100,
-      "PROCESSING WITHDRAWAL",
-      {
-        fontFamily: "Tektur",
-        fontSize: "24px",
-        color: "#00ff00",
-        align: "center",
-        fontStyle: "bold",
-      }
+    this.scene.cameras.main.width / 2,
+    this.scene.cameras.main.height / 2 - 100,
+    "PROCESSING WITHDRAWAL",
+    {
+    fontFamily: "Tektur",
+    fontSize: "24px",
+    color: "#00ff00",
+    align: "center",
+    fontStyle: "bold",
+    }
     );
     title.setOrigin(0.5);
     this.waitingContainer.add(title);
 
     // Add subtitle with explanation
     const subtitle = this.scene.add.text(
-      this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2 - 60,
-      "TRANSFERRING FUNDS TO YOUR WALLET",
-      {
-        fontFamily: "Tektur",
-        fontSize: "16px",
-        color: "#00ff00",
-        align: "center",
-      }
+    this.scene.cameras.main.width / 2,
+    this.scene.cameras.main.height / 2 - 60,
+    "TRANSFERRING FUNDS TO YOUR WALLET",
+    {
+    fontFamily: "Tektur",
+    fontSize: "16px",
+    color: "#00ff00",
+    align: "center",
+    }
     );
     subtitle.setOrigin(0.5);
     this.waitingContainer.add(subtitle);
-
+    
     // Add loading spinner animation
     const spinnerSize = 50;
     const spinnerX = this.scene.cameras.main.width / 2;
@@ -2524,70 +2740,70 @@ export class DepositWithdrawPrompt {
     
     // Create spinner segments
     for (let i = 0; i < 8; i++) {
-      const angle = (i / 8) * Math.PI * 2;
-      const x = spinnerX + Math.cos(angle) * spinnerSize;
-      const y = spinnerY + Math.sin(angle) * spinnerSize;
-      
-      const dot = this.scene.add.circle(x, y, 5, 0x00ff00);
-      dot.alpha = 0.2 + (i / 8) * 0.8; // Fade alpha based on position
-      
-      this.waitingContainer.add(dot);
+    const angle = (i / 8) * Math.PI * 2;
+    const x = spinnerX + Math.cos(angle) * spinnerSize;
+    const y = spinnerY + Math.sin(angle) * spinnerSize;
+    
+    const dot = this.scene.add.circle(x, y, 5, 0x00ff00);
+    dot.alpha = 0.2 + (i / 8) * 0.8; // Fade alpha based on position
+    
+    this.waitingContainer.add(dot);
     }
-
+    
     // Add an animated dot that rotates around the circle
     const animatedDot = this.scene.add.circle(
-      spinnerX + spinnerSize,
-      spinnerY,
-      8,
-      0x00ff00
+    spinnerX + spinnerSize,
+    spinnerY,
+    8,
+    0x00ff00
     );
     this.waitingContainer.add(animatedDot);
-
+    
     // Create animation for the dot
     this.scene.tweens.add({
-      targets: animatedDot,
-      angle: 360,
-      loop: -1,
-      duration: 1500,
-      onUpdate: (tween) => {
-        const progress = tween.progress;
-        const angle = progress * Math.PI * 2;
-        animatedDot.x = spinnerX + Math.cos(angle) * spinnerSize;
-        animatedDot.y = spinnerY + Math.sin(angle) * spinnerSize;
-      }
+    targets: animatedDot,
+    angle: 360,
+    loop: -1,
+    duration: 1500,
+    onUpdate: (tween) => {
+    const progress = tween.progress;
+    const angle = progress * Math.PI * 2;
+    animatedDot.x = spinnerX + Math.cos(angle) * spinnerSize;
+    animatedDot.y = spinnerY + Math.sin(angle) * spinnerSize;
+    }
     });
-
+    
     // Add status message
     this.waitingStatusText = this.scene.add.text(
-      this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2 + 80,
-      "PLEASE WAIT...",
-      {
-        fontFamily: "Tektur",
-        fontSize: "18px",
-        color: "#00ff00",
-        align: "center",
-      }
+    this.scene.cameras.main.width / 2,
+    this.scene.cameras.main.height / 2 + 80,
+    "PLEASE WAIT...",
+    {
+    fontFamily: "Tektur",
+    fontSize: "18px",
+    color: "#00ff00",
+    align: "center",
+    }
     );
     this.waitingStatusText.setOrigin(0.5);
     this.waitingContainer.add(this.waitingStatusText);
-
+    
     // Add footer note
     const footer = this.scene.add.text(
-      this.scene.cameras.main.width / 2,
-      this.scene.cameras.main.height / 2 + 120,
-      "DO NOT CLOSE OR REFRESH THE PAGE",
-      {
-        fontFamily: "Tektur",
-        fontSize: "14px",
-        color: "#ff0000",
-        align: "center",
-        fontStyle: "bold",
-      }
+    this.scene.cameras.main.width / 2,
+    this.scene.cameras.main.height / 2 + 120,
+    "DO NOT CLOSE OR REFRESH THE PAGE",
+    {
+    fontFamily: "Tektur",
+    fontSize: "14px",
+    color: "#ff0000",
+    align: "center",
+    fontStyle: "bold",
+    }
     );
     footer.setOrigin(0.5);
     this.waitingContainer.add(footer);
-
+    
     // Add scanlines for terminal effect
     const scanlines = this.createScanlines(panel);
     this.waitingContainer.add(scanlines);
@@ -2656,7 +2872,7 @@ export class DepositWithdrawPrompt {
     if (this.container) {
       this.container.destroy();
     }
-    
+
     // Destroy waiting screen container
     if (this.waitingContainer) {
       this.waitingContainer.destroy();

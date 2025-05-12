@@ -5,8 +5,7 @@ const myCipher = cipher("transactionsalt");
 
 // Create an instance of axios
 const api = axios.create({
-  // baseURL: "https://bonkgames.io/api/api",
-  baseURL: "http://localhost:9031/api/",
+  baseURL: import.meta.env.VITE_BASE_API_URL,
   headers: {
     "Content-Type": "application/json",
   },
@@ -69,20 +68,86 @@ export const updateCredit = async (token, amount, tx_hash) => {
   }
 };
 
-export const withdrawCredit = async (token, solanaWallet, amount) => {
+export const withdrawCredit = async (token, solanaWallet, amount = null) => {
   try {
+    console.log('API.js - withdrawCredit - Iniciando retiro de créditos:', {
+      retirarTodo: amount === null,
+      amount: amount
+    });
+    
+    const requestData = {
+      encrypted_solana_wallet: myCipher(solanaWallet),
+    };
+    
+    // Si se proporciona una cantidad específica, cifrarla y enviarla
+    // Si no, no enviar el parámetro para que el backend retire todos los créditos
+    if (amount !== null) {
+      requestData.encrypted_del_credit = myCipher(amount.toString());
+    } else {
+      requestData.encrypted_del_credit = 'all';
+    }
+    
     const response = await api.post(
       "/users/withdraw",
-      {
-        encrypted_solana_wallet: myCipher(solanaWallet),
-        encrypted_del_credit: myCipher(amount.toString()),
-      },
+      requestData,
       {
         headers: { "x-auth-token": token },
       }
     );
+    
+    console.log('API.js - withdrawCredit - Respuesta:', {
+      status: response.status,
+      data: response.data
+    });
+    
     return response.data;
   } catch (error) {
+    console.error('API.js - withdrawCredit - Error:', {
+      message: error.message,
+      response: error.response ? { status: error.response.status, data: error.response.data } : null
+    });
+    throw error;
+  }
+};
+
+export const withdrawBonk = async (token, solanaWallet, amount = null) => {
+  try {
+    console.log('API.js - withdrawBonk - Initilizing bonk withdrawal:', {
+      retirarTodo: amount === null,
+      amount: amount
+    });
+    
+    const requestData = {
+      encrypted_solana_wallet: myCipher(solanaWallet),
+    };
+    
+    // If a specific amount is provided, encrypt it and send it
+    // If not, do not send the parameter to withdraw all bonks
+    if (amount !== null) {
+      requestData.encrypted_del_bonk = myCipher(amount.toString());
+    } else {
+      requestData.encrypted_del_bonk = 'all';
+    }
+    
+    const response = await api.post(
+      "/users/withdrawBonk",
+      requestData,
+      {
+        headers: { "x-auth-token": token },
+      }
+    );
+    
+    console.log('API.js - withdrawBonk - Response:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('API.js - withdrawBonk - Error:', {
+      message: error.message,
+      response: error.response ? { status: error.response.status, data: error.response.data } : null
+    });
     throw error;
   }
 };
@@ -131,50 +196,21 @@ export const setCreditCount = async (token, credit_count) => {
   }
 };
 
-export const updateEarnCount = async (token, earn, addToExisting = true) => {
+export const updateEarnCount = async (token, earn) => {
   try {
-    // If we should add to existing earns, first get the current user info to get existing earns value
-    let updatedEarn = earn;
-    
-    if (addToExisting) {
-      try {
-        // Get current user info to determine existing earns
-        const userInfo = await getUserInfo(token);
-        const existingEarns = userInfo.user && userInfo.user.earns ? parseFloat(userInfo.user.earns) : 0;
-        
-        // Add the new amount to existing earns
-        updatedEarn = existingEarns + earn;
-        
-        console.log('API.js - updateEarnCount - Adding to existing earns:', {
-          existingEarns,
-          newEarns: earn,
-          updatedTotal: updatedEarn
-        });
-      } catch (userInfoError) {
-        console.error('API.js - updateEarnCount - Error fetching user info:', {
-          message: userInfoError.message
-        });
-        // Continue with just the new value if we couldn't get existing earns
-      }
-    }
-    
     console.log('API.js - updateEarnCount - Sending request to server:', {
       endpoint: '/users/updateEarnCount',
-      earn: updatedEarn,
-      addToExisting
+      earn
     });
-    
     const response = await api.patch(
       '/users/updateEarnCount',
-      { earn: updatedEarn },
+      { earn },
       { headers: { 'x-auth-token': token } }
     );
-    
     console.log('API.js - updateEarnCount - Response:', {
       status: response.status,
       data: response.data
     });
-    
     return response.data;
   } catch (error) {
     console.error('API.js - updateEarnCount - Error:', {
@@ -184,6 +220,5 @@ export const updateEarnCount = async (token, earn, addToExisting = true) => {
     throw error;
   }
 };
-
 
 export default api;
