@@ -8,6 +8,12 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      VITE_BASE_API_URL: ${{ secrets.VITE_BASE_API_URL }}
+      VITE_RPC_URL: ${{ secrets.VITE_RPC_URL }}
+      VITE_CREDIT_MINT_ADDRESS: ${{ secrets.VITE_CREDIT_MINT_ADDRESS }}
+      VITE_BONK_MINT_ADDRESS: ${{ secrets.VITE_BONK_MINT_ADDRESS }}
+      VITE_ADMIN_WALLET_ADDRESS: ${{ secrets.VITE_ADMIN_WALLET_ADDRESS }}
 
     steps:
     - name: Checkout code
@@ -19,7 +25,7 @@ jobs:
         node-version: 18
 
     - name: Install dependencies & Build
-      run: |
+      run: | 
         npm ci
         npm run build
 
