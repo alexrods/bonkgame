@@ -32,6 +32,20 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
   
   init(data) {
+    // Verificar si hay una redirección pendiente a la candy machine (caso sin NFTs)
+    if (localStorage.getItem('redirectingToMint') === 'true') {
+      console.log('Redirección a candy machine pendiente. Deteniendo carga de escena.');
+      
+      // Limpiar el flag para evitar bucles
+      localStorage.removeItem('redirectingToMint');
+      
+      // Redirigir directamente a la candy machine, sin cargar el resto de la escena
+      window.location.href = 'https://fight.bonkgames.io/';
+      
+      // Abortar inicialización de la escena
+      return;
+    }
+    
     // Check if we're in versus mode
     this.versusMode = data && data.versusMode === true;
     
@@ -41,8 +55,8 @@ export class CharacterSelectScene extends Phaser.Scene {
       console.log('Character selection started from GameOverScene');
     }
     
-    // Get list of available characters from registry
-    this.characters = this.registry.get('availableCharacters') || ['default'];
+    // Filtrar personajes disponibles según las bloodlines del jugador
+    this.filterCharactersByBloodline();
     
     // Get current selected character from registry
     const currentCharacter = this.registry.get('selectedCharacter') || 'default';
@@ -177,6 +191,78 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.scale.on('resize', this.handleResize, this);
   }
   
+  /**
+   * Filtra los personajes disponibles según las bloodlines del jugador
+   * Si el jugador tiene múltiples bloodlines, se combinan las opciones disponibles
+   */
+  filterCharactersByBloodline() {
+    // Mapeo de bloodlines a personajes disponibles
+    const bloodlineCharacters = {
+      'Bots': ['character3', 'character4'],
+      'Corps': ['default', 'character2'],
+      'Mob': ['character5', 'character6']
+    };
+    
+    let availableCharacters = [];
+    let playerBloodlines = [];
+    
+    // Intentar obtener bloodlines del PlayerAccount (si está disponible)
+    if (window.playerAccount && window.playerAccount.bloodlines) {
+      playerBloodlines = window.playerAccount.bloodlines;
+      console.log('Bloodlines obtenidas de PlayerAccount:', playerBloodlines);
+    } 
+    // Alternativamente, intentar obtener bloodlines del nftCollectionChecker
+    else if (window.nftCollectionChecker && window.nftCollectionChecker.playerBloodlines) {
+      playerBloodlines = window.nftCollectionChecker.playerBloodlines;
+      console.log('Bloodlines obtenidas de nftCollectionChecker:', playerBloodlines);
+    }
+    // Si no hay acceso directo, intentar obtener de localStorage
+    else {
+      try {
+        const storedBloodlines = localStorage.getItem('playerBloodlines');
+        if (storedBloodlines) {
+          playerBloodlines = JSON.parse(storedBloodlines);
+          console.log('Bloodlines obtenidas de localStorage:', playerBloodlines);
+        }
+      } catch (error) {
+        console.error('Error al obtener bloodlines de localStorage:', error);
+      }
+    }
+    
+    // Si no hay bloodlines, usar todos los personajes disponibles desde el registro o personaje por defecto
+    if (!playerBloodlines || playerBloodlines.length === 0) {
+      console.log('No se encontraron bloodlines. Usando personajes registrados o por defecto.');
+      this.characters = this.registry.get('availableCharacters') || ['default'];
+      return;
+    }
+    
+    // Combinar personajes disponibles basados en las bloodlines del jugador
+    playerBloodlines.forEach(bloodline => {
+      if (bloodlineCharacters[bloodline]) {
+        // Añadir personajes únicos a la lista de disponibles
+        bloodlineCharacters[bloodline].forEach(character => {
+          if (!availableCharacters.includes(character)) {
+            availableCharacters.push(character);
+          }
+        });
+      }
+    });
+    
+    // Si después de filtrar no hay personajes disponibles, usar personaje por defecto
+    if (availableCharacters.length === 0) {
+      availableCharacters = ['default'];
+      console.log('No hay personajes disponibles para las bloodlines encontradas. Usando personaje por defecto.');
+    } else {
+      console.log('Personajes disponibles para las bloodlines:', availableCharacters);
+    }
+    
+    // Actualizar la lista de personajes
+    this.characters = availableCharacters;
+    
+    // Registrar los personajes disponibles para uso en otras escenas
+    this.registry.set('availableCharacters', availableCharacters);
+  }
+  
   handleResize() {
     // Save current character selection
     const currentSelection = this.selectedIndex;
@@ -294,6 +380,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     // Get current dimensions
     const width = this.scale.width;
     const height = this.scale.height;
+    
+    // Verificar si hay una wallet conectada y actualizar bloodlines si es necesario
+    // this.updateNFTBloodlinesIfNeeded();
     
     // Check if we're in portrait mode or a very narrow screen
     this.isPortrait = height > width;

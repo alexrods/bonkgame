@@ -4,14 +4,26 @@
  * pero no en el navegador, como global, Buffer y process.
  */
 
-// Polyfill para el objeto global
-if (typeof window !== 'undefined') {
+// Importamos el polyfill de Buffer como un módulo ES
+import { Buffer as BufferPolyfill } from 'buffer/';
+
+// Polyfill para global
+if (typeof global === 'undefined') {
   window.global = window;
 }
 
 // Polyfill para process
-if (typeof window.process === 'undefined') {
-  window.process = { env: { NODE_ENV: 'production' } };
+if (typeof process === 'undefined') {
+  window.process = {
+    env: { NODE_ENV: 'production' },
+    version: '',
+    nextTick: function(fn) { setTimeout(fn, 0); }
+  };
+}
+
+// Polyfill para Buffer
+if (typeof Buffer === 'undefined') {
+  window.Buffer = BufferPolyfill;
 }
 
 // Polyfill para crypto
@@ -41,5 +53,3 @@ if (typeof window.TextDecoder === 'undefined') {
     return str;
   };
 }
-
-console.log('Web3 polyfills cargados correctamente');

@@ -120,25 +120,30 @@ export class PlayerAccount {
         this.playerData.bonk_balance
       );
       
-      // verify BONKGAMES nft collection
+      // Verificar si el usuario posee NFTs de la colección configurada
       try {
-        // Initialize the nft checker if not already initialized
+        // Limpiar cualquier información anterior de bloodlines
+        this.bloodlines = [];
+        localStorage.removeItem('playerBloodlines');
+        
+        // Inicializar el verificador de NFTs
         if (!nftCollectionChecker.wallet.isConnected) {
-          // Use the same connection we already have established
+          // Usar la misma conexión que ya tenemos establecida
           nftCollectionChecker.wallet = this.wallet;
-          nftCollectionChecker.nftReader.setConnection(this.wallet.connection);
           nftCollectionChecker.authToken = this.authToken;
+          // Configurar la red como devnet para pruebas
+          nftCollectionChecker.network = "devnet";
         }
         
-        // Verify BONKGAMES nft collection
-        console.log("Verifying BONKGAMES nft collection for the user...");
+        // Verificar la colección de NFTs usando el método checkCollection
+        console.log("Verificando colección de NFTs para el usuario...");
         const hasNFT = await nftCollectionChecker.checkCollection();
         
-        // Store the result in playerData
+        // Almacenar el resultado en playerData
         this.playerData.hasCollectionNFT = hasNFT;
         this.savePlayerData();
         
-        // Emit event with the result
+        // Emitir evento con el resultado
         this.scene.events.emit("nft-collection-check", {
           hasNFT,
           collectionAddress: nftCollectionChecker.defaultCollectionAddress
@@ -173,22 +178,27 @@ export class PlayerAccount {
   /**
    * Handle wallet disconnection
    */
-  handleWalletDisconnect() {
+  async handleWalletDisconnect() {
+    // Reset authentication state
     this.isAuthenticated = false;
-
-    // Don't clear playerData completely, just mark as not authenticated
-    this.playerData.address = null;
-
-    // Clear authenticated flag in localStorage
-    try {
-      localStorage.removeItem("walletAuthenticated");
-      localStorage.removeItem("connectedWalletAddress");
-    } catch (err) {
-      console.warn("Could not clear wallet auth status from localStorage", err);
+    this.authToken = null;
+    
+    // Update player data to reflect disconnection
+    if (this.playerData) {
+      this.playerData.address = null;
     }
-
-    // Notify the game that player is no longer authenticated
-    this.scene.events.emit("player-disconnected");
+    
+    // Limpiar las bloodlines al desconectar la wallet
+    this.bloodlines = [];
+    localStorage.removeItem('playerBloodlines');
+    
+    // Save updated state
+    this.savePlayerData();
+    
+    // Notify the game
+    this.scene.events.emit("player-unauthenticated");
+    
+    console.log("Wallet disconnected from PlayerAccount");
 
     console.log("Player disconnected");
   }

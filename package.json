@@ -15,12 +15,14 @@
   },
   "dependencies": {
     "@metaplex-foundation/js": "^0.20.1",
+    "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@solana/spl-token": "^0.1.8",
     "@solana/web3.js": "^1.87.6",
     "axios": "^1.8.4",
     "bs58": "^5.0.0",
     "buffer": "^6.0.3",
     "phaser": "^3.88.2",
-    "socket.io-client": "^4.7.2"
+    "socket.io-client": "^4.7.2",
+    "stream-browserify": "^3.0.0"
   }
 }
