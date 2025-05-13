@@ -184,22 +184,26 @@ export class PlayerAccount {
     this.authToken = null;
     
     // Update player data to reflect disconnection
-    if (this.playerData) {
-      this.playerData.address = null;
+    this.playerData.address = null;
+    // Clear authenticated flag in localStorage
+    try {
+      localStorage.removeItem("walletAuthenticated");
+      localStorage.removeItem("connectedWalletAddress");
+      localStorage.removeItem('playerBloodlines');
+    } catch (err) {
+      console.warn("Could not clear wallet auth status from localStorage", err);
     }
     
-    // Limpiar las bloodlines al desconectar la wallet
-    this.bloodlines = [];
-    localStorage.removeItem('playerBloodlines');
+    // // Limpiar las bloodlines al desconectar la wallet
+    // this.bloodlines = [];
+    // localStorage.removeItem('playerBloodlines');
     
-    // Save updated state
-    this.savePlayerData();
+    // // Save updated state
+    // this.savePlayerData();
     
-    // Notify the game
-    this.scene.events.emit("player-unauthenticated");
+    // Notify the game that player is no longer authenticated
+    this.scene.events.emit("player-disconnected");
     
-    console.log("Wallet disconnected from PlayerAccount");
-
     console.log("Player disconnected");
   }
 
