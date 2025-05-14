@@ -1,18 +1,18 @@
 /**
- * Polyfills para bibliotecas Web3 y Metaplex
- * Este archivo proporciona los objetos necesarios que normalmente están disponibles en Node.js
- * pero no en el navegador, como global, Buffer y process.
+ * Polyfills for Web3 and Metaplex libraries
+ * This file provides the objects necessary that are normally available in Node.js
+ * but not in the browser, such as global, Buffer and process.
  */
 
-// Importamos el polyfill de Buffer como un módulo ES
+// Import the Buffer polyfill as an ES module
 import { Buffer as BufferPolyfill } from 'buffer/';
 
-// Polyfill para global
+// Polyfill for global
 if (typeof global === 'undefined') {
   window.global = window;
 }
 
-// Polyfill para process
+// Polyfill for process
 if (typeof process === 'undefined') {
   window.process = {
     env: { NODE_ENV: 'production' },
@@ -21,17 +21,17 @@ if (typeof process === 'undefined') {
   };
 }
 
-// Polyfill para Buffer
+// Polyfill for Buffer
 if (typeof Buffer === 'undefined') {
   window.Buffer = BufferPolyfill;
 }
 
-// Polyfill para crypto
+// Polyfill for crypto
 if (window.crypto && !window.crypto.subtle && window.crypto.webkitSubtle) {
   window.crypto.subtle = window.crypto.webkitSubtle;
 }
 
-// Polyfill para TextEncoder/TextDecoder si no están disponibles
+// Polyfill for TextEncoder/TextDecoder if not available
 if (typeof window.TextEncoder === 'undefined') {
   window.TextEncoder = function TextEncoder() {};
   window.TextEncoder.prototype.encode = function encode(str) {

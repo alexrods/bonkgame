@@ -120,68 +120,68 @@ export class PlayerAccount {
         this.playerData.bonk_balance
       );
       
-      // Verificar si el usuario posee NFTs de la colección configurada
+      // Verify if the user has NFTs from the configured collection
       try {
-        // Limpiar cualquier información anterior de bloodlines
+        // Clear any previous bloodline information
         this.bloodlines = [];
         localStorage.removeItem('playerBloodlines');
         
-        // Inicializar el verificador de NFTs
+        // Initialize the NFT verifier
         if (!nftCollectionChecker.wallet.isConnected) {
-          // Usar la misma conexión que ya tenemos establecida
+          // Use the same connection we already have established
           nftCollectionChecker.wallet = this.wallet;
           nftCollectionChecker.authToken = this.authToken;
-          // Configurar la red como devnet para pruebas
+          // Configure the network as devnet for testing
           nftCollectionChecker.network = "devnet";
         }
         
-        // Verificar la colección de NFTs usando el método checkCollection
-        console.log("Verificando colección de NFTs para el usuario...");
+        // Verify the NFT collection using the checkCollection method
+        console.log("Verifying NFT collection for the user...");
         const nftResult = await nftCollectionChecker.checkCollection();
         
-        // Determinar correctamente si el usuario tiene NFTs
-        // Si el resultado es un arreglo vacío o [] significa que no se encontraron NFTs
-        // Si es un objeto con needsNFT: true, significa que se necesitan NFTs
-        // Si es false, significa que hubo un error
-        // Solo si es un arreglo no vacío el usuario tiene NFTs
+        // Determine correctly if the user has NFTs
+        // If the result is an empty array or [] it means no NFTs were found
+        // If it's an object with needsNFT: true, it means NFTs are needed
+        // If it's false, it means there was an error
+        // Only if it's a non-empty array does the user have NFTs
         const hasNFT = Array.isArray(nftResult) && nftResult.length > 0 && 
-                    !nftResult.needsNFT; // Para asegurarnos de que no sea un objeto de error
+                    !nftResult.needsNFT; // To ensure it's not an error object
         
-        console.log("Resultado de verificación NFT:", { 
+        console.log("NFT verification result:", { 
           resultType: typeof nftResult, 
           isArray: Array.isArray(nftResult), 
-          length: Array.isArray(nftResult) ? nftResult.length : 'no es array',
+          length: Array.isArray(nftResult) ? nftResult.length : 'not an array',
           hasNeedNFTFlag: nftResult && nftResult.needsNFT,
           finalHasNFT: hasNFT
         });
         
-        // Almacenar el resultado en playerData
+        // Store the result in playerData
         this.playerData.hasCollectionNFT = hasNFT;
         this.savePlayerData();
         
-        // Emitir evento con el resultado
+        // Emit an event with the result
         this.scene.events.emit("nft-collection-check", {
           hasNFT,
           collectionAddress: nftCollectionChecker.defaultCollectionAddress
         });
         
-        // Mostrar mensaje en el juego usando el sistema de notificaciones existente
+        // Show message in the game using the existing notification system
         if (hasNFT) {
-          this.wallet.showNotification("¡Felicidades! Posees NFTs de la colección especial.");
-          console.log("El usuario posee NFTs de la colección configurada");
+          this.wallet.showNotification("¡Congratulations! You have NFTs from the special collection.");
+          console.log("The user has NFTs from the configured collection");
           
-          // También emitimos un evento para que otros componentes puedan reaccionar
+          // Also emit an event for other components to react
           this.scene.events.emit("nft-collection-found", true);
         } else {
-          this.wallet.showNotification("No se encontraron NFTs de la colección especial en tu wallet.");
-          console.log("El usuario NO posee NFTs de la colección configurada");
+          this.wallet.showNotification("No NFTs from the special collection were found in your wallet.");
+          console.log("The user does not have NFTs from the configured collection");
           
-          // También emitimos un evento para que otros componentes puedan reaccionar
+          // Also emit an event for other components to react
           this.scene.events.emit("nft-collection-found", false);
         }
       } catch (nftError) {
-        console.error("Error al verificar colección de NFTs:", nftError);
-        // No interrumpimos el flujo de autenticación si falla la verificación de NFTs
+        console.error("Error verifying NFT collection:", nftError);
+        // Don't interrupt the authentication flow if NFT verification fails
       }
 
       console.log("Player authenticated:", publicKey);
@@ -207,7 +207,7 @@ export class PlayerAccount {
       this.playerData.address = null;
     }
     
-    // Limpiar las bloodlines al desconectar la wallet
+    // Clear bloodlines on wallet disconnect
     this.bloodlines = [];
     
     // Clear authenticated flag and bloodlines in localStorage

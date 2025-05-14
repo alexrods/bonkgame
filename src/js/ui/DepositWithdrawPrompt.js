@@ -927,7 +927,7 @@ export class DepositWithdrawPrompt {
       this.isWaiting = false;
     }
     
-    // Ocultar el bloqueador de fondo
+    // Hide the background blocker
     if (this.backgroundBlocker) {
       this.backgroundBlocker.setVisible(false);
     }
@@ -1521,21 +1521,21 @@ export class DepositWithdrawPrompt {
   // From game account to Solana wallet
   async handleGameToWalletWithdraw() {
     try {
-      // Obtener el saldo actual de la cuenta del juego antes de retirarlo
+      // Get the current balance from the game account before withdrawing
       const currentBalance = this.getGameAccountBalance();
       console.log(`Withdrawal amount: ${currentBalance} credits`);
       
-      // Verificar que haya créditos para retirar
+      // Verify that there are credits to withdraw
       if (currentBalance <= 0) {
         alert("No hay créditos para retirar");
         return;
       }
       
-      // Mostrar pantalla de espera
+      // Show waiting screen
       this.showWaitingScreen(`PROCESSING WITHDRAWAL...`);
       
       try {
-        // Retirar todos los créditos
+        // Withdraw all credits
         await this.scene.playerAccount.withdrawFromGameAccount();
         
         // CRITICAL: Ensure enemies are reset to normal speed if needed
@@ -1561,10 +1561,10 @@ export class DepositWithdrawPrompt {
           this.onWithdrawCallback(currentBalance);
         }
         
-        // Mostrar mensaje de éxito
+        // Show success message
         this.hideWaitingScreen(
           () => {
-            // Mostrar texto flotante de éxito
+            // Show floating text
             if (this.scene.playerManager && this.scene.playerManager.player) {
               this.scene.events.emit("showFloatingText", {
                 x: this.scene.playerManager.player.x,
@@ -1609,12 +1609,12 @@ export class DepositWithdrawPrompt {
       } catch (error) {
         console.error("Withdrawal transaction failed:", error);
         
-        // Mostrar mensaje de error
+        // Show error message
         this.hideWaitingScreen(
           () => {
             alert("Withdrawal failed. Please try again later.");
             
-            // Resetear escalas de tiempo
+            // Reset scales
             this.forceTimeScaleReset();
             
             // Normalizar velocidad de enemigos
@@ -1656,11 +1656,11 @@ export class DepositWithdrawPrompt {
 
   async handleGameToWalletWithdrawBonk() {
     try {
-      // Obtener el saldo actual de la cuenta del juego antes de retirarlo
+      // Get the current balance from the game account before withdrawing
       const currentBonkBalance = this.getBonkBalance();
       console.log(`Withdrawal amount: ${currentBonkBalance} bonks`);
       
-      // verify if there are bonks to withdraw
+      // Verify if there are bonks to withdraw
       if (currentBonkBalance <= 0) {
         alert("No bonks to withdraw");
         return;
@@ -1696,10 +1696,10 @@ export class DepositWithdrawPrompt {
           this.onWithdrawCallback(currentBonkBalance);
         }
         
-        // Mostrar mensaje de éxito
+        // Show success message
         this.hideWaitingScreen(
           () => {
-            // Mostrar texto flotante de éxito
+            // Show floating text
             if (this.scene.playerManager && this.scene.playerManager.player) {
               this.scene.events.emit("showFloatingText", {
                 x: this.scene.playerManager.player.x,
@@ -1755,16 +1755,16 @@ export class DepositWithdrawPrompt {
             // normalize enemy speeds
             this.ensureEnemiesAtNormalSpeed();
             
-            // Habilitar controles del jugador
+            // enable player controls
             if (this.scene.playerManager) {
               this.scene.playerManager.controlsEnabled = true;
             }
             
-            // Mostrar contenedor principal
+            // show main container
             this.container.setVisible(true);
             this.container.setAlpha(1);
             
-            // Volver al modo wallet to game
+            // switch to wallet to game mode
             this.switchToWalletToGameMode();
           },
           "WITHDRAWAL FAILED!"

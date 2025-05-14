@@ -192,11 +192,11 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
   
   /**
-   * Filtra los personajes disponibles según las bloodlines del jugador
-   * Si el jugador tiene múltiples bloodlines, se combinan las opciones disponibles
+   * Filters available characters based on player bloodlines
+   * If the player has multiple bloodlines, combines available options
    */
   filterCharactersByBloodline() {
-    // Mapeo de bloodlines a personajes disponibles
+    // Mapping of bloodlines to available characters
     const bloodlineCharacters = {
       'Bots': ['character3', 'character4'],
       'Corps': ['default', 'character2'],
@@ -206,29 +206,29 @@ export class CharacterSelectScene extends Phaser.Scene {
     let availableCharacters = [];
     let playerBloodlines = [];
     
-    // Verificar que la wallet esté conectada
+    // Verify that the wallet is connected
     const isWalletConnected = window.playerAccount && window.playerAccount.isAuthenticated;
     
-    // Solo buscar bloodlines si la wallet está conectada
+    // Only search bloodlines if the wallet is connected
     if (isWalletConnected) {
-      console.log('Wallet conectada. Buscando bloodlines...');
+      console.log('Wallet connected. Searching for bloodlines...');
       
-      // Verificar ambas fuentes de información de bloodlines
-      // 1. Primero nftCollectionChecker, que debería tener la información más actualizada
+      // Verify both sources of bloodlines information
+      // 1. First nftCollectionChecker, which should have the most up-to-date information
       if (window.nftCollectionChecker && window.nftCollectionChecker.playerBloodlines && 
           window.nftCollectionChecker.playerBloodlines.length > 0) {
         
         playerBloodlines = window.nftCollectionChecker.playerBloodlines;
         console.log('Bloodlines obtenidas de nftCollectionChecker:', playerBloodlines);
       }
-      // 2. Luego playerAccount
+      // 2. Then playerAccount
       else if (window.playerAccount && window.playerAccount.bloodlines && 
                window.playerAccount.bloodlines.length > 0) {
         
         playerBloodlines = window.playerAccount.bloodlines;
         console.log('Bloodlines obtenidas de PlayerAccount:', playerBloodlines);
       }
-      // 3. Como último recurso, intentar obtener de localStorage
+      // 3. As a last resort, try to get from localStorage
       else {
         try {
           const storedBloodlines = localStorage.getItem('playerBloodlines');
@@ -241,21 +241,21 @@ export class CharacterSelectScene extends Phaser.Scene {
         }
       }
     } else {
-      console.log('Wallet no conectada. No se buscarán bloodlines.');
-      // Limpiar cualquier bloodline almacenada en localStorage si no hay wallet conectada
+      console.log('Wallet not connected. Not searching for bloodlines.');
+      // Clear any bloodline stored in localStorage if no wallet is connected
       localStorage.removeItem('playerBloodlines');
     }
     
-    // Si no hay bloodlines después de buscar en todas las fuentes, usar personajes por defecto
+    // If no bloodlines are found after searching in all sources, use default characters
     if (!playerBloodlines || playerBloodlines.length === 0) {
-      console.log('No se encontraron bloodlines. Usando personajes por defecto.');
+      console.log('No bloodlines found. Using default characters.');
       availableCharacters = ['default', 'character2'];
     }
     
-    // Combinar personajes disponibles basados en las bloodlines del jugador
+    // Combine available characters based on the player's bloodlines
     playerBloodlines.forEach(bloodline => {
       if (bloodlineCharacters[bloodline]) {
-        // Añadir personajes únicos a la lista de disponibles
+        // Add unique characters to the available list
         bloodlineCharacters[bloodline].forEach(character => {
           if (!availableCharacters.includes(character)) {
             availableCharacters.push(character);
@@ -264,32 +264,32 @@ export class CharacterSelectScene extends Phaser.Scene {
       }
     });
     
-    // Si después de filtrar no hay personajes disponibles, usar personaje por defecto
+    // If after filtering no characters are available, use default character
     if (availableCharacters.length === 0) {
       availableCharacters = ['default'];
-      console.log('No hay personajes disponibles para las bloodlines encontradas. Usando personaje por defecto.');
+      console.log('No characters available for the found bloodlines. Using default character.');
     } else {
-      console.log('Personajes disponibles para las bloodlines:', availableCharacters);
+      console.log('Characters available for the found bloodlines:', availableCharacters);
     }
     
-    // Actualizar la lista de personajes
+    // Update the list of characters
     this.characters = availableCharacters;
     
-    // Registrar los personajes disponibles para uso en otras escenas
+    // Register the available characters for use in other scenes
     this.registry.set('availableCharacters', availableCharacters);
   }
   
   /**
-   * Verifica si es necesario actualizar la información de NFTs y bloodlines cuando la escena se inicia
+   * Verifies if it is necessary to update NFT and bloodlines information when the scene starts
    */
   updateNFTBloodlinesIfNeeded() {
-    // Verificar si hay una wallet conectada
+    // Verify if there is a connected wallet
     const isWalletConnected = window.playerAccount && window.playerAccount.isAuthenticated;
     
     if (isWalletConnected) {
-      console.log('Wallet conectada al iniciar la escena de selección de personaje');
+      console.log('Wallet connected at CharacterSelectScene start');
       
-      // Si tenemos nftCollectionChecker disponible y wallet conectada, verificar NFTs
+      // If we have nftCollectionChecker available and wallet connected, verify NFTs
       if (window.nftCollectionChecker && window.nftCollectionChecker.wallet && 
           window.nftCollectionChecker.wallet.isConnected) {
         
@@ -313,8 +313,8 @@ export class CharacterSelectScene extends Phaser.Scene {
         }, 500);  // Pequeño retraso para permitir que la escena se cargue primero
       }
     } else {
-      console.log('No hay wallet conectada al iniciar la escena de selección de personaje');
-      // Restaurar los personajes por defecto si no hay wallet conectada
+      console.log('No wallet connected at CharacterSelectScene start');
+      // Restore default characters if no wallet is connected
       this.characters = ['default', 'character2'];
       this.registry.set('availableCharacters', this.characters);
     }
@@ -438,7 +438,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
     
-    // Verificar si hay una wallet conectada y actualizar bloodlines si es necesario
+    // Verify if there is a connected wallet and update bloodlines if necessary
     this.updateNFTBloodlinesIfNeeded();
     
     // Check if we're in portrait mode or a very narrow screen

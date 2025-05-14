@@ -1,24 +1,24 @@
 import { Connection, clusterApiUrl, PublicKey } from '@solana/web3.js';
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
 
-// Programas utilizados para metadatos de Solana
+// Programs used for Solana metadata
 const METADATA_PROGRAM_ID = 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s';
 const metadataProgramId = new PublicKey(METADATA_PROGRAM_ID);
 
-// Constantes para decodificar metadata
+// Constants for decoding metadata
 const MAX_NAME_LENGTH = 32;
 const MAX_SYMBOL_LENGTH = 10;
 const MAX_URI_LENGTH = 200;
 const MAX_CREATOR_LENGTH = 34;
 
 /**
- * NFTCollectionReader - Clase para leer NFTs de una wallet Solana
- * Utiliza directamente Web3.js y SPL-token para mayor compatibilidad con navegadores
+ * NFTCollectionReader - Class to read NFTs from a Solana wallet
+ * Uses directly Web3.js and SPL-token for greater compatibility with browsers
  */
 export class NFTCollectionReader {
   /**
    * Constructor
-   * @param {Connection} connection - Conexión a Solana (opcional, se puede proporcionar después)
+   * @param {Connection} connection - Connection to Solana (optional, can be provided later)
    */
   constructor(connection = null) {
     this.connection = connection;
@@ -27,11 +27,11 @@ export class NFTCollectionReader {
       'devnet': 'https://api.devnet.solana.com',
       'testnet': 'https://api.testnet.solana.com'
     };
-    this.network = "mainnet-beta"; // Puedes cambiar a "devnet" si es necesario
+    this.network = "mainnet-beta"; // You can change to "devnet" if needed
   }
 
   /**
-   * Inicializa la conexión a Solana si no existe
+   * Initializes the connection to Solana if it doesn't exist
    */
   initConnection() {
     if (!this.connection) {
@@ -47,16 +47,16 @@ export class NFTCollectionReader {
   }
 
   /**
-   * Establece una conexión personalizada
-   * @param {Connection} connection - Conexión a Solana
+   * Sets a custom connection
+   * @param {Connection} connection - Connection to Solana
    */
   setConnection(connection) {
     this.connection = connection;
   }
 
   /**
-   * Establece la red a utilizar (mainnet-beta, devnet, etc.)
-   * @param {string} network - Red a utilizar
+   * Sets the network to use (mainnet-beta, devnet, etc.)
+   * @param {string} network - Network to use
    */
   setNetwork(network) {
     this.network = network;
@@ -65,14 +65,14 @@ export class NFTCollectionReader {
   }
 
   /**
-   * Función auxiliar para derivar la dirección de metadatos de un mint
-   * @param {string|PublicKey} mint - Dirección de mint
-   * @returns {Promise<PublicKey>} - Dirección de metadatos
+   * Helper function to derive the metadata address of a mint
+   * @param {string|PublicKey} mint - Mint address
+   * @returns {Promise<PublicKey>} - Metadata address
    */
   async findMetadataAddress(mint) {
     const mintKey = typeof mint === 'string' ? new PublicKey(mint) : mint;
     
-    // Derivando la dirección del PDA para los metadatos
+    // Deriving the PDA for the metadata
     return PublicKey.findProgramAddressSync(
       [
         Buffer.from('metadata'),
@@ -84,46 +84,46 @@ export class NFTCollectionReader {
   }
   
   /**
-   * Obtiene todos los NFTs de una wallet y sus metadatos básicos
-   * @param {string|PublicKey} walletAddress - Dirección de la wallet
-   * @returns {Promise<Array>} - Lista de NFTs con metadatos básicos
+   * Gets all NFTs from a wallet and their basic metadata
+   * @param {string|PublicKey} walletAddress - Wallet address
+   * @returns {Promise<Array>} - List of NFTs with basic metadata
    */
   async getWalletNFTsAndMetadata(walletAddress) {
     this.initConnection();
 
     try {
-      // Convertir string a PublicKey si es necesario
+      // Convert string to PublicKey if necessary
       const owner = typeof walletAddress === 'string' 
         ? new PublicKey(walletAddress) 
         : walletAddress;
 
-      console.log(`Buscando NFTs para wallet: ${owner.toString()}`);
+      console.log(`Searching for NFTs for wallet: ${owner.toString()}`);
       
-      // Obtener todas las cuentas de tokens de la wallet
+      // Get all token accounts for the wallet
       const tokenAccounts = await this.connection.getParsedTokenAccountsByOwner(
         owner,
         { programId: TOKEN_PROGRAM_ID }
       );
 
-      console.log(`${tokenAccounts.value.length} cuentas de tokens encontradas`);
+      console.log(`${tokenAccounts.value.length} token accounts found`);
       
-      // Filtrar solo las cuentas con cantidad = 1 (probable NFT)
+      // Filter only accounts with quantity = 1 (likely NFT)
       const nftAccounts = tokenAccounts.value
         .filter(account => {
           const amount = account.account.data.parsed.info.tokenAmount;
-          // NFTs suelen tener cantidad = 1 y decimales = 0
+          // NFTs usually have quantity = 1 and decimals = 0
           return amount.uiAmount === 1 && amount.decimals === 0;
         });
       
-      console.log(`${nftAccounts.length} NFTs encontrados`);
+      console.log(`${nftAccounts.length} NFTs found`);
       
-      // Para cada NFT, obtener sus metadatos básicos
+      // For each NFT, get its basic metadata
       const nftsWithMetadata = await Promise.all(
         nftAccounts.map(async (account) => {
           const mint = account.account.data.parsed.info.mint;
           
           try {
-            // Intentar obtener metadatos básicos
+            // Try to get basic metadata
             const metadata = await this.getNFTMetadata(mint);
             return {
               mint,
@@ -132,7 +132,7 @@ export class NFTCollectionReader {
               tokenAccount: account
             };
           } catch (err) {
-            // Si no podemos obtener los metadatos, devolver info básica
+            // If we can't get the metadata, return basic info
             return {
               mint,
               address: account.pubkey.toString(),
@@ -145,58 +145,56 @@ export class NFTCollectionReader {
 
       return nftsWithMetadata;
     } catch (error) {
-      console.error("Error al obtener NFTs de la wallet:", error);
+      console.error("Error getting NFTs from wallet:", error);
       return [];
     }
   }
 
   /**
-   * Verifica si una wallet posee al menos un NFT de una colección específica
-   * @param {string|PublicKey} walletAddress - Dirección de la wallet
-   * @param {string} collectionAddress - Dirección de la colección
-   * @returns {Promise<boolean>} - True si posee al menos un NFT de la colección
+   * Verifies if a wallet has at least one NFT from a specific collection
+   * @param {string|PublicKey} walletAddress - Wallet address
+   * @param {string} collectionAddress - Collection address
+   * @returns {Promise<boolean>} - True if the wallet has at least one NFT from the collection
    */
   async hasNFTFromCollection(walletAddress, collectionAddress) {
     try {
-      // Inicializar conexión
+      // Initialize connection
       this.initConnection();
       
-      // Convertir dirección de wallet a PublicKey si es necesario
+      // Convert wallet address to PublicKey if necessary
       const owner = typeof walletAddress === 'string' 
         ? new PublicKey(walletAddress) 
         : walletAddress;
       
-      // Convertir dirección de colección a PublicKey
+      // Convert collection address to PublicKey
       const targetCollection = typeof collectionAddress === 'string'
         ? new PublicKey(collectionAddress)
         : collectionAddress;
       
-      console.log(`Verificando si wallet ${owner.toString()} tiene NFTs de colección ${targetCollection.toString()}`);
+      console.log(`Verifying if wallet ${owner.toString()} has NFTs from collection ${targetCollection.toString()}`);
       
-      // Método simplificado: verificamos si la wallet tiene la colección directamente
-      // Este método es menos preciso pero más compatible con el navegador
-      const tokens = await this.getTokensByWallet(owner);
+      // Simple method: verify if the wallet has the collection directly
+      // This method is less precise but more compatible with the browser
+      const tokens = await this.getNFTsByWallet(owner);
       
-      // Verificamos si alguno de los tokens pertenece a la colección
-      // En una implementación real, deberíamos verificar los metadatos de cada token
-      // pero para simplificar, asumimos que si la wallet tiene tokens, tiene NFTs de la colección
+      // Verify if any of the tokens belong to the collection
+      // In a real implementation, we should verify the metadata of each token
       const hasTokens = tokens.length > 0;
       
-      // Simulamos una verificación positiva para pruebas
-      // En producción, deberías implementar una verificación real de la colección
-      console.log(`Wallet tiene ${tokens.length} tokens. Asumiendo que pertenecen a la colección para pruebas.`);
+      // Simulate a positive verification for testing
+      console.log(`Wallet has ${tokens.length} tokens. Assuming they belong to the collection for testing.`);
       return hasTokens;
     } catch (error) {
-      console.error("Error al verificar NFTs de la colección:", error);
+      console.error("Error verifying NFTs from collection:", error);
       return false;
     }
   }
 
   /**
-   * Obtiene NFTs de una wallet filtrados por colección
-   * @param {string|PublicKey} walletAddress - Dirección de la wallet
-   * @param {string} collectionAddress - Dirección de la colección
-   * @returns {Promise<Array>} - NFTs de la colección
+   * Gets NFTs from a wallet filtered by collection
+   * @param {string|PublicKey} walletAddress - Wallet address
+   * @param {string} collectionAddress - Collection address
+   * @returns {Promise<Array>} - NFTs from the collection
    */
   // async getNFTsByCollection(walletAddress, collectionAddress) {
   //   try {
@@ -204,106 +202,106 @@ export class NFTCollectionReader {
   // }
 
   /**
-   * Obtiene todos los NFTs de una wallet
-   * @param {string|PublicKey} walletAddress - Dirección de la wallet
-   * @returns {Promise<Array>} - Lista de NFTs
+   * Gets all NFTs from a wallet
+   * @param {string|PublicKey} walletAddress - Wallet address
+   * @returns {Promise<Array>} - List of NFTs
    */
   async getNFTsByWallet(walletAddress) {
     return this.getTokensByWallet(walletAddress);
   }
 
   /**
-   * Verifica si una wallet posee al menos un NFT de una colección específica
-   * @param {string|PublicKey} walletAddress - Dirección de la wallet
-   * @param {string} collectionAddress - Dirección de la colección
-   * @returns {Promise<boolean>} - True si posee al menos un NFT de la colección
+   * Verifies if a wallet has at least one NFT from a specific collection
+   * @param {string|PublicKey} walletAddress - Wallet address
+   * @param {string} collectionAddress - Collection address
+   * @returns {Promise<boolean>} - True if the wallet has at least one NFT from the collection
    */
   async hasNFTFromCollection(walletAddress, collectionAddress) {
     try {
-      // Inicializar conexión
+      // Initialize connection
       this.initConnection();
       
-      // Convertir dirección de wallet a PublicKey si es necesario
+      // Convert wallet address to PublicKey if necessary
       const owner = typeof walletAddress === 'string' 
         ? new PublicKey(walletAddress) 
         : walletAddress;
       
-      // Convertir dirección de colección a PublicKey
+      // Convert collection address to PublicKey
       const targetCollection = typeof collectionAddress === 'string'
         ? new PublicKey(collectionAddress)
         : collectionAddress;
       
-      console.log(`Verificando si wallet ${owner.toString()} tiene NFTs de colección ${targetCollection.toString()}`);
+      console.log(`Verifying if wallet ${owner.toString()} has NFTs from collection ${targetCollection.toString()}`);
       
-      // Obtener todos los NFTs de la wallet con metadatos
+      // Get all NFTs from the wallet with metadata
       const nftsWithMetadata = await this.getWalletNFTsAndMetadata(owner);
       
       if (nftsWithMetadata.length === 0) {
-        console.log("No se encontraron NFTs en la wallet.");
+        console.log("No NFTs found in the wallet.");
         return false;
       }
       
-      console.log(`La wallet tiene ${nftsWithMetadata.length} NFTs. Verificando colección...`);
+      console.log(`The wallet has ${nftsWithMetadata.length} NFTs. Verifying collection...`);
       
-      // Esta es una implementación básica que asume que la verificación de colección se realiza
-      // comparando creators o verified collection. Para una implementación real, necesitaríamos 
-      // decodificar completamente los metadatos y verificar el campo collection o creators.
+      // This is a basic implementation that assumes collection verification is done
+      // by comparing creators or verified collection. For a real implementation, we would need
+      // to decode the metadata completely and verify the collection or creators field.
       
-      // Por simplicidad y compatibilidad, asumimos que existe un NFT de la colección si la wallet tiene NFTs
-      // En producción, esto debería mejorarse para verificar los metadatos on-chain correctamente.
+      // For simplicity and compatibility, we assume that there is an NFT from the collection if the wallet has NFTs
+      // In production, this should be improved to verify the metadata on-chain correctly.
       const hasNFTFromCollection = nftsWithMetadata.length > 0;
       
       return hasNFTFromCollection;
     } catch (error) {
-      console.error("Error al verificar NFTs de la colección:", error);
+      console.error("Error verifying NFTs from collection:", error);
       return false;
     }
   }
   
   /**
-   * Obtiene NFTs de una wallet filtrados por colección
-   * @param {string|PublicKey} walletAddress - Dirección de la wallet
-   * @param {string} collectionAddress - Dirección de la colección
-   * @returns {Promise<Array>} - NFTs de la colección
+   * Gets NFTs from a wallet filtered by collection
+   * @param {string|PublicKey} walletAddress - Wallet address
+   * @param {string} collectionAddress - Collection address
+   * @returns {Promise<Array>} - NFTs from the collection
    */
   async getNFTsByCollection(walletAddress, collectionAddress) {
     try {
-      // Inicializar conexión
+      // Initialize connection
       this.initConnection();
       
-      // Obtener todos los NFTs de la wallet
+      // Get all NFTs from the wallet
       const nfts = await this.getWalletNFTsAndMetadata(walletAddress);
       
-      // En una implementación real, filtrar por los que pertenecen a la colección
-      // Para esta versión simplificada, devolvemos todos los NFTs encontrados
-      console.log(`Devolviendo ${nfts.length} tokens como NFTs de la colección`);
+      // In a real implementation, filter by those that belong to the collection
+      // For this simplified version, we return all NFTs found
+      console.log(`Returning ${nfts.length} tokens as NFTs from the collection`);
       return nfts;
     } catch (error) {
-      console.error("Error al obtener NFTs de la colección:", error);
+      console.error("Error getting NFTs from collection:", error);
       return [];
     }
   }
   
   /**
-   * Intenta obtener metadatos off-chain (JSON) desde una URI
-   * @param {string} uri - URI del JSON con metadatos
-   * @returns {Promise<Object|null>} - Metadatos off-chain o null si hay error
+   * Tries to obtain off-chain metadata (JSON) from a URI
+   * @param {string} uri - URI of the JSON metadata
+   * @returns {Promise<Object|null>} - Off-chain metadata or null if there is an error
    */
   async fetchOffchainMetadata(uri) {
     if (!uri) return null;
     
     try {
-      // Corregir URI si es necesario
+      // Fix URI if necessary
       let metadataUri = uri;
       if (uri.startsWith('ipfs://')) {
-        // Convertir IPFS a HTTP gateway
+        // Convert IPFS to HTTP gateway
         metadataUri = uri.replace('ipfs://', 'https://ipfs.io/ipfs/');
       } else if (!uri.startsWith('http')) {
-        // Añadir https:// si falta
+        // Add https:// if missing
         metadataUri = 'https://' + uri;
       }
       
-      // Intentar llamar a arweave o IPFS
+      // Try calling arweave or IPFS
 
       const response = await fetch(metadataUri);
       if (response.ok) {
@@ -312,7 +310,7 @@ export class NFTCollectionReader {
       }
       return null;
     } catch (error) {
-      console.warn(`Error obteniendo metadatos off-chain: ${error.message}`);
+      console.warn(`Error fetching off-chain metadata: ${error.message}`);
       return null;
     }
   }
@@ -336,16 +334,16 @@ export class NFTCollectionReader {
       const metadataAccount = await this.connection.getAccountInfo(metadataAddress);
       
       if (!metadataAccount || !metadataAccount.data) {
-        // Devolver información básica si no hay metadata
+        // Return basic information if no metadata
         return {
           mint: mintPubkey.toString(),
-          name: "Token sin metadata",
+          name: "Token without metadata",
           symbol: "NFT?",
-          tokenType: "Sin metadatos"
+          tokenType: "Without metadata"
         };
       }
       
-      // Decodificar metadatos on-chain
+      // Decode on-chain metadata
       const metadataDecoded = this.decodeMetadata(metadataAccount.data);
       
       // Crear objeto base con metadatos on-chain
@@ -358,30 +356,30 @@ export class NFTCollectionReader {
         onChain: metadataDecoded
       };
       
-      // Si hay una URI, intentar obtener metadatos off-chain
+      // If there is a URI, try to obtain off-chain metadata
       if (metadataDecoded.uri && metadataDecoded.uri.length > 1) {
         try {
           const offChainMeta = await this.fetchOffchainMetadata(metadataDecoded.uri);
           if (offChainMeta) {
-            // Añadir metadatos off-chain al objeto
+            // Add off-chain metadata to the object
             metadata.offChain = offChainMeta;
-            // Actualizar nombre e imagen si existen en off-chain
+            // Update name and image if they exist in off-chain
             if (offChainMeta.name) metadata.name = offChainMeta.name;
             if (offChainMeta.image) metadata.image = offChainMeta.image;
             if (offChainMeta.attributes) metadata.attributes = offChainMeta.attributes;
           }
         } catch (offChainError) {
-          console.warn(`Error obteniendo metadatos off-chain: ${offChainError.message}`);
+          console.warn(`Error fetching off-chain metadata: ${offChainError.message}`);
         }
       }
       
       return metadata;
     } catch (error) {
-      console.error(`Error al obtener metadatos para ${mintAddress}:`, error);
-      // Devolver objeto simplificado con error
+      console.error(`Error fetching metadata for ${mintAddress}:`, error);
+      // Return simplified object with error
       return {
         mint: mintAddress,
-        name: "Error de metadata",
+        name: "Error fetching metadata",
         symbol: "ERR",
         error: error.message
       };
@@ -389,68 +387,68 @@ export class NFTCollectionReader {
   }
   
   /**
-   * Decodifica los datos binarios de metadatos usando un enfoque más preciso para Metaplex
-   * @param {Buffer} data - Datos binarios de la cuenta de metadatos
-   * @returns {Object} - Metadatos decodificados
+   * Decodes binary metadata data using a more precise approach for Metaplex
+   * @param {Buffer} data - Binary data of the metadata account
+   * @returns {Object} - Decoded metadata
    */
   decodeMetadata(data) {
     try {
-      // Forma más robusta de decodificar metadatos de Metaplex
-      // Estructura basada en el esquema de Metaplex Metadata v1
+      // More robust way to decode Metaplex metadata
+      // Structure based on the Metaplex Metadata v1 schema
       
-      // Decodificación de metadata de Metaplex
+      // Decoding Metaplex metadata
       
-      // Los metadatos de Metaplex comienzan con un prefijo específico
-      // Determinar si tenemos el formato esperado
+      // Metaplex metadata starts with a specific prefix
+      // Determine if we have the expected format
       
       let offset = 0;
-      // A veces hay un byte de prefijo
+      // Sometimes there is a prefix byte
       if (data[0] === 4) {
         offset = 1;
       }
       
-      // Los primeros 8 bytes después del prefijo contienen información de estructura
+      // The first 8 bytes after the prefix contain structure information
       offset += 8;
       
-      // Obtener nombres y URI usando un enfoque basado en longitudes
+      // Get names and URI using a length-based approach
       let name = "";
       let symbol = "";
       let uri = "";
       
       try {
-        // Intentar leer nombre (32 bytes)
+        // Try reading name (32 bytes)
         const nameLength = data.readUInt32LE(offset);
         offset += 4;
-        if (nameLength > 0 && nameLength < 100) { // Comprobación de seguridad
+        if (nameLength > 0 && nameLength < 100) { // Security check
           name = new TextDecoder().decode(data.slice(offset, offset + nameLength));
 
         }
-        offset += MAX_NAME_LENGTH + 4; // Saltar al símbolo (4 bytes adicionales por padding)
+        offset += MAX_NAME_LENGTH + 4; // Skip to symbol (4 bytes additional padding)
         
-        // Intentar leer símbolo (10 bytes)
+        // Try reading symbol (10 bytes)
         const symbolLength = data.readUInt32LE(offset);
         offset += 4;
-        if (symbolLength > 0 && symbolLength < 20) { // Comprobación de seguridad
+        if (symbolLength > 0 && symbolLength < 20) { // Security check
           symbol = new TextDecoder().decode(data.slice(offset, offset + symbolLength));
 
         }
-        offset += MAX_SYMBOL_LENGTH + 4; // Saltar a la URI (4 bytes adicionales por padding)
+        offset += MAX_SYMBOL_LENGTH + 4; // Skip to URI (4 bytes additional padding)
         
-        // Intentar leer URI (200 bytes)
+        // Try reading URI (200 bytes)
         const uriLength = data.readUInt32LE(offset);
         offset += 4;
-        if (uriLength > 0 && uriLength < 300) { // Comprobación de seguridad
+        if (uriLength > 0 && uriLength < 300) { // Security check
           uri = new TextDecoder().decode(data.slice(offset, offset + uriLength));
 
         }
       } catch (bytesError) {
-        // Error silenciado intencionalmente - pasamos al siguiente método
-        // Si falla el enfoque por bytes, intentar otro método
+        // Silently ignore error - pass to next method
+        // If bytes approach fails, try another method
       }
       
-      // Enfoque alternativo: buscar patrones en los datos binarios
+      // Alternative approach: search for patterns in binary data
       if (!uri || uri.length < 5) {
-        // Buscar URLs comunes en los datos si no pudimos extraerlas de manera estructurada
+        // Search for common URLs in the data if we couldn't extract them structurally
         const dataStr = new TextDecoder().decode(data);
         const httpMatches = dataStr.match(/https?:\/\/[\w\d\.\-\/]+/g);
         const arweaveMatches = dataStr.match(/https?:\/\/arweave\.[\w\d\.\-\/]+/g);
@@ -468,9 +466,9 @@ export class NFTCollectionReader {
         }
       }
       
-      // Buscamos nombres si no los hemos encontrado
+      // Search for names if we haven't found them
       if (!name || name.length < 1) {
-        // Buscar alfanuméricos de longitud razonable para el nombre
+        // Search for alphanumeric strings of reasonable length for the name
         const dataStr = new TextDecoder().decode(data);
         const possibleNames = dataStr.match(/[A-Za-z0-9\s]{3,30}/g);
         if (possibleNames && possibleNames.length > 0) {
@@ -483,12 +481,12 @@ export class NFTCollectionReader {
         name: name.trim() || "NFT",
         symbol: symbol.trim() || "NFT",
         uri: uri.trim(),
-        rawData: Array.from(data.slice(0, 50)) // Primeros 50 bytes para debug
+        rawData: Array.from(data.slice(0, 50)) // First 50 bytes for debug
       };
     } catch (error) {
-      console.error("Error decodificando metadata:", error);
+      console.error("Error decoding metadata:", error);
       return {
-        name: "Error decodificando",
+        name: "Error decoding",
         symbol: "ERR",
         uri: "",
         error: error.message

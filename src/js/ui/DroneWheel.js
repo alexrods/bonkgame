@@ -1023,7 +1023,7 @@ export class DroneWheel {
           this.scene.playerAccount.playerData &&
           this.scene.playerAccount.playerData._id
         ) {
-          // Usar el método setCreditCount directo desde playerAccount
+          // Use the setCreditCount method directly from playerAccount
           this.scene.playerAccount.setCreditCount(
             this.scene.playerAccount.getGameAccountBalance()
           ).catch((err) => {
