@@ -206,34 +206,50 @@ export class CharacterSelectScene extends Phaser.Scene {
     let availableCharacters = [];
     let playerBloodlines = [];
     
-    // Intentar obtener bloodlines del PlayerAccount (si está disponible)
-    if (window.playerAccount && window.playerAccount.bloodlines) {
-      playerBloodlines = window.playerAccount.bloodlines;
-      console.log('Bloodlines obtenidas de PlayerAccount:', playerBloodlines);
-    } 
-    // Alternativamente, intentar obtener bloodlines del nftCollectionChecker
-    else if (window.nftCollectionChecker && window.nftCollectionChecker.playerBloodlines) {
-      playerBloodlines = window.nftCollectionChecker.playerBloodlines;
-      console.log('Bloodlines obtenidas de nftCollectionChecker:', playerBloodlines);
-    }
-    // Si no hay acceso directo, intentar obtener de localStorage
-    else {
-      try {
-        const storedBloodlines = localStorage.getItem('playerBloodlines');
-        if (storedBloodlines) {
-          playerBloodlines = JSON.parse(storedBloodlines);
-          console.log('Bloodlines obtenidas de localStorage:', playerBloodlines);
-        }
-      } catch (error) {
-        console.error('Error al obtener bloodlines de localStorage:', error);
+    // Verificar que la wallet esté conectada
+    const isWalletConnected = window.playerAccount && window.playerAccount.isAuthenticated;
+    
+    // Solo buscar bloodlines si la wallet está conectada
+    if (isWalletConnected) {
+      console.log('Wallet conectada. Buscando bloodlines...');
+      
+      // Verificar ambas fuentes de información de bloodlines
+      // 1. Primero nftCollectionChecker, que debería tener la información más actualizada
+      if (window.nftCollectionChecker && window.nftCollectionChecker.playerBloodlines && 
+          window.nftCollectionChecker.playerBloodlines.length > 0) {
+        
+        playerBloodlines = window.nftCollectionChecker.playerBloodlines;
+        console.log('Bloodlines obtenidas de nftCollectionChecker:', playerBloodlines);
       }
+      // 2. Luego playerAccount
+      else if (window.playerAccount && window.playerAccount.bloodlines && 
+               window.playerAccount.bloodlines.length > 0) {
+        
+        playerBloodlines = window.playerAccount.bloodlines;
+        console.log('Bloodlines obtenidas de PlayerAccount:', playerBloodlines);
+      }
+      // 3. Como último recurso, intentar obtener de localStorage
+      else {
+        try {
+          const storedBloodlines = localStorage.getItem('playerBloodlines');
+          if (storedBloodlines) {
+            playerBloodlines = JSON.parse(storedBloodlines);
+            console.log('Bloodlines obtenidas de localStorage:', playerBloodlines);
+          }
+        } catch (error) {
+          console.error('Error al obtener bloodlines de localStorage:', error);
+        }
+      }
+    } else {
+      console.log('Wallet no conectada. No se buscarán bloodlines.');
+      // Limpiar cualquier bloodline almacenada en localStorage si no hay wallet conectada
+      localStorage.removeItem('playerBloodlines');
     }
     
-    // Si no hay bloodlines, usar todos los personajes disponibles desde el registro o personaje por defecto
+    // Si no hay bloodlines después de buscar en todas las fuentes, usar personajes por defecto
     if (!playerBloodlines || playerBloodlines.length === 0) {
-      console.log('No se encontraron bloodlines. Usando personajes registrados o por defecto.');
-      this.characters = this.registry.get('availableCharacters') || ['default'];
-      return;
+      console.log('No se encontraron bloodlines. Usando personajes por defecto.');
+      availableCharacters = ['default', 'character2'];
     }
     
     // Combinar personajes disponibles basados en las bloodlines del jugador
@@ -261,6 +277,47 @@ export class CharacterSelectScene extends Phaser.Scene {
     
     // Registrar los personajes disponibles para uso en otras escenas
     this.registry.set('availableCharacters', availableCharacters);
+  }
+  
+  /**
+   * Verifica si es necesario actualizar la información de NFTs y bloodlines cuando la escena se inicia
+   */
+  updateNFTBloodlinesIfNeeded() {
+    // Verificar si hay una wallet conectada
+    const isWalletConnected = window.playerAccount && window.playerAccount.isAuthenticated;
+    
+    if (isWalletConnected) {
+      console.log('Wallet conectada al iniciar la escena de selección de personaje');
+      
+      // Si tenemos nftCollectionChecker disponible y wallet conectada, verificar NFTs
+      if (window.nftCollectionChecker && window.nftCollectionChecker.wallet && 
+          window.nftCollectionChecker.wallet.isConnected) {
+        
+        console.log('Verificando NFTs para actualizar bloodlines...');
+        
+        // Ejecutar de forma asíncrona para no bloquear la carga de la escena
+        setTimeout(async () => {
+          try {
+            // Verificar colección de NFTs para actualizar bloodlines
+            const result = await window.nftCollectionChecker.checkCollection();
+            console.log('Verificación de NFTs completada');
+            
+            // Volver a filtrar los personajes con las bloodlines actualizadas
+            this.filterCharactersByBloodline();
+            
+            // Si los personajes cambiaron, actualizar la selección
+            this.updateSelection();
+          } catch (error) {
+            console.error('Error al verificar NFTs:', error);
+          }
+        }, 500);  // Pequeño retraso para permitir que la escena se cargue primero
+      }
+    } else {
+      console.log('No hay wallet conectada al iniciar la escena de selección de personaje');
+      // Restaurar los personajes por defecto si no hay wallet conectada
+      this.characters = ['default', 'character2'];
+      this.registry.set('availableCharacters', this.characters);
+    }
   }
   
   handleResize() {
@@ -382,7 +439,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const height = this.scale.height;
     
     // Verificar si hay una wallet conectada y actualizar bloodlines si es necesario
-    // this.updateNFTBloodlinesIfNeeded();
+    this.updateNFTBloodlinesIfNeeded();
     
     // Check if we're in portrait mode or a very narrow screen
     this.isPortrait = height > width;

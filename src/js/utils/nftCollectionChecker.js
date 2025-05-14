@@ -40,6 +40,10 @@ class NFTCollectionChecker {
    * @param {string} [network="devnet"] - Red de Solana a utilizar (mainnet-beta, devnet)
    */
   init(network = "devnet") {
+    // Crear un identificador único para los elementos de bloqueo
+    this.blockUIId = 'nft-verification-blocker-' + Math.random().toString(36).substring(2, 9);
+    this.isBlocking = false;
+    
     // Configurar listeners para eventos de wallet
     this.wallet.onConnect(this.handleWalletConnect.bind(this));
     this.wallet.onDisconnect(this.handleWalletDisconnect.bind(this));
@@ -66,6 +70,13 @@ class NFTCollectionChecker {
     console.log("Wallet conectada:", publicKey);
     
     try {
+      // Antes de verificar, intentar quitar cualquier mensaje de mint previo
+      // para casos donde el usuario cambia de wallet sin NFTs a una con NFTs
+      this.removeMintNFTMessage();
+      
+      // Bloquear las interacciones del juego durante la verificación
+      this.blockGameInteractions("Conectando wallet y verificando NFTs...");
+      
       // Actualizar la UI para mostrar que estamos conectados
       this.updateUI(true);
       
@@ -93,10 +104,19 @@ class NFTCollectionChecker {
         console.log(`No se encontraron NFTs de la colección ${this.defaultCollectionAddress} en la wallet`);
       }
       
+      // Desbloquear las interacciones al finalizar (solo si no hubo errores)
+      // Nota: No desbloqueamos si no tiene NFTs, ya que el mensaje de mint debe permanecer visible
+      if (hasNFT && !hasNFT.needsNFT) {
+        this.unblockGameInteractions();
+      }
+      
     } catch (error) {
       console.error("Error en la conexión de wallet:", error);
       this.updateUI(false);
       this.showResult(false, "Ocurrió un error al verificar tu wallet. Inténtalo de nuevo.");
+      
+      // En caso de error, desbloquear las interacciones
+      this.unblockGameInteractions();
     }
   }
   
@@ -105,7 +125,25 @@ class NFTCollectionChecker {
    */
   handleWalletDisconnect() {
     console.log("Wallet desconectada");
+    
+    // Limpiar todos los datos relacionados con NFTs y bloodlines
+    this.nftsFound = [];
+    this.bonkGamesNFTs = [];
+    this.playerBloodlines = [];
+    this.bloodlineCounts = {};
+    this.authToken = null;
+    
+    // Actualizar UI para mostrar que estamos desconectados
     this.updateUI(false);
+    this.clearResult();
+    
+    // Asegurar que las interacciones estén desbloqueadas
+    this.unblockGameInteractions();
+    
+    // Notificar que los NFTs ya no están disponibles
+    if (this.onNFTsUnavailable) this.onNFTsUnavailable();
+    
+    console.log('Datos de NFTs y bloodlines limpiados después de desconexión');
   }
   
   /**
@@ -175,7 +213,7 @@ class NFTCollectionChecker {
     console.log('Mostrando mensaje para mintear un NFT de The Bonk Games');
     
     // URL de la candy machine
-    const candyMachineUrl = 'https:/fight.bonkgames.io/';
+    const candyMachineUrl = 'https://fight.bonkgames.io/';
     
     // Crear o encontrar el contenedor para el mensaje
     let messageContainer = document.getElementById('nft-required-message');
@@ -296,6 +334,48 @@ class NFTCollectionChecker {
   }
   
   /**
+   * Quita el mensaje de mint NFT si existe
+   * Debe llamarse cuando se detecta que el usuario tiene NFTs válidos
+   */
+  removeMintNFTMessage() {
+    console.log('Intentando quitar mensaje de mint NFT...');
+    
+    // Buscar elementos del mensaje de mint
+    const messageContainer = document.getElementById('nft-required-message');
+    const overlay = document.getElementById('nft-required-overlay');
+    
+    // Quitar elementos con animación si existen
+    if (messageContainer || overlay) {
+      console.log('Eliminando mensaje de mint NFT');
+      
+      // Animar desaparición
+      if (messageContainer) {
+        messageContainer.style.transition = 'all 0.5s ease';
+        messageContainer.style.opacity = '0';
+        messageContainer.style.transform = 'translate(-50%, -60%)';
+      }
+      
+      if (overlay) {
+        overlay.style.transition = 'opacity 0.5s ease';
+        overlay.style.opacity = '0';
+      }
+      
+      // Eliminar después de la animación
+      setTimeout(() => {
+        if (messageContainer && messageContainer.parentNode) {
+          messageContainer.parentNode.removeChild(messageContainer);
+        }
+        
+        if (overlay && overlay.parentNode) {
+          overlay.parentNode.removeChild(overlay);
+        }
+        
+        console.log('Mensaje de mint NFT eliminado completamente');
+      }, 500);
+    }
+  }
+  
+  /**
    * Permite interacciones solo con elementos relacionados con la wallet
    */
   allowWalletInteractionsOnly() {
@@ -323,6 +403,83 @@ class NFTCollectionChecker {
         }
       });
     }
+  }
+  
+  /**
+   * Bloquea todas las interacciones con el juego durante la verificación de NFTs
+   * @param {string} message - Mensaje a mostrar durante el bloqueo
+   */
+  blockGameInteractions(message = "Verificando NFTs... Por favor espera") {
+    // Si ya hay un bloqueo activo, no crear otro
+    if (this.isBlocking) return;
+    
+    this.isBlocking = true;
+    
+    // Crear overlay de bloqueo
+    const blocker = document.createElement('div');
+    blocker.id = this.blockUIId;
+    blocker.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Arial', sans-serif;
+      color: white;
+      backdrop-filter: blur(5px);
+    `;
+    
+    // Añadir icono de carga y mensaje
+    blocker.innerHTML = `
+      <div style="background-color: rgba(0, 0, 0, 0.6); padding: 30px; border-radius: 10px; text-align: center; max-width: 80%;">
+        <div style="border: 6px solid rgba(0, 200, 255, 0.2); border-top: 6px solid rgba(0, 255, 255, 0.8); border-radius: 50%; width: 50px; height: 50px; margin: 0 auto 20px; animation: nft-verification-spin 1.5s linear infinite;"></div>
+        <div style="font-size: 18px; margin-bottom: 15px; font-weight: bold; color: rgba(0, 255, 255, 0.8);">${message}</div>
+        <div style="font-size: 14px; color: #aaa;">NFT Collection en proceso de verificación...</div>
+      </div>
+      <style>
+        @keyframes nft-verification-spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      </style>
+    `;
+    
+    document.body.appendChild(blocker);
+    
+    // Permitir que solo los botones de wallet sean interactivos
+    this.allowWalletInteractionsOnly();
+    
+    console.log('Interfaces del juego bloqueadas para verificación de NFTs');
+  }
+
+  /**
+   * Desbloquea las interacciones con el juego después de la verificación de NFTs
+   */
+  unblockGameInteractions() {
+    // Si no hay bloqueo activo, salir
+    if (!this.isBlocking) return;
+    
+    const blocker = document.getElementById(this.blockUIId);
+    if (blocker) {
+      blocker.style.opacity = '0';
+      blocker.style.transition = 'opacity 0.5s ease';
+      
+      // Remover después de la animación
+      setTimeout(() => {
+        if (blocker && blocker.parentNode) {
+          blocker.parentNode.removeChild(blocker);
+        }
+      }, 500);
+    }
+    
+    this.isBlocking = false;
+    console.log('Interfaces del juego desbloqueadas');
   }
   
   /**
@@ -367,22 +524,69 @@ class NFTCollectionChecker {
       if (nftsWithMetadata.length === 0) {
         console.log("No se encontraron NFTs en la wallet");
         this.showResult(false, "No se encontraron NFTs en tu wallet.");
-        return [];
+        
+        // No hay NFTs de The Bonk Games - Mostrar mensaje para comprar uno y DETENER el flujo del juego
+        this.showMintNFTMessage();
+        
+        // Retornar objeto con flag needsNFT para indicar claramente que se necesita un NFT
+        return { needsNFT: true };
       }
       
       // Procesamos los NFTs encontrados
       
-      // Filtrar NFTs que comiencen con "The Bonk Games" y extraer valor de "Bloodline"
+      // Verificar la dirección específica de la colección y los creators autorizados
+      const AUTHORIZED_COLLECTION_ID = "8Uvbv1B8Xrn7rCbfMS2GkQuYbA4vJ5BcNi9xnmWb5uzQ"; // La dirección de la colección BonkGames
+      const AUTHORIZED_CREATORS = [
+        "7CNaNvbW5TSMPn8dPPrskLvaev9C1yp1zLe3nCp4hjUc", // Creator principal BonkGames
+        // Añade aquí otros creators autorizados si los hay
+      ];
+      
+      // Lista de atributos de verificación adicionales que debe tener al menos uno
+      const REQUIRED_ATTRIBUTES = ['Bloodline'];
+      
+      // Filtrar NFTs usando criterios más estrictos
       const bonkGamesNFTs = nftsWithMetadata.filter(nft => {
-        // Verificar si el nombre comienza con "The Bonk Games"
+        // Primera verificación: El nombre debe comenzar con "The Bonk Games"
+        let nameMatches = false;
+        
         if (nft.metadata && nft.metadata.name) {
-          return nft.metadata.name.startsWith('The Bonk Games');
+          nameMatches = nft.metadata.name.startsWith('The Bonk Games');
         }
         // Si tiene metadatos off-chain, verificar ahí también
-        if (nft.metadata && nft.metadata.offChain && nft.metadata.offChain.name) {
-          return nft.metadata.offChain.name.startsWith('The Bonk Games');
+        if (!nameMatches && nft.metadata && nft.metadata.offChain && nft.metadata.offChain.name) {
+          nameMatches = nft.metadata.offChain.name.startsWith('The Bonk Games');
         }
-        return false;
+        
+        // Si el nombre no coincide, descartar inmediatamente
+        if (!nameMatches) return false;
+        
+        // Segunda verificación: coleccionID si está disponible
+        if (nft.metadata && nft.metadata.collection && nft.metadata.collection.key) {
+          // Si tiene collection.key, verificar si coincide con nuestra colección autorizada
+          if (nft.metadata.collection.key === AUTHORIZED_COLLECTION_ID) {
+            console.log(`NFT verificado por collection.key: ${nft.metadata.name}`);
+            return true;
+          }
+        }
+        
+        // Tercera verificación: los creators autorizados
+        let creatorVerified = false;
+        if (nft.metadata && nft.metadata.creators && nft.metadata.creators.length > 0) {
+          // Verificar si al menos uno de los creators está en nuestra lista autorizada
+          creatorVerified = nft.metadata.creators.some(creator => 
+            AUTHORIZED_CREATORS.includes(creator.address) && creator.verified
+          );
+          
+          if (creatorVerified) {
+            console.log(`NFT verificado por creator autorizado: ${nft.metadata.name}`);
+            return true;
+          }
+        }
+        
+        // Si llegamos aquí y el nombre coincide pero no podemos verificar por creator o collection,
+        // solo aceptamos basado en el nombre y esperamos que tenga el atributo Bloodline
+        console.log(`NFT aceptado solo por nombre (verificación menos segura): ${nft.metadata.name}`);
+        return nameMatches;
       });
       
       // Mostrar resultados de los NFTs de Bonk Games
@@ -471,8 +675,32 @@ class NFTCollectionChecker {
           }
         });
         
+        // Guardar las bloodlines localmente para debugging
+        console.log('Bloodlines guardadas localmente: ', JSON.stringify(this.playerBloodlines));
+        
+        // Verificar si hay al menos una bloodline en los NFTs encontrados
+        if (this.playerBloodlines.length === 0) {
+          // Hay NFTs de The Bonk Games pero ninguno tiene el atributo Bloodline
+          console.log('Se encontraron NFTs de The Bonk Games, pero ninguno tiene el atributo Bloodline');
+          
+          // Mostrar mensaje para mintear uno correcto
+          this.showMintNFTMessage();
+          
+          // Detener el flujo del juego y no permitir continuar
+          this.showResult(false, "Se necesita un NFT de The Bonk Games con atributo Bloodline para jugar.");
+          this.isChecking = false;
+          
+          // Retornar objeto para indicar que se necesita NFT con bloodline
+          return { needsNFT: true, needsBloodline: true };
+        }
+        
+        // Si llegamos aquí, hay al menos un NFT con bloodline
         // Actualizar información del jugador con las bloodlines encontradas
         this.updatePlayerBloodlines();
+        
+        // Quitar cualquier mensaje de mint que pudiera estar visible
+        // (importante cuando el usuario cambia de wallet sin NFTs a una con NFTs)
+        this.removeMintNFTMessage();
         
         // Guardar resumen para uso posterior por la aplicación
       } else {
@@ -501,11 +729,17 @@ class NFTCollectionChecker {
       
       this.showResult(true, resultMessage);
       
+      // Desbloquear interacciones al finalizar
+      this.unblockGameInteractions();
+      
       // Devolver la lista de NFTs con metadata
       return nftsWithMetadata;
     } catch (error) {
       console.error("Error al verificar colección de NFTs:", error);
       this.showResult(false, "Error al verificar NFTs. Por favor intenta de nuevo.");
+      
+      // Desbloquear interacciones en caso de error
+      this.unblockGameInteractions();
       return false;
     } finally {
       this.isChecking = false;

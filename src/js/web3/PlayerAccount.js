@@ -137,7 +137,23 @@ export class PlayerAccount {
         
         // Verificar la colección de NFTs usando el método checkCollection
         console.log("Verificando colección de NFTs para el usuario...");
-        const hasNFT = await nftCollectionChecker.checkCollection();
+        const nftResult = await nftCollectionChecker.checkCollection();
+        
+        // Determinar correctamente si el usuario tiene NFTs
+        // Si el resultado es un arreglo vacío o [] significa que no se encontraron NFTs
+        // Si es un objeto con needsNFT: true, significa que se necesitan NFTs
+        // Si es false, significa que hubo un error
+        // Solo si es un arreglo no vacío el usuario tiene NFTs
+        const hasNFT = Array.isArray(nftResult) && nftResult.length > 0 && 
+                    !nftResult.needsNFT; // Para asegurarnos de que no sea un objeto de error
+        
+        console.log("Resultado de verificación NFT:", { 
+          resultType: typeof nftResult, 
+          isArray: Array.isArray(nftResult), 
+          length: Array.isArray(nftResult) ? nftResult.length : 'no es array',
+          hasNeedNFTFlag: nftResult && nftResult.needsNFT,
+          finalHasNFT: hasNFT
+        });
         
         // Almacenar el resultado en playerData
         this.playerData.hasCollectionNFT = hasNFT;
@@ -179,13 +195,22 @@ export class PlayerAccount {
    * Handle wallet disconnection
    */
   async handleWalletDisconnect() {
-    // Reset authentication state
+    // If already disconnected, no need to do anything
+    if (!this.isAuthenticated) return;
+    
+    // Update the state
     this.isAuthenticated = false;
     this.authToken = null;
     
     // Update player data to reflect disconnection
-    this.playerData.address = null;
-    // Clear authenticated flag in localStorage
+    if (this.playerData) {
+      this.playerData.address = null;
+    }
+    
+    // Limpiar las bloodlines al desconectar la wallet
+    this.bloodlines = [];
+    
+    // Clear authenticated flag and bloodlines in localStorage
     try {
       localStorage.removeItem("walletAuthenticated");
       localStorage.removeItem("connectedWalletAddress");
@@ -194,16 +219,13 @@ export class PlayerAccount {
       console.warn("Could not clear wallet auth status from localStorage", err);
     }
     
-    // // Limpiar las bloodlines al desconectar la wallet
-    // this.bloodlines = [];
-    // localStorage.removeItem('playerBloodlines');
-    
-    // // Save updated state
-    // this.savePlayerData();
+    // Save updated state
+    this.savePlayerData();
     
     // Notify the game that player is no longer authenticated
-    this.scene.events.emit("player-disconnected");
+    this.scene.events.emit("player-unauthenticated");
     
+    console.log("Wallet disconnected from PlayerAccount");
     console.log("Player disconnected");
   }
 
