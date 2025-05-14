@@ -723,8 +723,8 @@ export class SolanaWallet {
   }
 
   /**
-   * Deposit BONK tokens to administrator wallet
-   * @param {number} amount - Amount of BONK tokens to deposit
+   * Deposit CREDIT tokens to administrator wallet
+   * @param {number} amount - Amount of CREDIT tokens to deposit
    * @returns {Promise<Object>} Transaction result
    */
   async depositCredit(amount) {
@@ -785,7 +785,7 @@ export class SolanaWallet {
       }
 
       // Show success notification
-      this.showNotification(`Successfully deposited ${amount} CREDITS`);
+      this.showNotification(`Successfully deposited ${amount} CREDIT`);
 
       return {
         success: true,
@@ -794,8 +794,8 @@ export class SolanaWallet {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      console.error("Error depositing CREDITS:", error);
-      this.showNotification(`Failed to deposit CREDITS: ${error.message}`);
+      console.error("Error depositing CREDIT:", error);
+      this.showNotification(`Failed to deposit CREDIT: ${error.message}`);
       throw error;
     }
   }
@@ -831,7 +831,7 @@ export class SolanaWallet {
       const balance = accountInfo.value.data.parsed.info.tokenAmount.uiAmount;
       return balance;
     } catch (error) {
-      console.error("Error getting CREDITS balance:", error);
+      console.error("Error getting CREDIT balance:", error);
       return 0;
     }
   }
