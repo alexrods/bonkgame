@@ -785,7 +785,7 @@ export class SolanaWallet {
       }
 
       // Show success notification
-      this.showNotification(`Successfully deposited ${amount} BONK`);
+      this.showNotification(`Successfully deposited ${amount} CREDITS`);
 
       return {
         success: true,
@@ -794,8 +794,8 @@ export class SolanaWallet {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      console.error("Error depositing BONK:", error);
-      this.showNotification(`Failed to deposit BONK: ${error.message}`);
+      console.error("Error depositing CREDITS:", error);
+      this.showNotification(`Failed to deposit CREDITS: ${error.message}`);
       throw error;
     }
   }
@@ -831,7 +831,7 @@ export class SolanaWallet {
       const balance = accountInfo.value.data.parsed.info.tokenAmount.uiAmount;
       return balance;
     } catch (error) {
-      console.error("Error getting BONK balance:", error);
+      console.error("Error getting CREDITS balance:", error);
       return 0;
     }
   }
