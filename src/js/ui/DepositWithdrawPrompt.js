@@ -2632,23 +2632,23 @@ export class DepositWithdrawPrompt {
             "DepositWithdrawPrompt: Attempting to update credit_count in DB with value:",
             newBalance
           );
-          try {
-            this.scene.playerAccount.setCreditCount(newBalance)
-              .then((response) => {
-                console.log(
-                  "DepositWithdrawPrompt: credit_count successfully updated in DB:",
-                  response
-                );
-              })
-              .catch((err) => {
-                console.error(
-                  "Error updating credit_count in DB from DepositWithdrawPrompt:",
-                  err
-                );
-              });
-          } catch (error) {
-            console.error("Error calling setCreditCount:", error);
-          }
+          // try {
+          //   this.scene.playerAccount.setCreditCount(newBalance)
+          //     .then((response) => {
+          //       console.log(
+          //         "DepositWithdrawPrompt: credit_count successfully updated in DB:",
+          //         response
+          //       );
+          //     })
+          //     .catch((err) => {
+          //       console.error(
+          //         "Error updating credit_count in DB from DepositWithdrawPrompt:",
+          //         err
+          //       );
+          //     });
+          // } catch (error) {
+          //   console.error("Error calling setCreditCount:", error);
+          // }
         } else {
           console.error(
             "DepositWithdrawPrompt: Cannot update DB - setCreditCount method not available"
