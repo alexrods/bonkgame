@@ -38,7 +38,7 @@ export const WEB3_CONFIG = {
   walletRequired: true,
   
   // Set to true to require wallet to be whitelisted
-  whitelistRequired: true,
+  whitelistRequired: false,
   
   // Solana network to connect to
   network: 'devnet', // 'mainnet-beta', 'testnet', 'devnet'
