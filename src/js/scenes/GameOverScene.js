@@ -75,14 +75,14 @@ export class GameOverScene extends Phaser.Scene {
       this.playerAccount = existingAccount;
       console.log('GameOverScene: Using existing PlayerAccount from registry');
       
-      // Reset bonk tokens on player death (tokens are lost unless withdrawn)
-      // This fixes the issue where bonk tokens persisted between death sessions
+      // Al morir, solo resetear los BONK de la arena, no los ya acumulados por el jugador
+      // Los tokens de la arena se pierden si no se retiran antes de morir
       
-      // Reset global bonk balance
+      // NO resetear el balance global de BONK - el jugador conserva lo acumulado
       const currentBonkBalance = this.playerAccount.getBonkBalance();
       if (currentBonkBalance > 0) {
-        console.log(`Resetting global bonk balance on death: ${currentBonkBalance} -> 0`);
-        this.playerAccount.updateBonkBalance(-currentBonkBalance); // Subtract all bonk tokens
+        console.log(`Preservando balance global de BONK: ${currentBonkBalance} (no se resetea)`);
+        // Ya no restamos los tokens de BONK acumulados
       }
       
       // Also reset arena-specific bonk balance

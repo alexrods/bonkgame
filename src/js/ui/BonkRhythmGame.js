@@ -2,8 +2,9 @@ import { BULLET_TIME_SLOWDOWN } from '../../config.js';
 import { updateEarnCount } from '../utils/api.js';
 
 export class BonkRhythmGame {
-  constructor(scene) {
+  constructor(scene, config) {
     this.scene = scene;
+    this.config = config || {};
     this.gameContainer = null;
     this.isActive = false;
     this.hackCompleted = false;
@@ -18,6 +19,9 @@ export class BonkRhythmGame {
     this.maxScore = 0;
     this.syncsRequired = 6;
     this.syncedHits = 0;
+    
+    // Variable dedicada para rastrear los BONK en la arena (independiente del display)
+    this.arenaBonkCount = 0;
     this.successCallback = null;
     this.failCallback = null;
     this.touchActive = false;
@@ -346,11 +350,26 @@ export class BonkRhythmGame {
     console.log(`Spawned ${this.notes.length} notes for rhythm game`);
   }
   
+  // Sincroniza nuestra variable arenaBonkCount con la de la escena
+  syncBonkCount() {
+    // Si la escena tiene una variable arenaBonkCount, usarla
+    if (this.scene && typeof this.scene.arenaBonkCount !== 'undefined') {
+      this.arenaBonkCount = this.scene.arenaBonkCount;
+      console.log(`Sincronizado arenaBonkCount con el valor de la escena: ${this.arenaBonkCount}`);
+    } else {
+      // Si no existe, mantener nuestro valor (que puede ser 0)
+      console.log(`No se encontró arenaBonkCount en la escena, manteniendo valor actual: ${this.arenaBonkCount}`);
+    }
+  }
+  
   start(onSuccess, onFail) {
     this.isActive = true;
     this.hackCompleted = false;
     this.score = 0;
     this.syncedHits = 0;
+    
+    // Sincronizar el contador de BONK con la escena
+    this.syncBonkCount();
     
     // Store callbacks
     this.successCallback = onSuccess;
@@ -843,10 +862,10 @@ export class BonkRhythmGame {
       // Debugging: If arena balance is 0 but we still got here, use a minimum test value
       if (arenaBalance <= 0) {
         console.log("WARNING: Arena balance is 0 or negative in withdrawal. Using minimum test value.");
-        arenaBalance = 10; // Minimum test value
+        arenaBalance = 0; // Minimum test value
         // Force update UI if it exists
         if (this.scene.ui && this.scene.ui.updateMoney) {
-          this.scene.ui.updateMoney(10);
+          this.scene.ui.updateMoney(0);
           console.log("Updated UI money for testing purposes");
           
           // Force update the text display as well
@@ -860,44 +879,44 @@ export class BonkRhythmGame {
       let amountStayingInArena = 0;
       
       // Get the player's BONK balance (if available)
-      let playerBonkBalance = 0;
+      // Similar a la estrategia usada para los créditos, obtenemos el balance de BONK usando múltiples métodos
+      let arenaBonkBalance = 0;
       
-      // Try multiple ways to get the current BONK balance from the arena
-      try {
-        // Method 1: Check if there's a BonkCounter in UI with known methods
-        if (this.scene.ui && this.scene.ui.bonkCounter) {
-          // Just use a fixed amount for now since BonkCounter doesn't expose its balance 
-          playerBonkBalance = 5; // Default award for a successful hack
-          console.log(`Using fixed BONK value for transfer: ${playerBonkBalance}`);
-        }
-        // Method 2: Check if UI has a bonkCount property
-        else if (this.scene.ui && typeof this.scene.ui.bonkCount === 'number') {
-          playerBonkBalance = this.scene.ui.bonkCount;
-          console.log(`Retrieved BONK from UI bonkCount: ${playerBonkBalance}`);
-        }
-        // Method 3: Check if there's a global BONK counter
-        else if (this.scene.registry && this.scene.registry.get('bonkCount')) {
-          playerBonkBalance = this.scene.registry.get('bonkCount');
-          console.log(`Retrieved BONK from registry: ${playerBonkBalance}`);
-        }
-        // Safety default
-        else {
-          console.log(`No BONK counter found, using default value of 5`);
-          playerBonkBalance = 5; // Default award for a successful hack
-        }
-      } catch (error) {
-        console.warn(`Error getting BONK balance: ${error.message}, using default value of 5`);
-        playerBonkBalance = 5;
+      // Método 1: Usar la variable arenaBonkCount de la escena (más confiable)
+      if (this.scene && typeof this.scene.arenaBonkCount === 'number') {
+        arenaBonkBalance = this.scene.arenaBonkCount;
+        console.log(`BONK: Obtenido de scene.arenaBonkCount: ${arenaBonkBalance}`);
       }
+      // Método 2: Verificar en la UI si hay un contador de BONK
+      else if (this.scene.ui && typeof this.scene.ui.bonkCount === 'number') {
+        arenaBonkBalance = this.scene.ui.bonkCount;
+        console.log(`BONK: Obtenido de UI bonkCount: ${arenaBonkBalance}`);
+      }
+      // Método 3: Verificar en el registro global
+      else if (this.scene.registry && this.scene.registry.get('bonkCount') !== undefined) {
+        arenaBonkBalance = this.scene.registry.get('bonkCount');
+        console.log(`BONK: Obtenido de registry: ${arenaBonkBalance}`);
+      }
+      
+      console.log(`BONK: Balance final detectado: ${arenaBonkBalance}`);
+      
+      // Asegurar que sea un número válido
+      if (isNaN(arenaBonkBalance) || arenaBonkBalance < 0) {
+        arenaBonkBalance = 0;
+        console.log(`BONK: Corregido a 0 por ser inválido`);
+      }
+      
+      // Guardar el valor detectado para transferir
+      let playerBonkBalance = arenaBonkBalance;
       
       console.log(`BONK to transfer from arena to account: ${playerBonkBalance}`);
       
       // Calculate withdrawal amount based on new rules
       if (successPercent === 100) {
-        // 100% hits: get full amount + 10% bonus
-        actualWithdrawal = Math.floor(arenaBalance * 1.1);
+        // 100% hits: get full amount (no bonus)
+        actualWithdrawal = Math.floor(arenaBalance);
         amountStayingInArena = 0;
-        // Perfect withdrawal gets 100% of BONK tokens transferred to account
+        // No BONK transfer - only what player already has
       } else if (successPercent >= 50) {
         // More than 50%: get half, half stays in arena
         actualWithdrawal = Math.floor(arenaBalance / 2);
@@ -908,14 +927,12 @@ export class BonkRhythmGame {
         // Less than 50%: lose 25% of funds, get 75%
         actualWithdrawal = Math.floor(arenaBalance * 0.75);
         amountStayingInArena = Math.floor(arenaBalance * 0.25);
-        // Bad performance gets no BONK tokens transferred
-        playerBonkBalance = 0;
       }
       
       // Process withdrawal from arena to game account
       let withdrawalSuccessful = false;
-      if (this.scene.playerAccount) {
-        // Withdraw from arena to game account - pass both amounts
+      if (this.scene.playerAccount && arenaBalance > 0) {
+        // Withdraw from arena to game account only if there's a positive balance
         withdrawalSuccessful = this.scene.playerAccount.withdrawFromArena(actualWithdrawal, arenaBalance);
         console.log(`Withdrew ${actualWithdrawal} credits from arena balance of ${arenaBalance}: ${withdrawalSuccessful ? 'success' : 'failed'}`);
         
@@ -923,8 +940,8 @@ export class BonkRhythmGame {
         const newCreditCount = this.scene.playerAccount.getGameAccountBalance();
         this.scene.playerAccount.setCreditCount(newCreditCount).catch(err => console.error('Error updating credit_count in DB:', err));
         
-        // Transfer BONK tokens from arena to player account if available
-        if (withdrawalSuccessful && playerBonkBalance > 0 && this.scene.playerAccount) {
+        // Siempre actualizar el balance de BONK en la base de datos, incluso si es 0
+        if (withdrawalSuccessful && this.scene.playerAccount) {
           // Persist earned BONK tokens (earn) in DB
           const newBonkBalance = this.scene.playerAccount.updateBonkBalance(playerBonkBalance);
           console.log(`Transferred ${playerBonkBalance} BONK tokens; new account balance: ${newBonkBalance}`);
@@ -932,27 +949,60 @@ export class BonkRhythmGame {
             .then(() => console.log(`Updated bonk_balance in DB: ${newBonkBalance}`))
             .catch(err => console.error('Error updating bonk_balance in DB:', err));
           
-          // Reset arena BONK count to zero - try multiple methods
+          // RESETEO EXHAUSTIVO DE BONK - similar a withdrawFromArena para créditos
+          console.log(`FULL BONK WITHDRAWAL: Setting arena BONK balance to 0 (was: ${playerBonkBalance})`);
+          
           try {
-            // Method 1: Try UI bonkCounter updateBonkCount method (from looking at the code)
+            // Resetear TODOS los posibles lugares donde el valor puede estar almacenado
+            
+            // 1. Resetear la variable de la escena principal si existe
+            if (this.scene && typeof this.scene.arenaBonkCount !== 'undefined') {
+              this.scene.arenaBonkCount = 0;
+              console.log(`BONK: Reset scene.arenaBonkCount = 0`);
+            }
+            
+            // 2. Resetear el contador de la UI mediante updateBonkCount
             if (this.scene.ui && this.scene.ui.bonkCounter && 
                 typeof this.scene.ui.bonkCounter.updateBonkCount === 'function') {
               this.scene.ui.bonkCounter.updateBonkCount(0);
-              console.log(`Reset arena BONK count to 0 using updateBonkCount`);
+              console.log(`BONK: Reset via updateBonkCount(0)`);
             }
-            // Method 2: Try direct bonkCount property
-            else if (this.scene.ui && typeof this.scene.ui.bonkCount !== 'undefined') {
+            
+            // 3. Resetear directamente la propiedad bonkCount de la UI
+            if (this.scene.ui && typeof this.scene.ui.bonkCount !== 'undefined') {
               this.scene.ui.bonkCount = 0;
-              console.log(`Reset arena BONK count to 0 using direct property`);
+              console.log(`BONK: Reset UI bonkCount = 0 directly`);
             }
-            // Method 3: Try registry
-            else if (this.scene.registry) {
+            
+            // 4. Actualizar la visualización si hay un método específico
+            if (this.scene.ui && typeof this.scene.ui.updateBonkDisplay === 'function') {
+              this.scene.ui.updateBonkDisplay(0);
+              console.log(`BONK: Called updateBonkDisplay(0)`);
+            }
+            
+            // 5. Resetear el registro global
+            if (this.scene.registry) {
               this.scene.registry.set('bonkCount', 0);
-              console.log(`Reset arena BONK count to 0 using registry`);
+              console.log(`BONK: Reset registry bonkCount = 0`);
             }
-            // Method 4: Try emitting event for other components to handle
+            
+            // 6. Emitir múltiples eventos para notificar a todos los componentes
             this.scene.events.emit('arenaBonkCountUpdated', 0);
-            console.log(`Emitted arenaBonkCountUpdated event`);
+            this.scene.events.emit('bonkBalanceUpdated', 0);
+            this.scene.events.emit('resetBonkCount', true);
+            console.log(`BONK: Emitted all update events with value 0`);
+            
+            // 7. Verificar que el reseteo funcionó
+            let verifyBonkCount = 'unknown';
+            if (this.scene && typeof this.scene.arenaBonkCount === 'number') {
+              verifyBonkCount = this.scene.arenaBonkCount;
+            } else if (this.scene.ui && typeof this.scene.ui.bonkCount === 'number') {
+              verifyBonkCount = this.scene.ui.bonkCount;
+            } else if (this.scene.registry) {
+              verifyBonkCount = this.scene.registry.get('bonkCount');
+            }
+            
+            console.log(`BONK VERIFICATION: Arena BONK balance after withdrawal: ${verifyBonkCount}`);
           } catch (error) {
             console.warn(`Error resetting BONK count: ${error.message}`);
           }
