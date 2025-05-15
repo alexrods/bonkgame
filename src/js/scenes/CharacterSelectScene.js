@@ -13,6 +13,10 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.flickerIntensity = 0.9;
     this.noiseTime = 0;
     this.warpTime = 0;
+    this.bloodlinesChecked = false;
+    
+    // Default force no selección inicial en caso se pierda
+    this.forcedSelectedCharacter = null;
   }
   
   // Helper function to calculate consistent sprite scale
@@ -32,6 +36,15 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
   
   init(data) {
+    // Track if bloodlines update already occurred
+    this.bloodlinesChecked = data && data.bloodlinesChecked === true;
+    
+    // Get forced character from data if passed
+    this.forcedSelectedCharacter = data && data.forcedSelectedCharacter ? data.forcedSelectedCharacter : this.forcedSelectedCharacter;
+    
+    // Log initialization with data for debugging
+    console.log(`CharacterSelectScene init with bloodlinesChecked=${this.bloodlinesChecked}, forcedChar=${this.forcedSelectedCharacter}`, data);
+    
     // Verificar si hay una redirección pendiente a la candy machine (caso sin NFTs)
     if (localStorage.getItem('redirectingToMint') === 'true') {
       console.log('Redirección a candy machine pendiente. Deteniendo carga de escena.');
@@ -202,79 +215,78 @@ export class CharacterSelectScene extends Phaser.Scene {
       'Corps': ['default', 'character2'],
       'Mob': ['character5', 'character6']
     };
-    
+
     let availableCharacters = [];
     let playerBloodlines = [];
-    
-    // Verify that the wallet is connected
-    const isWalletConnected = window.playerAccount && window.playerAccount.isAuthenticated;
-    
-    // Only search bloodlines if the wallet is connected
-    if (isWalletConnected) {
-      console.log('Wallet connected. Searching for bloodlines...');
-      
-      // Verify both sources of bloodlines information
-      // 1. First nftCollectionChecker, which should have the most up-to-date information
-      if (window.nftCollectionChecker && window.nftCollectionChecker.playerBloodlines && 
-          window.nftCollectionChecker.playerBloodlines.length > 0) {
-        
-        playerBloodlines = window.nftCollectionChecker.playerBloodlines;
-        console.log('Bloodlines obtenidas de nftCollectionChecker:', playerBloodlines);
-      }
-      // 2. Then playerAccount
-      else if (window.playerAccount && window.playerAccount.bloodlines && 
-               window.playerAccount.bloodlines.length > 0) {
-        
-        playerBloodlines = window.playerAccount.bloodlines;
-        console.log('Bloodlines obtenidas de PlayerAccount:', playerBloodlines);
-      }
-      // 3. As a last resort, try to get from localStorage
-      else {
-        try {
-          const storedBloodlines = localStorage.getItem('playerBloodlines');
-          if (storedBloodlines) {
-            playerBloodlines = JSON.parse(storedBloodlines);
-            console.log('Bloodlines obtenidas de localStorage:', playerBloodlines);
-          }
-        } catch (error) {
-          console.error('Error al obtener bloodlines de localStorage:', error);
-        }
-      }
-    } else {
-      console.log('Wallet not connected. Not searching for bloodlines.');
-      // Clear any bloodline stored in localStorage if no wallet is connected
-      localStorage.removeItem('playerBloodlines');
+
+    // Determine playerBloodlines from available sources
+    if (window.nftCollectionChecker && window.nftCollectionChecker.playerBloodlines && window.nftCollectionChecker.playerBloodlines.length > 0) {
+      playerBloodlines = window.nftCollectionChecker.playerBloodlines;
+      console.log('Bloodlines obtenidas de nftCollectionChecker:', playerBloodlines);
     }
-    
+    else if (window.playerAccount && window.playerAccount.isAuthenticated && window.playerAccount.bloodlines && window.playerAccount.bloodlines.length > 0) {
+      playerBloodlines = window.playerAccount.bloodlines;
+      console.log('Bloodlines obtenidas de PlayerAccount:', playerBloodlines);
+    }
+    else {
+      try {
+        const storedBloodlines = localStorage.getItem('playerBloodlines');
+        if (storedBloodlines) {
+          playerBloodlines = JSON.parse(storedBloodlines);
+          console.log('Bloodlines obtenidas de localStorage:', playerBloodlines);
+        }
+      } catch (error) {
+        console.error('Error al obtener bloodlines de localStorage:', error);
+      }
+    }
+
+    console.log('Detected bloodlines:', playerBloodlines);
+
     // If no bloodlines are found after searching in all sources, use default characters
     if (!playerBloodlines || playerBloodlines.length === 0) {
       console.log('No bloodlines found. Using default characters.');
       availableCharacters = ['default', 'character2'];
-    }
-    
-    // Combine available characters based on the player's bloodlines
-    playerBloodlines.forEach(bloodline => {
-      if (bloodlineCharacters[bloodline]) {
-        // Add unique characters to the available list
-        bloodlineCharacters[bloodline].forEach(character => {
-          if (!availableCharacters.includes(character)) {
-            availableCharacters.push(character);
-          }
-        });
-      }
-    });
-    
-    // If after filtering no characters are available, use default character
-    if (availableCharacters.length === 0) {
-      availableCharacters = ['default'];
-      console.log('No characters available for the found bloodlines. Using default character.');
     } else {
-      console.log('Characters available for the found bloodlines:', availableCharacters);
+      // Combine available characters based on the player's bloodlines
+      playerBloodlines.forEach(bloodline => {
+        if (bloodlineCharacters[bloodline]) {
+          // Add unique characters to the available list
+          bloodlineCharacters[bloodline].forEach(character => {
+            if (!availableCharacters.includes(character)) {
+              availableCharacters.push(character);
+            }
+          });
+        }
+      });
+
+      // If after filtering no characters are available, use default character
+      if (availableCharacters.length === 0) {
+        availableCharacters = ['default'];
+        console.log('No characters available for the found bloodlines. Using default character.');
+      } else {
+        console.log('Characters available for the found bloodlines:', availableCharacters);
+      }
+
+      // For Bots bloodline, explicitly force character3 as the first choice
+      if (playerBloodlines.includes('Bots') && availableCharacters.includes('character3')) {
+        this.forcedSelectedCharacter = 'character3';
+        console.log('Forcing character3 selection for Bots bloodline');
+      }
     }
-    
+
     // Update the list of characters
     this.characters = availableCharacters;
     
+    // Store in localStorage for debugging and persistence
+    try {
+      localStorage.setItem('availableCharacters', JSON.stringify(availableCharacters));
+    } catch (e) {
+      console.error('Error saving availableCharacters to localStorage', e);
+    }
+    
+    // Force selectedIndex to be valid
+    this.selectedIndex = Math.min(this.selectedIndex || 0, this.characters.length - 1);
+
     // Register the available characters for use in other scenes
     this.registry.set('availableCharacters', availableCharacters);
   }
@@ -283,6 +295,25 @@ export class CharacterSelectScene extends Phaser.Scene {
    * Verifies if it is necessary to update NFT and bloodlines information when the scene starts
    */
   updateNFTBloodlinesIfNeeded() {
+    // Skip if bloodlines already updated
+    if (this.bloodlinesChecked) {
+      console.log('Bloodlines already checked, skipping NFT update');
+      
+      // Apply any forced character selection after bloodlines check
+      if (this.forcedSelectedCharacter) {
+        const characterIndex = this.characters.indexOf(this.forcedSelectedCharacter);
+        if (characterIndex !== -1) {
+          console.log(`Applying forced character selection: ${this.forcedSelectedCharacter} at index ${characterIndex}`);
+          this.selectedIndex = characterIndex;
+          // Update registry
+          this.registry.set('selectedCharacter', this.forcedSelectedCharacter);
+        } else {
+          console.warn(`Forced character ${this.forcedSelectedCharacter} not found in available characters:`, this.characters);
+        }
+      }
+      return;
+    }
+
     // Verify if there is a connected wallet
     const isWalletConnected = window.playerAccount && window.playerAccount.isAuthenticated;
     
@@ -299,14 +330,17 @@ export class CharacterSelectScene extends Phaser.Scene {
         setTimeout(async () => {
           try {
             // Verificar colección de NFTs para actualizar bloodlines
-            const result = await window.nftCollectionChecker.checkCollection();
+            await window.nftCollectionChecker.checkCollection();
             console.log('Verificación de NFTs completada');
             
-            // Volver a filtrar los personajes con las bloodlines actualizadas
+            // Aplicar filtrado para capturar forcedSelectedCharacter
             this.filterCharactersByBloodline();
             
-            // Si los personajes cambiaron, actualizar la selección
-            this.updateSelection();
+            // Reiniciar escena para reconstruir UI con nuevos personajes
+            this.scene.restart({ 
+              bloodlinesChecked: true, 
+              forcedSelectedCharacter: this.forcedSelectedCharacter 
+            });
           } catch (error) {
             console.error('Error al verificar NFTs:', error);
           }
@@ -315,8 +349,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     } else {
       console.log('No wallet connected at CharacterSelectScene start');
       // Restore default characters if no wallet is connected
-      this.characters = ['default', 'character2'];
-      this.registry.set('availableCharacters', this.characters);
+      // this.characters = ['default', 'character2'];
+      // this.registry.set('availableCharacters', this.characters);
     }
   }
   
@@ -438,11 +472,11 @@ export class CharacterSelectScene extends Phaser.Scene {
     const width = this.scale.width;
     const height = this.scale.height;
     
-    // Verify if there is a connected wallet and update bloodlines if necessary
-    this.updateNFTBloodlinesIfNeeded();
-    
     // Check if we're in portrait mode or a very narrow screen
     this.isPortrait = height > width;
+    
+    // Verify if there is a connected wallet and update bloodlines if necessary
+    this.updateNFTBloodlinesIfNeeded();
     
     // Get device pixel ratio and update if needed
     this.devicePixelRatio = window.devicePixelRatio || 1;
@@ -1961,18 +1995,20 @@ export class CharacterSelectScene extends Phaser.Scene {
     
     // Get bounds of element
     const bounds = {
-      left: element.x - (element.width * element.originX),
-      right: element.x + (element.width * (1 - element.originX)),
-      top: element.y - (element.height * element.originY),
-      bottom: element.y + (element.height * (1 - element.originY))
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      originX: 0.5,
+      originY: 0.5
     };
     
     // Check if any part is outside the screen (with padding)
     return (
-      bounds.left < padding ||
-      bounds.right > width - padding ||
-      bounds.top < padding ||
-      bounds.bottom > height - padding
+      bounds.x < padding ||
+      bounds.x + bounds.width > width - padding ||
+      bounds.y < padding ||
+      bounds.y + bounds.height > height - padding
     );
   }
   
@@ -2169,77 +2205,93 @@ export class CharacterSelectScene extends Phaser.Scene {
     }
     
     // Position the confirm text
-    const confirmY = this.isPortrait ? height - 100 : height - 80;
-    if (this.confirmText) {
-      this.confirmText.x = width / 2;
-      this.confirmText.y = confirmY;
-    }
-    
-    // Position the back text
-    const backButtonX = this.isPortrait ? 70 : 90;
-    const backButtonY = this.isPortrait ? 50 : height - 80;
-    if (this.backText) {
-      this.backText.x = backButtonX;
-      this.backText.y = backButtonY;
-    }
-    
-    // Update instruction text position above confirm button
-    if (this.instructionsText) {
-      this.instructionsText.x = width / 2;
+    const confirmY = this.isPortrait 
+      ? height - 100  // Move up in portrait for more breathing room
+      : height - 80;
       
-      if (this.isPortrait) {
-        // In portrait mode, position instructions relative to sprite and name
-        // Wait to set y position until after nameText position is calculated
-      } else {
-        this.instructionsText.y = confirmY - 50;
+    const backButtonX = this.isPortrait 
+      ? 70  // Left side of screen in portrait
+      : 90;
+      
+    const backButtonY = this.isPortrait 
+      ? 50  // Top of screen in portrait
+      : height - 80;
+    
+    // Scale font sizes based on DPI
+    const fontScaleModifier = Math.max(0.85, 1 / Math.sqrt(this.devicePixelRatio));
+    const confirmFontSize = Math.round((this.isPortrait ? 26 : 24) * fontScaleModifier);
+    const backFontSize = Math.round(20 * fontScaleModifier);
+    
+    // Create CONFIRM text with console styling
+    this.confirmText = this.add.text(
+      width / 2,
+      confirmY,
+      'CONFIRM',
+      {
+        fontFamily: 'Tektur, Arial',
+        fontSize: `${confirmFontSize}px`,
+        color: '#00ff88', // Use consistent green color
+        align: 'center'
       }
-      
-      // Update font size based on new width and account for device scaling
-      const fontScaleModifier = Math.max(0.85, 1 / Math.sqrt(this.devicePixelRatio));
-      const fontSize = this.isPortrait 
-        ? Math.max(12, Math.min(16, width / (30 * this.devicePixelRatio))) * fontScaleModifier
-        : 16 * fontScaleModifier;
-      this.instructionsText.setFontSize(Math.round(fontSize));
-      
-      // Position the name under the character sprite (only in portrait mode)
-      if (this.nameText) {
-        // Calculate sprite position based on layout
-        const spriteY = this.isPortrait ? height * 0.5 : (this.isCompact ? height * 0.5 : height / 2);
-        const spriteX = this.isPortrait ? width * 0.5 : (this.isCompact ? width * 0.5 : width * 0.3);
-        
-        // Update name position to stay under the sprite
-        this.nameText.x = spriteX;
-        this.nameText.y = this.isPortrait ? spriteY + 155 : spriteY + 185; // Adjusted to 75px lower than original
-        
-        // Set font size
-        this.nameText.setFontSize('44px');
-        
-        // IMPORTANT: Only show the central nameText in portrait mode
-        this.nameText.setVisible(this.isPortrait);
-        
-        // Position instructionsText above the character sprite in portrait mode
-        if (this.isPortrait && this.instructionsText) {
-          // Position instructions text above the character sprite
-          this.instructionsText.y = spriteY - 280; // Position even higher above the character
-        }
-        
-        if (this.descriptionText) {
-          this.descriptionText.setVisible(false);
-        }
-      }
-      
-      // Now also update visibility of per-character name texts
-      this.profilePics.forEach(profile => {
-        if (profile.nameText) {
-          // IMPORTANT: Only show character-specific name texts in landscape mode
-          // In portrait mode, they must be hidden to avoid duplicate names
-          profile.nameText.setVisible(!this.isPortrait);
-        }
-      });
-    }
+    ).setOrigin(0.5);
     
-    // Now validate layout and fix any overlaps or boundary issues
-    this.validateAndFixLayout();
+    // Make text interactive
+    this.confirmText.setInteractive({ useHandCursor: true });
+    
+    // Create BACK text with console styling
+    this.backText = this.add.text(
+      backButtonX,
+      backButtonY,
+      'BACK',
+      {
+        fontFamily: 'Tektur, Arial',
+        fontSize: `${backFontSize}px`,
+        color: '#00ff88', // Use consistent green color
+        align: 'center'
+      }
+    ).setOrigin(0.5);
+    
+    // Make text interactive
+    this.backText.setInteractive();
+    
+    // Setup cursor blinking animation
+    this.cursorVisible = true;
+    this.cursorTimer = this.time.addEvent({
+      delay: 530,
+      callback: () => {
+        this.cursorVisible = !this.cursorVisible;
+        this.updateCursorVisibility();
+      },
+      loop: true
+    });
+    
+    // Track selection state
+    this.currentSelectedButton = null;
+    
+    // Add hover/focus effects
+    this.confirmText.on('pointerover', () => {
+      this.setSelectedButton('confirm');
+    });
+    
+    this.confirmText.on('pointerout', () => {
+      this.setSelectedButton(null);
+    });
+    
+    this.confirmText.on('pointerdown', () => {
+      this.confirmSelection();
+    });
+    
+    this.backText.on('pointerover', () => {
+      this.setSelectedButton('back');
+    });
+    
+    this.backText.on('pointerout', () => {
+      this.setSelectedButton(null);
+    });
+    
+    this.backText.on('pointerdown', () => {
+      this.returnToMenu();
+    });
   }
   
   // Check for and fix any layout issues
@@ -2685,13 +2737,14 @@ export class CharacterSelectScene extends Phaser.Scene {
         0xffffff,
         0.3
       );
-      glitchLine.setDepth(102); // Above everything
+      glitchLine.setDepth(102);
       
       // Make it fade out quickly
       this.tweens.add({
         targets: glitchLine,
         alpha: 0,
-        duration: 100,
+        width: this.scale.width * 1.1,
+        duration: 150,
         onComplete: () => {
           glitchLine.destroy();
         }
