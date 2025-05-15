@@ -361,6 +361,8 @@ export function preloadSprites(scene) {
     scene.load.image('cutscene_character2', '/assets/cutscenes/enter_arena/character2.png');
     scene.load.image('cutscene_character3', '/assets/cutscenes/enter_arena/character3.png');
     scene.load.image('cutscene_character5', '/assets/cutscenes/enter_arena/character5.png');
+    scene.load.image('cutscene_character6', '/assets/cutscenes/enter_arena/character6.png');
+    scene.load.image('cutscene_character4', '/assets/cutscenes/enter_arena/character4.png');
     
     // Load commercial sounds
     scene.load.audio('becomeSponsor', '/assets/sound/comercials/becomeSponsor.mp3');

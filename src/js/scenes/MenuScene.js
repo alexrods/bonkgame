@@ -2644,6 +2644,10 @@ export class MenuScene extends Phaser.Scene {
       characterImageKey = "cutscene_character3";
     } else if (selectedCharacter === "character5") {
       characterImageKey = "cutscene_character5";
+    } else if (selectedCharacter === "character6") {
+      characterImageKey = "cutscene_character6";
+    } else if (selectedCharacter === "character4") {
+      characterImageKey = "cutscene_character4";
     }
 
     // Position character image at the bottom of the screen initially

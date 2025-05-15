@@ -234,7 +234,7 @@ export class GameScene extends Phaser.Scene {
     console.log("Pre-selecting AI opponents for milestones");
     
     // Available AI character options
-    const characterOptions = ['character2', 'character3','character4', 'character5','character6'];
+    const characterOptions = ['default', 'character2', 'character3','character4', 'character5','character6'];
     //const characterOptions = ['character4'];
     
     // Get player's selected character to avoid duplicates
@@ -3087,33 +3087,11 @@ export class GameScene extends Phaser.Scene {
     } else if (selectedCharacter === 'character5') {
       introDialog = DialogSystem.getFlexIntroDialog();
     } else if (selectedCharacter === 'character2') {
-        // For character2 (Drainer), still use inline dialog definition until it's migrated
-        introDialog = [
-          {
-            character: "Network Exec",
-            text: "Listen carefully, Drainer. We need this quick and clean—no mistakes.",
-          image: "story/character2/intro/networkExec",
-          sound: "character2_dialog1"
-        },
-        {
-          character: "Drainer",
-          text: "…",
-          image: "story/character2/intro/drainer",
-          // No sound for the silence
-        },
-        {
-          character: "Network Exec",
-          text: "Remember your place, Drainer. You're still our dog.",
-          image: "story/character2/intro/networkExec",
-          sound: "character2_dialog3"
-        },
-        {
-          character: "Drainer",
-          text: "I will make you pay.",
-          image: "story/character2/intro/drainer",
-          sound: "character2_dialog4"
-        }
-      ];
+      introDialog = DialogSystem.getDrainerIntroDialog();
+    } else if (selectedCharacter === 'character4') {
+      introDialog = DialogSystem.getDVDIntroDialog();
+    } else if (selectedCharacter === 'character6') {
+      introDialog = DialogSystem.getVibeIntroDialog();
     } else {
       // Default to Degen dialog for unknown characters
       introDialog = DialogSystem.getDegenIntroDialog();
@@ -3813,7 +3791,9 @@ export class GameScene extends Phaser.Scene {
       'default': 'Degen',
       'character2': 'Drainer',
       'character3': 'Toaster',
-      'character5': 'Flex'
+      'character5': 'Flex',
+      'character4': 'DVD',
+      'character6': 'Vibe'
     };
     return characterNames[characterKey] || characterKey;
   }
@@ -3847,6 +3827,12 @@ export class GameScene extends Phaser.Scene {
       console.log("Using Toaster character image path");
     } else if (selectedCharacter === 'character5') {
       characterImagePath = "story/character5/intro/flex";
+    } else if (selectedCharacter === 'character4') {
+      characterImagePath = "story/dvd";
+      console.log("Using DVD character image path");
+    } else if (selectedCharacter === 'character6') {
+      characterImagePath = "story/vibe";
+      console.log("Using Vibe character image path");
     } else {
       characterImagePath = "story/degen/intro/degen"; // Default fallback
       console.log(`Using default character image path because '${selectedCharacter}' was not recognized`);
@@ -3910,90 +3896,24 @@ export class GameScene extends Phaser.Scene {
       is50KillMilestone = true;
       
       // Create the dialog for 50 kills, show it, then return immediately to avoid the fallback
-      
       // Character-specific dialog for 50 kills milestone
       if (characterName === "Degen") {
-        dialog = [
-          {
-            character: "Degen [Retired Legend]",
-            text: "I don't want to hurt anyone. You're leaving me no choice.",
-            image: characterImagePath,
-            sound: "degen_50kills"
-          },
-          {
-            character: "Network Drone Pilot",
-            text: "Activating drone mine sequence. Survival unlikely.",
-            image: networkExecImagePath,
-            sound: "dronePilot_50kills"
-          },
-          {
-            character: "Degen [Retired Legend]",
-            text: "Typical Network welcome—explosives and cheap tricks.",
-            image: characterImagePath,
-            sound: "degen_50kills1"
-          }
-        ];
+        dialog = DialogSystem.get50KillsDegenDialog();
       }
       else if (characterName === "Drainer") {
-        dialog = [
-          {
-            character: "Network Drone Pilot",
-            text: "Activating drone mine sequence. Survival unlikely.",
-            image: networkExecImagePath,
-            sound: "dronePilot_50kills"
-          },
-          {
-            character: "Drainer [Silent Reaper]",
-            text: "…",
-            image: characterImagePath
-          }
-        ];
+        dialog = DialogSystem.get50KillsDrainerDialog();
       }
       else if (characterName === "Toaster") {
-        console.log("Creating Toaster-specific dialog for 50-kill milestone");
-        dialog = [
-          {
-            character: "Toaster [Rogue Appliance]",
-            text: "Threat detected. Attempting to penetrate adversary system… hack failed.",
-            image: characterImagePath,
-            sound: "toaster50kills"
-          },
-          {
-            character: "Network Drone Pilot",
-            text: "Activating drone mine sequence. Survival unlikely.",
-            image: networkExecImagePath,
-            sound: "dronePilot_50kills"
-          },
-          {
-            character: "Toaster [Rogue Appliance]",
-            text: "Activating evasive maneuvers. Adjusting combat protocol.",
-            image: characterImagePath,
-            sound: "toaster50kills1"
-          }
-        ];
-        console.log("Toaster dialog created:", dialog);
+        dialog = DialogSystem.get50KillsToasterDialog();
       }
       else if (characterName === "Flex") {
-        dialog = [
-          {
-            character: "Flex [Neon Gladiator]",
-            text: "Fifty down and still no standing ovation? Tough crowd.",
-            image: characterImagePath,
-            sound: "flex50kills"
-          },
-          {
-            character: "Network Drone Pilot",
-            text: "Activating drone mine sequence. Survival unlikely.",
-            image: networkExecImagePath,
-            sound: "dronePilot_50kills"
-          },
-          {
-            character: "Flex [Neon Gladiator]",
-            text: "Aww shucks, you Network folk are too kind. You really shouldn't have!",
-            image: characterImagePath,
-            sound: "flex50kills1"
-          }
-        ];
+        dialog = DialogSystem.get50KillsFlexDialog();
+      }
+      else if (characterName === "DVD") {
+        dialog = DialogSystem.get50KillsDVDDialog();
+      }
+      else if (characterName === "Vibe") {
+        dialog = DialogSystem.get50KillsVibeDialog();
       } else {
         // Default dialog if character is not recognized
         dialog = [
@@ -4012,172 +3932,138 @@ export class GameScene extends Phaser.Scene {
       }
     } else if (killCount >= 100 && killCount < 200) {
       // For 100 kills milestone
-      if (selectedCharacter === "default") {
-        // Usar aiCharacterKey global directamente
-        let aiCharacter = this.aiCharacterKey;
-        console.log(`[MILESTONE 100] Usando AI character global: ${aiCharacter}`);
-        let aiImage = `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}`;
-        console.log(`[MILESTONE 100] AI para dialog:`, aiCharacter);
-        // Usar aiCharacter para diálogo y para el spawn
-        switch (aiCharacter) {
-          case "character2":
-            dialog = [
-              { character: "Degen", text: "Still fighting their war, Drainer?", image: characterImagePath },
-              { character: "Drainer", text: "…", image: "story/character2/intro/drainer" },
-              { character: "Degen", text: "Fine. Have it your way.", image: characterImagePath }
-            ];
-            break;
-          case "character3":
-            dialog = [
-              { character: "Degen", text: "Never thought I'd fight a kitchen appliance.", image: characterImagePath },
-              { character: "Toaster", text: "Threat assessment: high.", image: "story/character3/intro/toaster" },
-              { character: "Degen", text: "Let's toast.", image: characterImagePath }
-            ];
-            break;
-          case "character5":
-            dialog = [
-              { character: "Degen", text: "You're enjoying this, aren't you?", image: characterImagePath },
-              { character: "Flex", text: "No hard feelings?", image: "story/character5/intro/flex" },
-              { character: "Degen", text: "None at all.", image: characterImagePath }
-            ];
-            break;
-          case "character4":
-            dialog = [
-              { character: "Degen", text: "Philosopher bot—now I've seen it all.", image: characterImagePath },
-              { character: "DVD", text: "My words bite deeper than blades.", image: "story/dvd"},
-              { character: "Degen", text: "Let's test that theory.", image: characterImagePath }
-            ];
-            break;
-          case "character6":
-            dialog = [
-              { character: "Degen", text: "Do you realize how serious this is?", image: characterImagePath },
-              { character: "Vibe", text: "Chill—just dance to the beat.", image: "story/vibe" },
-              { character: "Degen", text: "I'm done dancing.", image: characterImagePath }
-            ];
-            break;
-          default:
-            dialog = [
-              { character: "Degen", text: "Another challenger approaches.", image: characterImagePath },
-              { character: aiCharacter, text: "…", image: aiImage },
-              { character: "Degen", text: "Let's get this over with.", image: characterImagePath }
-            ];
-        }
-        // Al finalizar el diálogo, spawnea el AI correcto
-        //this.dialogSystem.start(dialog, () => {
-          this.time.delayedCall(1000, () => {
-            this.spawnEnemyAIPlayer(aiCharacter);
-          });
-        //});
-      } else {
-        dialog = [
-          {
-            character: characterName,
-            text: "100 kills? The crowd is loving this carnage!",
-            image: characterImagePath
-          },
-          {
-            character: "Network Exec",
-            text: "Keep it up. The ratings are through the roof!",
-            image: networkExecImagePath
-          }
-        ];
+      let aiCharacter = this.aiCharacterKey;
+      console.log(`[MILESTONE 100] Usando AI character global: ${aiCharacter}`);
+      let aiImage = `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}`;
+      console.log(`[MILESTONE 100] AI para dialog:`, aiCharacter);
+
+      // Determine dialog based on selected character
+      switch (selectedCharacter) {
+        case 'default':
+          dialog = DialogSystem.get100DegenKillsDialog(aiCharacter);
+          break;
+        case 'character2': // Drainer
+          dialog = DialogSystem.get100DrainerKillsDialog(aiCharacter);
+          break;
+        case 'character3': // Toaster
+          dialog = DialogSystem.get100ToasterKillsDialog(aiCharacter);
+          break;
+        case 'character4': // DVD
+          dialog = DialogSystem.get100DVDKillsDialog(aiCharacter);
+          break;
+        case 'character5': // Flex
+          dialog = DialogSystem.get100FlexKillsDialog(aiCharacter);
+          break;
+        case 'character6': // Vibe
+          dialog = DialogSystem.get100VibeKillsDialog(aiCharacter);
+          break;
+        default:
+          dialog = [
+            {
+              character: characterName,
+              text: "100 kills? The crowd is loving this carnage!",
+              image: characterImagePath
+            },
+            {
+              character: "Network Exec",
+              text: "Keep it up. The ratings are through the roof!",
+              image: networkExecImagePath
+            }
+          ];
       }
-      
+
+      // Spawn AI after dialog
+      this.time.delayedCall(1000, () => {
+        this.spawnEnemyAIPlayer(aiCharacter);
+      });
     } else if (killCount >= 300 && killCount < 400) {
       
       // For 300 kills milestone
-      if (characterName === 'Degen') {
-        dialog = [
-          {
-            character: 'Omen',
-            text: "They say you're a legend. I see only weakness.",
-            image: omenImagePath
-          },
-          {
-            character: 'Degen',
-            text: "You're just another Network puppet hiding behind a mask.",
-            image: characterImagePath
-          },
-          {
-            character: 'Omen',
-            text: "Then let's see who breaks first.",
-            image: omenImagePath
-          }
-        ];
-      } else {
-        dialog = [
-          {
-            character: characterName,
-            text: "300 kills... They just keep coming.",
-            image: characterImagePath          },
-          {
-            character: "Network Exec",
-            text: "We're making history here. This will be remembered.",
-            image: networkExecImagePath
-          }
-        ];
+      let aiCharacter = this.aiCharacterKey;
+      console.log(`[MILESTONE 300] Usando AI character global: ${aiCharacter}`);
+      let aiImage = `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}`;
+      console.log(`[MILESTONE 300] AI para dialog:`, aiCharacter);
+
+      // Determine dialog based on selected character
+      switch (selectedCharacter) {
+        case 'default':
+          dialog = DialogSystem.get300DegenKillsDialog();
+          break;
+        case 'character2': // Drainer
+          dialog = DialogSystem.get300DrainerKillsDialog();
+          break;
+        case 'character3': // Toaster
+          dialog = DialogSystem.get300ToasterKillsDialog();
+          break;
+        case 'character4': // DVD
+          dialog = DialogSystem.get300DVDKillsDialog();
+          break;
+        case 'character5': // Flex
+          dialog = DialogSystem.get300FlexKillsDialog();
+          break;
+        case 'character6': // Vibe
+          dialog = DialogSystem.get300VibeKillsDialog();
+          break;
+        default:
+          dialog = [
+            {
+              character: characterName,
+              text: "300 kills... They just keep coming.",
+              image: characterImagePath
+            },
+            {
+              character: "Network Exec",
+              text: "We're making history here. This will be remembered.",
+              image: networkExecImagePath
+            }
+          ];
       }
-      // Al finalizar el diálogo, spawnea el AI correcto
+
+      // Spawn AI after dialog
       this.time.delayedCall(1000, () => {
         this.spawnEnemyAIPlayer('character7');
       });
-
-      // Removed fallback for 50+ kills since it's now handled by the wider range check above
      } else if (killCount >= 666) {
       // For 666 kills milestone
-      if (characterName === "Degen") {
-        dialog = [
-          {
-            character: "Omen",
-            text: "They built me to destroy men like you.",
-            image: omenImagePath,
-            //sound: "omen_666_1"
-          },
-          {
-            character: "Degen",
-            text: "But now you're questioning them, aren't you?",
-            image: characterImagePath,
-            //sound: "degen_666_1"
-          },
-          {
-            character: "Omen",
-            text: "What if this demon wants redemption?",
-            image: omenImagePath,
-            //sound: "omen_666_2"
-          },
-          {
-            character: "Degen",
-            text: "Then fight with me—not against me.",
-            image: characterImagePath,
-            //sound: "degen_666_2"
-          },
-          {
-            character: "Omen",
-            text: "They made me a demon—but you've shown me what it means to be human.",
-            image: omenImagePath,
-            //sound: "omen_666_3"
-          },
-          {
-            character: "Degen",
-            text: "Then make it count.",
-            image: characterImagePath,
-            //sound: "degen_666_3"
-          }
-        ];
-      } else {
-        dialog = [
-          {
-            character: "Network Drone Pilot",
-            text: "Termination sequence: ABSOLUTE ZERO.",
-            image: networkExecImagePath,
-            sound: "dronePilot_666kills"
-          },
-          {
-            character: characterName,
-            text: characterName + ", you've reached a critical milestone. The battle intensifies.",
-            image: characterImagePath
-          }
-        ];
+      let aiCharacter = this.aiCharacterKey;
+      console.log(`[MILESTONE 666] Usando AI character global: ${aiCharacter}`);
+      let aiImage = `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}`;
+      console.log(`[MILESTONE 666] AI para dialog:`, aiCharacter);
+
+      // Determine dialog based on selected character
+      switch (selectedCharacter) {
+        case 'default':
+          dialog = DialogSystem.get666DegenKillsDialog();
+          break;
+        case 'character2': // Drainer
+          dialog = DialogSystem.get666DrainerKillsDialog();
+          break;
+        case 'character3': // Toaster
+          dialog = DialogSystem.get666ToasterKillsDialog();
+          break;
+        case 'character4': // DVD
+          dialog = DialogSystem.get666DVDKillsDialog();
+          break;
+        case 'character5': // Flex
+          dialog = DialogSystem.get666FlexKillsDialog();
+          break;
+        case 'character6': // Vibe
+          dialog = DialogSystem.get666VibeKillsDialog();
+          break;
+        default:
+          dialog = [
+            {
+              character: "Network Drone Pilot",
+              text: "Termination sequence: ABSOLUTE ZERO.",
+              image: networkExecImagePath,
+              sound: "dronePilot_666kills"
+            },
+            {
+              character: characterName,
+              text: characterName + ", you've reached a critical milestone. The battle intensifies.",
+              image: characterImagePath
+            }
+          ];
       }
       this.time.delayedCall(1000, () => {
         this.spawnEnemyAIPlayer('character7');

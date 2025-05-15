@@ -452,8 +452,11 @@ export class DroneWheel {
   }
 
   show() {
-    // Check if the wheel is enabled before showing it
-    if (!this.enabled) return;
+    // Check if the wheel is enabled before showing it, but allow it in tutorial
+    if (!this.enabled && !this.scene.isTutorial) return;
+
+    // Log for debugging
+    console.log('DroneWheel show() - enabled:', this.enabled, 'isTutorial:', this.scene.isTutorial);
     
     // Update credit text with the latest amount
     this.updateCredits();

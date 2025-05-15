@@ -12,6 +12,7 @@ import { WeaponsMenu } from '../ui/WeaponsMenu.js';
 export class TutorialScene extends Phaser.Scene {
   constructor() {
     super({ key: 'TutorialScene' });
+    this.isTutorial = true;
     this.introMusic = null;
     this.playerAccount = null;
     this.tutorialStep = 0;
