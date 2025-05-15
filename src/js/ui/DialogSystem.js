@@ -174,7 +174,7 @@ export class DialogSystem {
       {
         character: "Degen [Retired Legend]",
         text: "I don't want to hurt anyone. You're leaving me no choice.",
-        image: "story/degen/50kills/degen",
+        image: "story/degen/intro/degen",
         sound: "degen_50kills"
       },
       {
@@ -186,7 +186,7 @@ export class DialogSystem {
       {
         character: "Degen [Retired Legend]",
         text: "Typical Network welcome—explosives and cheap tricks.",
-        image: "story/degen/50kills/degen",
+        image: "story/degen/intro/degen",
         sound: "degen_50kills1"
       }
     ];
@@ -259,7 +259,7 @@ export class DialogSystem {
       {
         character: "DVD [Poetic Assassin]",
         text: "Fifty souls set free—yet still, the fire sleeps.",
-        image: "story/character4/dvd",
+        image: "story/dvd",
         sound: "dvd50kills"
       },
       {
@@ -272,7 +272,7 @@ export class DialogSystem {
         character: "DVD [Poetic Assassin]",
         text: `Alas, poor drone—mere puppet on a string.
 Thy master fears the blaze that I shall bring.`,
-        image: "story/character4/dvd",
+        image: "story/dvd",
         sound: "dvd50kills1"
       }
     ];
