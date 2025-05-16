@@ -535,9 +535,9 @@ class NFTCollectionChecker {
       // Process the NFTs found
       
       // Verify the specific collection address and authorized creators
-      const AUTHORIZED_COLLECTION_ID = "8Uvbv1B8Xrn7rCbfMS2GkQuYbA4vJ5BcNi9xnmWb5uzQ"; // The BonkGames collection address
+      const AUTHORIZED_COLLECTION_ID = "46LY71e113S4vEmJ1C8RrzCYnw3oW7VF4tq5Mqrsh45X"; // The BonkGames collection address
       const AUTHORIZED_CREATORS = [
-        "7CNaNvbW5TSMPn8dPPrskLvaev9C1yp1zLe3nCp4hjUc", // Main BonkGames creator
+        "Ehv27PUPbkP6rAa97N8PQ7oiwcZuKxMmvTy8n7d9yT6m", // Main BonkGames creator
         // Add other authorized creators here if any
       ];
       
