@@ -534,41 +534,8 @@ class NFTCollectionChecker {
       
       // Process the NFTs found
       
-      // Imprimir información de todos los NFTs para debugging
-      console.log("================== DEBUGGING NFTs ENCONTRADOS ==================");
-      nftsWithMetadata.forEach((nft, index) => {
-        console.log(`NFT #${index + 1}:`);
-        console.log("- Mint address:", nft.mint);
-        
-        if (nft.metadata) {
-          console.log("- Nombre:", nft.metadata.name || "Sin nombre");
-          console.log("- Symbol:", nft.metadata.symbol || "Sin símbolo");
-          console.log("- URI:", nft.metadata.uri || "Sin URI");
-          
-          if (nft.metadata.onChain) {
-            console.log("- On-chain collection:", nft.metadata.onChain.collection ? JSON.stringify(nft.metadata.onChain.collection) : "No disponible");
-            console.log("- On-chain creators:", nft.metadata.onChain.creators ? JSON.stringify(nft.metadata.onChain.creators) : "No disponible");
-          }
-          
-          if (nft.metadata.offChain) {
-            console.log("- Off-chain name:", nft.metadata.offChain.name || "Sin nombre");
-            console.log("- Off-chain collection:", nft.metadata.offChain.collection ? JSON.stringify(nft.metadata.offChain.collection) : "No disponible");
-            
-            // Atributos
-            if (nft.metadata.offChain.attributes) {
-              console.log("- Attributes:", JSON.stringify(nft.metadata.offChain.attributes));
-            } else {
-              console.log("- Attributes: No disponibles");
-            }
-          } else {
-            console.log("- Sin metadatos off-chain");
-          }
-        } else {
-          console.log("- Sin metadatos");
-        }
-        console.log("-------------------------");
-      });
-      console.log("===============================================================");
+      // Log básico de NFTs encontrados
+      console.log(`Se encontraron ${nftsWithMetadata.length} NFTs en la wallet.`);
       
       // Verify the specific collection address and authorized creators
       const AUTHORIZED_COLLECTION_ID = "46LY71e113S4vEmJ1C8RrzCYnw3oW7VF4tq5Mqrsh45X"; // The BonkGames collection address
@@ -579,55 +546,75 @@ class NFTCollectionChecker {
       
       // List of additional verification attributes that must have at least one
       const REQUIRED_ATTRIBUTES = ['Bloodline'];
-      
-      // Flexibilizar verificación para identificar tu NFT
-      console.log("VERIFICANDO NFTS CON CRITERIOS FLEXIBLES...");
-      
-      // Filter NFTs usando la colección off-chain
+    
+      // Filter NFTs usando la colección off-chain y verificando el atributo Bloodline
       const bonkGamesNFTs = nftsWithMetadata.filter(nft => {
-        // Imprimir el NFT siendo verificado
-        console.log(`Verificando NFT: ${nft.mint} - ${nft.metadata?.name || 'Sin nombre'}`);
+        // Variables para mantener estado de verificaciones
+        let isFromBonkGamesCollection = false;
+        let hasBloodlineAttribute = false;
         
-        // VERIFICACIÓN POR COLLECTION NAME OFFCHAIN como solicitó el usuario
+        // PRIMERA VERIFICACIÓN: Pertenencia a la colección "The Bonk Games"
         if (nft.metadata && nft.metadata.offChain && nft.metadata.offChain.collection) {
-          // Mostrar información de colección para diagnóstico
-          console.log(`- Información de colección off-chain:`, JSON.stringify(nft.metadata.offChain.collection));
-          
-          // Verificar si la colección es "The Bonk Games"
           const collection = nft.metadata.offChain.collection;
           
-          // Verificar si coincide con la estructura esperada
           if (collection.name === "The Bonk Games" || 
               collection.family === "The Bonk Games") {
-            console.log(`✅ NFT ACEPTADO: ${nft.mint} - Pertenece a la colección "The Bonk Games"`);
-            return true;
+            isFromBonkGamesCollection = true;
           }
-        } else {
-          console.log(`- No se encontró información de colección off-chain para el NFT: ${nft.mint}`);
         }
         
-        // También verificamos si el nombre del NFT contiene "The Bonk Games"
-        if (nft.metadata && nft.metadata.offChain && nft.metadata.offChain.name) {
+        // Verificar también por nombre si no hemos verificado la colección aún
+        if (!isFromBonkGamesCollection && nft.metadata && nft.metadata.offChain && nft.metadata.offChain.name) {
           const name = nft.metadata.offChain.name;
           if (name.includes("Bonk Games")) {
-            console.log(`✅ NFT ACEPTADO: ${nft.mint} - Su nombre off-chain contiene "Bonk Games": ${name}`);
-            return true;
+            isFromBonkGamesCollection = true;
           }
         }
         
-        // Verificar también por los datos colección en cualquier otro formato
-        if (nft.metadata && nft.metadata.offChain && typeof nft.metadata.offChain === 'object') {
+        // Verificar también por los datos colección en cualquier otro formato si aún no verificamos
+        if (!isFromBonkGamesCollection && nft.metadata && nft.metadata.offChain && typeof nft.metadata.offChain === 'object') {
           // Búsqueda profunda de cualquier propiedad que contenga "Bonk Games"
           const offchainStr = JSON.stringify(nft.metadata.offChain).toLowerCase();
           if (offchainStr.includes("bonk games")) {
-            console.log(`✅ NFT ACEPTADO: ${nft.mint} - Los metadatos contienen referencia a "Bonk Games"`);
-            return true;
+            isFromBonkGamesCollection = true;
           }
         }
         
-        // Si llegamos aquí, no se identificó como NFT de Bonk Games
-        console.log(`❌ NFT RECHAZADO: ${nft.mint} - No pertenece a la colección "The Bonk Games"`);
-        return false;
+        // Si no pertenece a la colección, rechazar inmediatamente
+        if (!isFromBonkGamesCollection) {
+          return false;
+        }
+        
+        // Verificar si tiene el atributo Bloodline en off-chain
+        if (nft.metadata && nft.metadata.offChain && nft.metadata.offChain.attributes) {
+          const bloodlineAttr = nft.metadata.offChain.attributes.find(
+            attr => attr.trait_type === 'Bloodline' || attr.trait_type === 'bloodline'
+          );
+          
+          if (bloodlineAttr) {
+            hasBloodlineAttribute = true;
+          }
+        }
+        
+        // Verificar atributo Bloodline en metadatos on-chain si es necesario
+        if (!hasBloodlineAttribute && nft.metadata && nft.metadata.onChain && nft.metadata.onChain.attributes) {
+          const bloodlineAttr = nft.metadata.onChain.attributes.find(
+            attr => attr.trait_type === 'Bloodline' || attr.trait_type === 'bloodline'
+          );
+          
+          if (bloodlineAttr) {
+            hasBloodlineAttribute = true;
+          }
+        }
+        
+        // Verificación final: debe pertenecer a la colección Y tener el atributo Bloodline
+        if (isFromBonkGamesCollection && hasBloodlineAttribute) {
+          return true;
+        } else if (isFromBonkGamesCollection) {
+          return false;
+        } else {
+          return false;
+        }
       });
       
       

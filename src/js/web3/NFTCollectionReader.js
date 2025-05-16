@@ -38,9 +38,7 @@ export class NFTCollectionReader {
       try {
         const endpoint = this.endpoints[this.network] || this.endpoints['mainnet-beta'];
         this.connection = new Connection(endpoint, 'confirmed');
-        console.log(`Conexión a Solana ${this.network} inicializada`);
       } catch (error) {
-        console.error("Error al inicializar la conexión a Solana:", error);
         throw error;
       }
     }
