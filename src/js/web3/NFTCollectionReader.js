@@ -23,7 +23,7 @@ export class NFTCollectionReader {
   constructor(connection = null) {
     this.connection = connection;
     this.endpoints = {
-      'mainnet-beta': 'https://api.mainnet-beta.solana.com',
+      'mainnet-beta': import.meta.env.VITE_RPC_URL,
       'devnet': 'https://api.devnet.solana.com',
       'testnet': 'https://api.testnet.solana.com'
     };
@@ -232,6 +232,7 @@ export class NFTCollectionReader {
         : collectionAddress;
       
       console.log(`Verifying if wallet ${owner.toString()} has NFTs from collection ${targetCollection.toString()}`);
+      console.log(`Network: ${this.network}, RPC endpoint: ${this.endpoints[this.network]}`);
       
       // Get all NFTs from the wallet with metadata
       const nftsWithMetadata = await this.getWalletNFTsAndMetadata(owner);
@@ -243,15 +244,64 @@ export class NFTCollectionReader {
       
       console.log(`The wallet has ${nftsWithMetadata.length} NFTs. Verifying collection...`);
       
-      // This is a basic implementation that assumes collection verification is done
-      // by comparing creators or verified collection. For a real implementation, we would need
-      // to decode the metadata completely and verify the collection or creators field.
+      // Log the first few NFTs for debugging
+      nftsWithMetadata.slice(0, 3).forEach((nft, index) => {
+        console.log(`NFT ${index + 1}:`, {
+          mint: nft.mint,
+          name: nft.metadata?.name || 'Unknown',
+          symbol: nft.metadata?.symbol || 'Unknown',
+          uri: nft.metadata?.uri || 'No URI'
+        });
+      });
       
-      // For simplicity and compatibility, we assume that there is an NFT from the collection if the wallet has NFTs
-      // In production, this should be improved to verify the metadata on-chain correctly.
-      const hasNFTFromCollection = nftsWithMetadata.length > 0;
+      // Check if any of the NFTs belongs to the target collection
+      // We need to examine the metadata of each NFT
+      let collectionNFTs = [];
       
-      return hasNFTFromCollection;
+      for (const nft of nftsWithMetadata) {
+        const metadata = nft.metadata;
+        
+        if (!metadata) continue;
+        
+        // Check if the NFT belongs to the target collection
+        // This can be done by checking creators, collection address, or URI patterns
+        
+        // Method 1: Check if the NFT has creators that match our target
+        const targetCollectionStr = targetCollection.toString();
+        const hasMatchingCreator = metadata.onChain && 
+                                  metadata.onChain.creators && 
+                                  metadata.onChain.creators.some(creator => 
+                                    creator.address && creator.address.toString() === targetCollectionStr);
+        
+        // Method 2: Check if the collection field matches our target (if available)
+        const hasMatchingCollection = metadata.onChain && 
+                                     metadata.onChain.collection && 
+                                     metadata.onChain.collection.key && 
+                                     metadata.onChain.collection.key.toString() === targetCollectionStr;
+        
+        // Method 3: Check if the NFT URI contains any reference to the collection
+        // This is less reliable but can help in some cases
+        const uriContainsReference = metadata.uri && 
+                                    (metadata.uri.includes(targetCollectionStr) || 
+                                     metadata.uri.includes('bonkgames') || 
+                                     metadata.uri.includes('bonk-games'));
+        
+        // Method 4: Check if off-chain metadata has collection references
+        const offChainCollectionMatch = metadata.offChain && 
+                                       metadata.offChain.collection && 
+                                       metadata.offChain.collection.name && 
+                                       metadata.offChain.collection.name.toLowerCase().includes('bonk');
+        
+        // If any method matches, consider it part of the collection
+        if (hasMatchingCreator || hasMatchingCollection || uriContainsReference || offChainCollectionMatch) {
+          console.log(`Found matching NFT: ${metadata.name || nft.mint}`);
+          collectionNFTs.push(nft);
+        }
+      }
+      
+      console.log(`Found ${collectionNFTs.length} NFTs matching the target collection`);
+      
+      return collectionNFTs.length > 0;
     } catch (error) {
       console.error("Error verifying NFTs from collection:", error);
       return false;
@@ -269,13 +319,74 @@ export class NFTCollectionReader {
       // Initialize connection
       this.initConnection();
       
-      // Get all NFTs from the wallet
-      const nfts = await this.getWalletNFTsAndMetadata(walletAddress);
+      // Convert wallet address to PublicKey if necessary
+      const owner = typeof walletAddress === 'string' 
+        ? new PublicKey(walletAddress) 
+        : walletAddress;
       
-      // In a real implementation, filter by those that belong to the collection
-      // For this simplified version, we return all NFTs found
-      console.log(`Returning ${nfts.length} tokens as NFTs from the collection`);
-      return nfts;
+      // Convert collection address to PublicKey
+      const targetCollection = typeof collectionAddress === 'string'
+        ? new PublicKey(collectionAddress)
+        : collectionAddress;
+      
+      console.log(`Getting NFTs from collection ${targetCollection.toString()} for wallet ${owner.toString()}`);
+      
+      // Get all NFTs from the wallet with metadata
+      const nfts = await this.getWalletNFTsAndMetadata(owner);
+      
+      if (nfts.length === 0) {
+        console.log("No NFTs found in the wallet.");
+        return [];
+      }
+      
+      console.log(`The wallet has ${nfts.length} NFTs. Filtering for collection...`);
+      
+      // Filter NFTs by collection
+      const targetCollectionStr = targetCollection.toString();
+      const collectionNFTs = nfts.filter(nft => {
+        const metadata = nft.metadata;
+        if (!metadata) return false;
+        
+        // Method 1: Check if the NFT has creators that match our target
+        const hasMatchingCreator = metadata.onChain && 
+                                 metadata.onChain.creators && 
+                                 metadata.onChain.creators.some(creator => 
+                                   creator.address && creator.address.toString() === targetCollectionStr);
+        
+        // Method 2: Check if the collection field matches our target (if available)
+        const hasMatchingCollection = metadata.onChain && 
+                                    metadata.onChain.collection && 
+                                    metadata.onChain.collection.key && 
+                                    metadata.onChain.collection.key.toString() === targetCollectionStr;
+        
+        // Method 3: Check if the NFT URI contains any reference to the collection
+        const uriContainsReference = metadata.uri && 
+                                   (metadata.uri.includes(targetCollectionStr) || 
+                                    metadata.uri.includes('bonkgames') || 
+                                    metadata.uri.includes('bonk-games'));
+        
+        // Method 4: Check if off-chain metadata has collection references
+        const offChainCollectionMatch = metadata.offChain && 
+                                      metadata.offChain.collection && 
+                                      metadata.offChain.collection.name && 
+                                      metadata.offChain.collection.name.toLowerCase().includes('bonk');
+        
+        // If any method matches, consider it part of the collection
+        return hasMatchingCreator || hasMatchingCollection || uriContainsReference || offChainCollectionMatch;
+      });
+      
+      console.log(`Found ${collectionNFTs.length} NFTs matching the target collection`);
+      
+      // Log details of the filtered NFTs
+      collectionNFTs.forEach((nft, index) => {
+        console.log(`Collection NFT ${index + 1}:`, {
+          mint: nft.mint,
+          name: nft.metadata?.name || 'Unknown',
+          uri: nft.metadata?.uri || 'No URI'
+        });
+      });
+      
+      return collectionNFTs;
     } catch (error) {
       console.error("Error getting NFTs from collection:", error);
       return [];
