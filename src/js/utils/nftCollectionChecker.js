@@ -213,7 +213,7 @@ class NFTCollectionChecker {
     console.log('Showing message to mint an NFT from The Bonk Games');
     
     // Candy machine URL
-    const candyMachineUrl = 'https://fight.bonkgames.io/';
+    const candyMachineUrl = 'https://bonkgames.qubidao.com/';
     
     // Create or find the container for the message
     let messageContainer = document.getElementById('nft-required-message');
