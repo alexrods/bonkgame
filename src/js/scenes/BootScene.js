@@ -2,6 +2,7 @@ import { createBulletTexture } from '../utils/TextureGenerator.js';
 import { createAnimations } from '../utils/Animations.js';
 import { OptimizedAssetLoader } from '../utils/OptimizedAssetLoader.js';
 import { preloadSprites } from '../utils/AssetLoader.js'; // Mantenemos compatibilidad
+import { AssetManager } from '../utils/AssetManager.js'; // Nuevo sistema de carga progresiva
 
 export class BootScene extends Phaser.Scene {
   constructor() {
@@ -9,6 +10,7 @@ export class BootScene extends Phaser.Scene {
     this.currentAsset = '';
     this.optimizedLoader = null;
     this.useOptimizedLoader = true; // Flag para habilitar el cargador optimizado
+    this.assetManager = null; // Nuevo gestor de assets progresivo
   }
   
   init() {
@@ -24,6 +26,10 @@ export class BootScene extends Phaser.Scene {
     const isPortrait = height > width;
     this.registry.set('isPortrait', isPortrait);
     console.log('Initial orientation:', isPortrait ? 'portrait' : 'landscape');
+    
+    // Inicializar el sistema de carga progresiva de assets
+    this.assetManager = new AssetManager(this);
+    this.registry.set('assetManager', this.assetManager);
   }
   
   preload() {
@@ -34,27 +40,61 @@ export class BootScene extends Phaser.Scene {
     const isMobile = /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
     const isPhantomWebView = /Phantom/i.test(navigator.userAgent);
     
-    // SOLUCIÓN: Deshabilitamos el cargador optimizado en Phantom debido a problemas de compatibilidad
+    // Phantom Wallet usa el gestor de assets especial que ya tiene optimizaciones incorporadas
     if (isPhantomWebView) {
-      console.log('Phantom WebView detected - DISABLING optimized loader for compatibility');
+      console.log('Phantom WebView detected - IMPLEMENTING EXTREME COMPATIBILITY MODE');
       this.useOptimizedLoader = false;
       
-      // Establecer un límite de tiempo para la carga en Phantom (forzar finalización si se atasca)
-      this.phantomSafetyTimeout = this.time.delayedCall(8000, () => {
-        console.log('PHANTOM SAFETY: Forzando finalización de carga en Phantom');
-        // Asegurarse que la escena de carga termine aunque haya errores
+      // MÉTODO 1: No intentar cargar todos los recursos, solo los mínimos
+      this.load.image('game_logo', '/assets/UI/game_logo.png');
+      this.load.image('button', '/assets/UI/button.png');
+      this.load.image('button_hover', '/assets/UI/button_hover.png');
+      
+      // Cargar sólo los sonidos esenciales
+      this.load.audio('intro_music', '/assets/sound/music/intro.mp3');
+      this.load.audio('shot', '/assets/sound/sfx/shot.mp3');
+      
+      // Advertir al usuario sobre modo de compatibilidad
+      const loadingMessage = document.getElementById('loading-message');
+      if (loadingMessage) {
+        loadingMessage.textContent = 'Modo de compatibilidad Phantom activado';
+      }
+      
+      // MÉTODO 2: Establecer un temporizador corto para forzar la finalización rápida
+      this.phantomSafetyTimeout = this.time.delayedCall(3000, () => {
+        console.log('PHANTOM SAFETY: Forzando finalización de carga inmediata');
+        
+        // MÉTODO 3: Forzar la finalización de la carga directamente
         window.dispatchEvent(new CustomEvent('game-loading-complete'));
+        
+        // MÉTODO 4: Iniciar directamente la escena de menú
+        this.cache.game.scene.getScene('BootScene').scene.start('MenuScene');
       });
       
-      // Configurar para rendimiento en Phantom
-      this.game.renderer.setTexturePriority(['default']);
-      this.game.renderer.setMaxTextures(16); // Limitar número de texturas simultáneas
-      
-      // Reducir calidad de gráficos en Phantom
-      this.registry.set('lowGraphicsMode', true);
+      // MÉTODO 5: Configurar para rendimiento extremadamente bajo
+      this.game.renderer.setMaxTextures(8);  // Limitar aún más el número de texturas
+      this.registry.set('phantomMode', true); // Usar flag específico para Phantom
+      this.registry.set('ultraLowGraphicsMode', true); // Modo gráfico ultra reducido
     } else {
-      // Solo usar el cargador optimizado en dispositivos móviles no-Phantom
+      // Para dispositivos normales, usar el sistema de carga progresiva
       this.useOptimizedLoader = this.useOptimizedLoader && isMobile;
+      
+      // Iniciar la carga progresiva para el menú principal
+      if (this.assetManager) {
+        console.log('Iniciando carga progresiva con AssetManager');
+        // Cargar recursos críticos inmediatamente (UI básica)
+        this.assetManager.loadAssetGroup('ui', this.assetManager.priorities.CRITICAL);
+        
+        // Programar carga de los recursos secundarios (personaje por defecto)
+        setTimeout(() => {
+          this.assetManager.loadAssetGroup('character1', this.assetManager.priorities.HIGH);
+        }, 1000);
+        
+        // Recursos de fondo (enemigos comunes) cargados después para no bloquear la UI
+        setTimeout(() => {
+          this.assetManager.loadAssetGroup('enemy_grey', this.assetManager.priorities.MEDIUM);
+        }, 3000);
+      }
     }
     
     if (this.useOptimizedLoader) {
@@ -138,6 +178,17 @@ export class BootScene extends Phaser.Scene {
         window.dispatchEvent(new CustomEvent('game-loading-complete'));
       });
       
+      // Seguridad adicional: establecer un límite máximo de tiempo de carga (5 segundos)
+      this.time.delayedCall(5000, () => {
+        // Si todavía estamos en BootScene después de 5 segundos, forzar avance
+        if (this.scene.key === 'BootScene') {
+          console.log('SAFETY: Forzando finalización de carga después de 5 segundos');
+          window.dispatchEvent(new CustomEvent('game-loading-complete'));
+          // Intentar avanzar a MenuScene
+          this.scene.start('MenuScene');
+        }
+      });
+      
       // Use the original asset loader for non-mobile
       preloadSprites(this);
     }
@@ -167,9 +218,23 @@ export class BootScene extends Phaser.Scene {
     createAnimations(this);
     console.log('Animations created');
     
-    // Store the optimized loader in the registry for other scenes to access
+    // Almacenar los sistemas de carga en el registro para otras escenas
     if (this.useOptimizedLoader && this.optimizedLoader) {
       this.registry.set('optimizedLoader', this.optimizedLoader);
+    }
+    
+    // Configurar el sistema de liberar memoria cuando sea necesario 
+    if (this.assetManager) {
+      console.log('Configurando sistema de liberación de memoria automático');
+      
+      // Cada 60 segundos, verificar y liberar memoria si es necesario
+      this.memoryCleanupTimer = this.time.addEvent({
+        delay: 60000,
+        callback: () => {
+          this.assetManager.freeGPUMemory();
+        },
+        loop: true
+      });
     }
     
     // Detect Phantom WebView to set appropriate renderer flag
