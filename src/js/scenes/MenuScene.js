@@ -3054,34 +3054,10 @@ export class MenuScene extends Phaser.Scene {
       repeat: 5,
     });
 
-    // FIX PARA PHANTOM: Implementar doble mecanismo de transición para asegurar que funcione en Phantom
-    // Intentamos la transición normal
+    // Start the game after 333 milliseconds
     this.time.delayedCall(333, () => {
-      console.log('Iniciando transición a GameScene (primer intento)');
       // Keep the music playing through all scenes
       this.scene.start("GameScene");
-      
-      // SAFETY: En Phantom, si después de 2 segundos seguimos en MenuScene, forzar la transición nuevamente
-      if (/Phantom/i.test(navigator.userAgent)) {
-        this.time.delayedCall(2000, () => {
-          // Verificar si seguimos en MenuScene
-          if (this.scene.isActive('MenuScene')) {
-            console.log('PHANTOM SAFETY: Forzando transición a GameScene (segundo intento)');
-            // Intento alternativo con .launch en lugar de .start
-            try {
-              // Limpiar cualquier resto visual
-              if (hypeText) hypeText.destroy();
-              if (overlay) overlay.destroy();
-              
-              // Intentar con transición directa
-              this.scene.stop('MenuScene');
-              this.scene.start('GameScene', { directStart: true });
-            } catch (e) {
-              console.error('Error en transición de respaldo:', e);
-            }
-          }
-        });
-      }
     });
   }
 }
