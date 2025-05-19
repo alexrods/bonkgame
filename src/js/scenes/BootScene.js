@@ -1,11 +1,14 @@
-import { preloadSprites } from '../utils/AssetLoader.js';
 import { createBulletTexture } from '../utils/TextureGenerator.js';
 import { createAnimations } from '../utils/Animations.js';
+import { OptimizedAssetLoader } from '../utils/OptimizedAssetLoader.js';
+import { preloadSprites } from '../utils/AssetLoader.js'; // Mantenemos compatibilidad
 
 export class BootScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BootScene' });
     this.currentAsset = '';
+    this.optimizedLoader = null;
+    this.useOptimizedLoader = true; // Flag para habilitar el cargador optimizado
   }
   
   init() {
@@ -27,62 +30,97 @@ export class BootScene extends Phaser.Scene {
     // Create loading UI
     this.createLoadingUI();
     
-    // Load weapon upgrade images
-    this.load.image('rifle', '/assets//upgrades/rifle.png');
-    this.load.image('shotgun', '/assets//upgrades/shotgun.png');
+    // Detect if we're in a mobile environment, especially Phantom Wallet
+    const isMobile = /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+    const isPhantomWebView = /Phantom/i.test(navigator.userAgent);
     
-    // Add loading event listeners for debugging and UI updates
-    this.load.on('filecomplete', (key, type, data) => {
-      // Reduce logging to improve performance - only log certain key assets
-      if (key.startsWith('player_death_') || key === 'intro_music' || key === 'gameMusic') {
-        console.log(`Successfully loaded: ${key} (${type})`);
-      }
-      this.currentAsset = key;
-      this.updateLoadingText();
+    // Always use optimized loader on mobile or Phantom, but make it configurable
+    this.useOptimizedLoader = this.useOptimizedLoader && (isMobile || isPhantomWebView);
+    
+    if (this.useOptimizedLoader) {
+      console.log('Using optimized asset loader for mobile/Phantom');
+      // Initialize the optimized loader
+      this.optimizedLoader = new OptimizedAssetLoader(this);
       
-      // Throttle DOM updates to improve performance - only update every 10 assets or for key assets
-      const isKeyAsset = key.includes('music') || key.includes('player_death_') || key === 'game_logo';
-      if (isKeyAsset || Math.random() < 0.1) {  // Update UI for ~10% of assets or key assets
-        // Dispatch event for DOM-based loading UI
+      // Set up event propagation
+      this.optimizedLoader.onProgress(data => {
+        this.currentAsset = data.key || this.currentAsset;
+        this.updateProgressBar(data.progress || 0);
+        
+        // Dispatch progress events to the DOM UI
         window.dispatchEvent(new CustomEvent('game-loading-progress', {
-          detail: { value: this.load.progress, currentAsset: key }
+          detail: { value: data.progress || 0, currentAsset: this.currentAsset }
         }));
-      }
-    });
-    
-    this.load.on('loaderror', (file) => {
-      console.error(`Error loading file: ${file.key} (${file.type}) - ${file.url}`);
+      });
       
-      // Continue loading even if one file fails
-      this.load.on('filecomplete', () => {
-        this.load.start(); // Restart loading pipeline
-      }, this, true); // Once only
-    });
-    
-    this.load.on('progress', (value) => {
-      this.updateProgressBar(value);
+      this.optimizedLoader.onComplete(() => {
+        console.log("Core assets loaded successfully");
+        // Dispatch event to notify that core loading is complete
+        window.dispatchEvent(new CustomEvent('game-loading-complete'));
+      });
       
-      // Throttle progress updates to improve performance
-      if (value % 0.05 <= 0.01) { // Update at roughly 5% intervals
-        // Dispatch event for DOM-based loading UI
-        window.dispatchEvent(new CustomEvent('game-loading-progress', {
-          detail: { value: value, currentAsset: this.currentAsset }
-        }));
-      }
-    });
-    
-    // Add a listener for all load completion
-    this.load.on('complete', () => {
-      console.log("All assets loaded successfully");
-      console.log("Audio cache contains:", Object.keys(this.cache.audio.entries));
+      // Initialize and load core assets
+      this.optimizedLoader.init();
+    } else {
+      console.log('Using traditional asset loader');
       
-      // Dispatch event to notify that loading is complete
-      window.dispatchEvent(new CustomEvent('game-loading-complete'));
-    });
-    
-    // Virus image removed
-    
-    preloadSprites(this);
+      // The original loading code for non-mobile or when optimization is disabled
+      // Load weapon upgrade images
+      this.load.image('rifle', '/assets//upgrades/rifle.png');
+      this.load.image('shotgun', '/assets//upgrades/shotgun.png');
+      
+      // Add loading event listeners for debugging and UI updates
+      this.load.on('filecomplete', (key, type, data) => {
+        // Reduce logging to improve performance - only log certain key assets
+        if (key.startsWith('player_death_') || key === 'intro_music' || key === 'gameMusic') {
+          console.log(`Successfully loaded: ${key} (${type})`);
+        }
+        this.currentAsset = key;
+        this.updateLoadingText();
+        
+        // Throttle DOM updates to improve performance - only update every 10 assets or for key assets
+        const isKeyAsset = key.includes('music') || key.includes('player_death_') || key === 'game_logo';
+        if (isKeyAsset || Math.random() < 0.1) {  // Update UI for ~10% of assets or key assets
+          // Dispatch event for DOM-based loading UI
+          window.dispatchEvent(new CustomEvent('game-loading-progress', {
+            detail: { value: this.load.progress, currentAsset: key }
+          }));
+        }
+      });
+      
+      this.load.on('loaderror', (file) => {
+        console.error(`Error loading file: ${file.key} (${file.type}) - ${file.url}`);
+        
+        // Continue loading even if one file fails
+        this.load.on('filecomplete', () => {
+          this.load.start(); // Restart loading pipeline
+        }, this, true); // Once only
+      });
+      
+      this.load.on('progress', (value) => {
+        this.updateProgressBar(value);
+        
+        // Throttle progress updates to improve performance
+        if (value % 0.05 <= 0.01) { // Update at roughly 5% intervals
+          // Dispatch event for DOM-based loading UI
+          window.dispatchEvent(new CustomEvent('game-loading-progress', {
+            detail: { value: value, currentAsset: this.currentAsset }
+          }));
+        }
+      });
+      
+      // Add a listener for all load completion
+      this.load.on('complete', () => {
+        console.log("All assets loaded successfully");
+        console.log("Audio cache contains:", Object.keys(this.cache.audio.entries));
+        
+        // Dispatch event to notify that loading is complete
+        window.dispatchEvent(new CustomEvent('game-loading-complete'));
+      });
+      
+      // Use the original asset loader for non-mobile
+      preloadSprites(this);
+    }
   }
   
   createLoadingUI() {
@@ -108,6 +146,11 @@ export class BootScene extends Phaser.Scene {
     console.log('Creating animations...');
     createAnimations(this);
     console.log('Animations created');
+    
+    // Store the optimized loader in the registry for other scenes to access
+    if (this.useOptimizedLoader && this.optimizedLoader) {
+      this.registry.set('optimizedLoader', this.optimizedLoader);
+    }
     
     // Detect Phantom WebView to set appropriate renderer flag
     const isPhantomWebView = /Phantom/i.test(navigator.userAgent);

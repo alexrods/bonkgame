@@ -9,6 +9,8 @@ import { DialogSystem } from '../ui/DialogSystem.js';
 import { LabEnvironment } from '../environment/LabEnvironment.js';
 import { PlayerAccount } from '../web3/PlayerAccount.js';
 import { AIPlayerManager } from '../managers/AIPlayerManager.js';
+// Importar sistema de carga optimizado
+import { OptimizedAssetLoader } from '../utils/OptimizedAssetLoader.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -16,6 +18,14 @@ export class GameScene extends Phaser.Scene {
     this.introMusic = null;
     this.playerAccount = null;
     this.cachedAudioElements = {}; // Cache for HTML Audio objects
+    
+    // Sistema de carga optimizado
+    this.optimizedLoader = null;
+    this.assetsLoaded = {
+      core: false,
+      enemies: {},
+      characters: {}
+    };
     
     // Preload flag to ensure Network Drone Pilot image is loaded
     this.networkDronePilotLoaded = false;
@@ -65,7 +75,24 @@ export class GameScene extends Phaser.Scene {
     // Pre-select AI opponents for milestone encounters
     this.selectedAIOpponents = this.preSelectAIOpponents();
     
-
+    // Inicializar sistema de carga optimizada si está disponible en el registro
+    this.optimizedLoader = this.registry.get('optimizedLoader');
+    if (!this.optimizedLoader) {
+      console.log('Optimized loader not found, creating new instance');
+      this.optimizedLoader = new OptimizedAssetLoader(this);
+      this.optimizedLoader.init();
+    }
+    
+    // Detectar si estamos en un dispositivo móvil (para optimizaciones)
+    const isMobile = /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
+    const isPhantomWebView = /Phantom/i.test(navigator.userAgent);
+    this.isMobileDevice = isMobile || isPhantomWebView;
+    this.registry.set('isMobileDevice', this.isMobileDevice);
+    
+    if (this.isMobileDevice) {
+      console.log('Mobile device detected - applying optimizations');
+    }
+    
     // Make sure animations are created/recreated when game scene starts
     // This ensures character-specific animations are available
     import('../utils/Animations.js').then(({createAnimations}) => {
@@ -81,7 +108,10 @@ export class GameScene extends Phaser.Scene {
       console.log('Setting up versus mode');
       this.registry.set('versusMode', true);
       
-      // Import will be handled in initializeManagers after the dynamic import
+      // Cargar assets específicos del modo versus utilizando el cargador optimizado
+    if (this.optimizedLoader) {
+      this.optimizedLoader.loadAssetGroup('gameScene');
+    }
     }
     
     // Hide wallet UI during gameplay
@@ -1011,29 +1041,6 @@ export class GameScene extends Phaser.Scene {
       // Log 666 kills milestone for debugging
       console.log('Demonic encounter triggered at 666 kills milestone');
     }
-    
-    // Additional milestones can be handled similarly
-  }
-  
-  // Ensure AIPlayerManager is available and initialized
-  ensureAIPlayerManager() {
-    // Only proceed if we don't already have an AIPlayerManager
-    //if (!this.aiPlayerManager) {
-      console.log("------------Initializing AIPlayerManager for milestone events");
-      
-      // Create and initialize the AIPlayerManager using imported class
-      try {
-        // Create and initialize the AI player manager
-        this.aiPlayerManager = new AIPlayerManager(this, this.playerManager);
-        this.aiPlayerManager.aiCharacter = this.aiCharacterKey;
-        this.aiPlayerManager.init();
-        console.log('AI Player Manager initialized for milestone events');
-        
-        // For update calls, we'll handle this in the spawnEnemyAIPlayer method
-      } catch (error) {
-        console.error('Error initializing AIPlayerManager:', error);
-      }
-    //}
   }
   
   
@@ -1106,12 +1113,24 @@ export class GameScene extends Phaser.Scene {
   create() {
     console.log("GameScene create - setting up game components");
     
+    this.timeScaleManager = new TimeScaleManager(this);
+
+    this.selectedCharacter = this.registry.get('selectedCharacter') || 'default';  
+    console.log('game will start with character: ', this.selectedCharacter);
+    this.upgradeSystem = this.registry.get('upgradeSystem');
+    console.log("gameStart");
+    
+    // Pre-cargar assets del personaje seleccionado (lazy loading)
+    this.loadCharacterAssets(this.selectedCharacter);
+    
+    // Pre-cargar assets de enemigos comunes (los especiales se cargarán bajo demanda)
+    this.loadInitialEnemyAssets();
+    
     // Preload dialog images with error handling
     this.loadDialogAssets();
 
     // Precarga explícita para Drainer si es el personaje seleccionado
-    const selectedCharacter = this.registry.get('selectedCharacter') || 'default';
-    if (selectedCharacter === 'character2') {
+    if (this.selectedCharacter === 'character2') {
       this.loadDrainerDialogAssets();
     }
     
@@ -1138,6 +1157,22 @@ export class GameScene extends Phaser.Scene {
       this.waitingHostText.setDepth(1000);
       this.waitingHostText.setScrollFactor(0);
     }
+    
+    // Initialize player account and blockchain handlers
+    this.initializePlayerAccount();
+
+    // Set up keyboard controls for this scene
+    this.setupKeyboardControls();
+
+    // Create the gameplay environment
+    this.labEnvironment = new LabEnvironment(this);
+
+    // Initialize player, enemy, and drone managers
+    this.initializeManagers();
+
+    // Pre-load milestone sounds
+    // Needed because we are using HTML Audio
+    this.preloadMilestoneSounds();
     
     // Create player and load sounds
     this.playerManager.createPlayer();
