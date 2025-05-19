@@ -38,6 +38,20 @@ export class BootScene extends Phaser.Scene {
     if (isPhantomWebView) {
       console.log('Phantom WebView detected - DISABLING optimized loader for compatibility');
       this.useOptimizedLoader = false;
+      
+      // Establecer un límite de tiempo para la carga en Phantom (forzar finalización si se atasca)
+      this.phantomSafetyTimeout = this.time.delayedCall(8000, () => {
+        console.log('PHANTOM SAFETY: Forzando finalización de carga en Phantom');
+        // Asegurarse que la escena de carga termine aunque haya errores
+        window.dispatchEvent(new CustomEvent('game-loading-complete'));
+      });
+      
+      // Configurar para rendimiento en Phantom
+      this.game.renderer.setTexturePriority(['default']);
+      this.game.renderer.setMaxTextures(16); // Limitar número de texturas simultáneas
+      
+      // Reducir calidad de gráficos en Phantom
+      this.registry.set('lowGraphicsMode', true);
     } else {
       // Solo usar el cargador optimizado en dispositivos móviles no-Phantom
       this.useOptimizedLoader = this.useOptimizedLoader && isMobile;
