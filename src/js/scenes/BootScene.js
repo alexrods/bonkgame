@@ -34,8 +34,14 @@ export class BootScene extends Phaser.Scene {
     const isMobile = /mobile|android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(navigator.userAgent);
     const isPhantomWebView = /Phantom/i.test(navigator.userAgent);
     
-    // Always use optimized loader on mobile or Phantom, but make it configurable
-    this.useOptimizedLoader = this.useOptimizedLoader && (isMobile || isPhantomWebView);
+    // SOLUCIÓN: Deshabilitamos el cargador optimizado en Phantom debido a problemas de compatibilidad
+    if (isPhantomWebView) {
+      console.log('Phantom WebView detected - DISABLING optimized loader for compatibility');
+      this.useOptimizedLoader = false;
+    } else {
+      // Solo usar el cargador optimizado en dispositivos móviles no-Phantom
+      this.useOptimizedLoader = this.useOptimizedLoader && isMobile;
+    }
     
     if (this.useOptimizedLoader) {
       console.log('Using optimized asset loader for mobile/Phantom');
