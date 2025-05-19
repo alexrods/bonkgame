@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import path from 'path';
 import { viteStaticCopy } from 'vite-plugin-static-copy';
-
+import viteImagemin from 'vite-plugin-imagemin'
 export default defineConfig({
   plugins: [
     viteStaticCopy({
@@ -11,6 +11,10 @@ export default defineConfig({
           dest: ''
         }
       ]
+    }),
+    viteImagemin({
+      webp: { quality: 80 },
+      avif: { quality: 50 },
     })
   ],
   resolve: {

@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "vite": "^6.2.0",
+    "vite-plugin-imagemin": "^0.6.1",
     "vite-plugin-static-copy": "^2.3.1"
   },
   "dependencies": {
