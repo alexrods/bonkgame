@@ -15,7 +15,7 @@ export class AIPlayerManager {
     ];
     this.aiCharacter = null; // Character type to use for AI
     this.bullets = null;
-    this.fireRate = 250; // Default fire rate in ms
+    this.fireRate = 200; // Reduced from 250ms for more aggressive shooting
     this.lastShotTime = 0;
     this.lastDirection = 'down';
     this.targetPlayer = null;
@@ -29,15 +29,15 @@ export class AIPlayerManager {
     this.decisionCooldown = 0;
     this.currentState = 'idle';
     this.targetPosition = null;
-    this.moveSpeed = 200;
+    this.moveSpeed = 250; // Increased from 200 for more aggressive movement
     this.difficultyLevel = 'medium'; // easy, medium, hard
     this.reactionTime = 500; // Time in ms before AI reacts to player
     this.lastDecisionTime = 0;
     this.shootAccuracy = 0.7; // 0-1, higher means more accurate
-    this.decisionInterval = 500; // Make decisions every 500ms
+    this.decisionInterval = 400; // Reduced from 500ms for more frequent decisions
     this.lastPositionChangeTime = 0;
-    this.positionChangeInterval = 2000; // Change position every 2 seconds
-    this.availableCharacters = ['character2', 'character3', 'character5', 'default'];
+    this.positionChangeInterval = 1500; // Reduced from 2000ms for more frequent movement changes
+    this.availableCharacters = ['character2', 'character3', 'character4', 'character5', 'character6', 'character7', 'default'];
     this.startingHealth = 1; // Reduced to 1 HP
     this.shields = 5; // Starting with 5 shields
     this.maxShields = 5; // Maximum shield value
@@ -46,7 +46,7 @@ export class AIPlayerManager {
     
     // Debug properties
     this.debugText = null;
-    this.debugMode = false;
+    this.debugMode = false; // Never enable debug mode in production
     
     // Last direction change time
     this.lastDirectionChangeTime = 0;
@@ -57,6 +57,47 @@ export class AIPlayerManager {
     
     // Create this flag to track if animations have been created yet
     this.animationsCreated = false;
+    
+    // Teleport tracking for Omen
+    this.isTeleporting = false;
+    this.teleportCooldown = 5000; // 5 seconds cooldown between teleports
+    this.lastTeleportTime = 0;
+  }
+
+  teleportBehindPlayer() {
+    const currentTime = this.scene.time.now;
+    
+    // Check teleport cooldown
+    if (this.isTeleporting || currentTime - this.lastTeleportTime < this.teleportCooldown) {
+      return;
+    }
+    
+    this.isTeleporting = true;
+    this.lastTeleportTime = currentTime;
+    
+    // Visual effect before teleport
+    if (this.aiPlayer) {
+      this.aiPlayer.alpha = 0.5;
+      console.log('Omen preparing to teleport');
+    }
+    
+    // Get position behind player
+    const playerPos = this.targetPlayer.getCenter();
+    const playerDir = this.targetPlayer.body.velocity;
+    const magnitude = 150;
+    const teleportX = playerPos.x - (playerDir.x !== 0 ? Math.sign(playerDir.x) * magnitude : 0);
+    const teleportY = playerPos.y - (playerDir.y !== 0 ? Math.sign(playerDir.y) * magnitude : 0);
+    
+    // Teleport after delay
+    this.scene.time.delayedCall(500, () => {
+      if (this.aiPlayer) {
+        this.aiPlayer.x = teleportX;
+        this.aiPlayer.y = teleportY;
+        this.aiPlayer.alpha = 1;
+        console.log('Omen teleported successfully');
+      }
+      this.isTeleporting = false;
+    });
   }
 
   init() {
@@ -68,7 +109,13 @@ export class AIPlayerManager {
     console.log(`AI Player Manager initializing in ${this.isVersusMode ? 'versus' : 'story'} mode`);
 
     // Select random character for AI if not already set
+    // Sincroniza con el personaje global de la escena si existe
+    if (this.scene && this.scene.aiCharacterKey) {
+      this.aiCharacter = this.scene.aiCharacterKey;
+      console.log(`---------s[AIPlayerManager] Sincronizado aiCharacter desde GameScene: ${this.aiCharacter}`);
+    }
     if (!this.aiCharacter) {
+      console.log("AICharacter no está definido, usando valor actual:", this.aiCharacter);
       // Get player's character
       const playerChar = this.scene.registry.get('selectedCharacter') || 'default';
       
@@ -77,30 +124,19 @@ export class AIPlayerManager {
       
       // Pick a random character from remaining options
       this.aiCharacter = Phaser.Utils.Array.GetRandom(availableChars);
+      
+      // Store the selected character in the registry to ensure persistence
+      this.scene.registry.set('aiCharacter', this.aiCharacter);
+      console.log(`Selected AI character: ${this.aiCharacter}, stored in registry`);
     }
     
-    // Set difficulty based on selected character
-    if (this.aiCharacter === 'character2') { // Drainer
-      this.difficultyLevel = 'hard';
-      this.shootAccuracy = 0.85;
-      this.reactionTime = 300;
-      this.decisionInterval = 400;
-    } else if (this.aiCharacter === 'character5') { // Flex
-      this.difficultyLevel = 'medium';
-      this.shootAccuracy = 0.7;
-      this.reactionTime = 500;
-      this.decisionInterval = 500;
-    } else if (this.aiCharacter === 'character3') { // Toaster
-      this.difficultyLevel = 'easy';
-      this.shootAccuracy = 0.6;
-      this.reactionTime = 700;
-      this.decisionInterval = 600;
-    } else { // Default/Degen
-      this.difficultyLevel = 'medium';
-      this.shootAccuracy = 0.75;
-      this.reactionTime = 450;
-      this.decisionInterval = 450;
+    // Ensure we always have a valid character by checking registry as backup
+    if (!this.aiCharacter && this.scene.registry.get('aiCharacter')) {
+      this.aiCharacter = this.scene.registry.get('aiCharacter');
+      console.log(`Retrieved AI character from registry: ${this.aiCharacter}`);
     }
+    
+    
     
     // Initialize animation prefix
     this.animPrefix = this.aiCharacter !== 'default' ? `${this.aiCharacter}_` : '';
@@ -132,7 +168,7 @@ export class AIPlayerManager {
     
     console.log(`Ensuring textures are loaded for AI character: ${characterId}`);
     
-    const basePath = `/assets/characters/${characterId}/`;
+    const basePath = `assets/characters/${characterId}/`;
     const prefix = characterId !== 'default' ? `${characterId}_` : '';
     
     // Determine frame count for different characters
@@ -442,11 +478,46 @@ export class AIPlayerManager {
   }
 
   createAIPlayer(x, y) {
-    const characterKey = this.aiCharacter;
+    // Siempre sincroniza con el personaje global de la escena justo antes de crear el AI
+    if (this.scene && this.scene.aiCharacterKey) {
+      this.aiCharacter = this.scene.aiCharacterKey;
+      console.log(`[AIPlayerManager] [createAIPlayer] Forzando aiCharacter desde GameScene: ${this.aiCharacter}`);
+    } else {
+      console.warn('[AIPlayerManager] [createAIPlayer] GameScene.aiCharacterKey no está definido, usando valor actual:', this.aiCharacter);
+    }
+    // Si sigue sin estar definido, solo entonces intenta fallback
+    if (!this.aiCharacter || this.aiCharacter === '') {
+      // First check if we have a character in the registry
+      const registryChar = this.scene.registry.get('aiCharacter');
+      const iaCharacter = this.aiCharacter;
+      if (registryChar) {
+        // Use the character stored in registry
+        //this.aiCharacter = iaCharacter;
+        console.log(`Using AI character from registry: ${this.aiCharacter}`);
+      } else {
+        // Get player's character
+        const playerChar = this.scene.registry.get('selectedCharacter') || 'default';
+        
+        // Remove player's character from available options
+        const availableChars = this.availableCharacters.filter(char => char !== playerChar);
+        
+        // Pick a random character from remaining options
+        this.aiCharacter = Phaser.Utils.Array.GetRandom(availableChars);
+        
+        // Store the selection in registry for persistence
+        this.scene.registry.set('aiCharacter', this.aiCharacter);
+        console.log(`No AI character set, randomly selected: ${this.aiCharacter}`);
+      }
+    }
     
+    const characterKey = this.aiCharacter;
+    console.log(`[AIPlayerManager] [createAIPlayer] Personaje FINAL que se usará para el AI: ${characterKey}`);
+    if (characterKey === 'default') {
+      console.warn('[AIPlayerManager] [createAIPlayer] ADVERTENCIA: Se está usando "default" como personaje AI. Esto NO debería pasar a los 100 kills. Revisar lógica previa.');
+    }
     // Update versus mode flag
     this.isVersusMode = this.scene.versusMode === true;
-    console.log(`Creating AI player with character: ${characterKey} in ${this.isVersusMode ? 'versus' : 'story'} mode`);
+    console.log(`MODO VERSUS Creating AI player with character: ${characterKey} in ${this.isVersusMode ? 'versus' : 'story'} mode`);
     
     // Ensure animations are created before creating the sprite
     if (!this.animationsCreated) {
@@ -542,6 +613,7 @@ export class AIPlayerManager {
       this.aiPlayerShadows.push({ sprite: shadow, offset: offset });
     });
     
+    console.log("Modo versus: " + this.isVersusMode);
     // Check if we're in versus mode
     if (this.isVersusMode) {
       // Add red marker for AI player in versus mode
@@ -569,10 +641,15 @@ export class AIPlayerManager {
     // Add debug text if in debug mode
     if (this.debugMode) {
       this.debugText = this.scene.add.text(
-        0, -50, '', { fontSize: '12px', fill: '#ffffff', backgroundColor: '#000000' }
+        this.aiPlayer.x, this.aiPlayer.y - 50, '', { fontSize: '12px', fill: '#ffffff', backgroundColor: '#000000' }
       );
-      this.aiPlayer.add(this.debugText);
-      this.debugText.setOrigin(0.5, 1);
+      // Check if this.aiPlayer.add is available (container functionality)
+      if (this.aiPlayer.add && typeof this.aiPlayer.add === 'function') {
+        this.aiPlayer.add(this.debugText);
+      } else {
+        // If not a container, manually position the debug text
+        this.debugText.setOrigin(0.5, 1);
+      }
       this.debugText.setText(`${characterKey}`);
     }
     
@@ -644,7 +721,7 @@ export class AIPlayerManager {
       runChildUpdate: true,
       collideWorldBounds: false
     });
-    
+
     // Add overlap with player if targetPlayer exists
     if (this.targetPlayer && this.targetPlayer.active) {
       this.scene.physics.add.overlap(
@@ -738,7 +815,6 @@ export class AIPlayerManager {
       hasBody: !!player.body
     });
     
-    // Damage the player (use the main game's player damage function)
     try {
       console.log('Attempting to damage player with:', {
         hasPlayerManager: !!this.playerManager,
@@ -746,43 +822,11 @@ export class AIPlayerManager {
         hasSceneDamageMethod: this.scene && typeof this.scene.damagePlayer === 'function'
       });
       
-      if (this.playerManager && typeof this.playerManager.damagePlayer === 'function') {
-        console.log('Using playerManager.damagePlayer method');
-        // Use a smaller damage amount (1 instead of 10) to prevent immediate death
-        this.playerManager.damagePlayer(1); 
-      } else if (this.scene && typeof this.scene.damagePlayer === 'function') {
-        console.log('Using scene.damagePlayer method');
-        this.scene.damagePlayer(1);
+      // Directly call handlePlayerDamage to ensure screen shake
+      if (this.scene && typeof this.scene.handlePlayerDamage === 'function') {
+        this.scene.handlePlayerDamage();
       } else {
-        // Fallback damage handling if neither method is available
-        console.log('No damagePlayer method found, applying direct invincibility and visual effect');
-        
-        // Only apply effects if player is still active
-        if (player.active && !player.isInvincible) {
-          player.isInvincible = true;
-          
-          // Flash effect - make sure we check player is still active on each tween update
-          this.scene.tweens.add({
-            targets: player,
-            alpha: 0.5,
-            duration: 100,
-            yoyo: true,
-            repeat: 3,
-            onUpdate: () => {
-              // Safety check - stop tween if player is no longer valid
-              if (!player || !player.active || player.isDying) {
-                return false; // Stop the tween
-              }
-            },
-            onComplete: () => {
-              // Only update if player is still active
-              if (player && player.active && !player.isDying) {
-                player.isInvincible = false;
-                player.alpha = 1;
-              }
-            }
-          });
-        }
+        console.warn('handlePlayerDamage method not found in scene');
       }
     } catch (error) {
       console.error('Error in bulletHitPlayer:', error);
@@ -892,22 +936,121 @@ export class AIPlayerManager {
     // Execute current AI behavior
     this.executeCurrentBehavior(time, delta);
     
-    // In story mode, ensure the AI doesn't just stay idle forever
-    // This is a backstop in case the decision-making logic doesn't create enough movement
-    if (!isVersusMode && 
-        this.currentState === 'idle' && 
-        time > this.lastPositionChangeTime + 5000) {
-      console.log('AI has been idle too long in story mode - forcing state change');
-      this.currentState = Phaser.Utils.Array.GetRandom(['approach', 'evade', 'strafe']);
-      this.lastPositionChangeTime = time;
+    // In single player mode, ensure the AI is active and dynamic
+    if (!isVersusMode) {
+      // If AI has been idle too long, force it to move
+      if (this.currentState === 'idle' && time > this.lastPositionChangeTime + 5000) {
+        console.log('AI has been idle too long in single player mode - forcing state change');
+        this.currentState = Phaser.Utils.Array.GetRandom(['approach', 'strafe', 'strafe']);
+        this.lastPositionChangeTime = time;
+      }
+      
+      // Periodically change facing direction even when idle to make the AI look more alive
+      if (time > this.lastDirectionChangeTime + 2000) {
+        const directions = ['down', 'up', 'side', 'down_corner', 'up_corner'];
+        const newDirection = Phaser.Utils.Array.GetRandom(directions);
+        
+        // Only log if direction actually changed
+        if (newDirection !== this.lastDirection) {
+          console.log(`AI direction change to ${newDirection} in single player mode`);
+          this.lastDirection = newDirection;
+          
+          // Update animation with new direction
+          const animState = this.aiPlayer.body && 
+            (Math.abs(this.aiPlayer.body.velocity.x) > 5 || 
+             Math.abs(this.aiPlayer.body.velocity.y) > 5) ? 'move' : 'idle';
+          this.updateAnimation(animState, { direction: this.lastDirection });
+        }
+        
+        this.lastDirectionChangeTime = time;
+      }
     }
   }
 
   makeDecisions(time) {
     // Safety check: make sure both AI and player exist
-    if (!this.aiPlayer || !this.aiPlayer.active || !this.targetPlayer || !this.targetPlayer.active) {
+    if (!this.aiPlayer || !this.aiPlayer.active) {
       return;
     }
+    
+    // Check if we have a valid player target
+    const hasValidTarget = this.targetPlayer && this.targetPlayer.active;
+    
+    // Update versus mode flag
+    this.isVersusMode = this.scene.versusMode === true;
+    
+    // In single player mode without target, use a random position target
+    if (!hasValidTarget && !this.isVersusMode) {
+      // If we don't have a target position yet, create one
+      if (!this.targetPosition) {
+        this.targetPosition = {
+          x: Phaser.Math.Between(100, GAME_WIDTH - 100),
+          y: Phaser.Math.Between(100, GAME_HEIGHT - 100)
+        };
+        console.log(`Created new AI target position: (${this.targetPosition.x}, ${this.targetPosition.y})`);
+      }
+      
+      // Calculate distance to target position
+      const distToTarget = Phaser.Math.Distance.Between(
+        this.aiPlayer.x, this.aiPlayer.y,
+        this.targetPosition.x, this.targetPosition.y
+      );
+      
+      // Update shooting direction
+      this.shootingDirection = {
+        x: this.targetPosition.x - this.aiPlayer.x,
+        y: this.targetPosition.y - this.aiPlayer.y
+      };
+      
+      // Make decisions based on single player mode
+      if (time > this.lastPositionChangeTime + (this.positionChangeInterval * 0.5)) {  // More frequent decisions
+        // More aggressive AI behavior - prioritize approach and shooting
+        
+        // Higher chance for aggressive actions (95%)
+        if (Math.random() < 0.95) {
+          // More aggressive movement behaviors with strong preference for approach
+          // Aggressive AIs approach more, evade less
+          const moveStates = [
+            'approach', 'approach', 'approach', 'approach', // 4x approach (most common)
+            'strafe', 'strafe',                             // 2x strafe (medium)
+            'shoot', 'shoot',                               // 2x shooting (medium)
+            'evade'                                         // 1x evade (rare)
+          ];
+          this.currentState = Phaser.Utils.Array.GetRandom(moveStates);
+          
+          // Approach the player more often when far away
+          if (distToTarget > 300 && Math.random() < 0.7) {
+            this.currentState = 'approach';
+          }
+          
+          // Shoot more often when at medium distance
+          if (distToTarget < 300 && distToTarget > 100 && Math.random() < 0.5) {
+            this.currentState = 'shoot';
+          }
+          
+          // Sometimes pick a new target, but less frequently (more pursuit)
+          if (Math.random() < 0.15 || distToTarget < 40) {
+            this.targetPosition = {
+              x: Phaser.Math.Between(100, GAME_WIDTH - 100),
+              y: Phaser.Math.Between(100, GAME_HEIGHT - 100)
+            };
+            console.log(`AI reached target, created new position: (${this.targetPosition.x}, ${this.targetPosition.y})`);
+          }
+        } else {
+          // Rare idle state (5% chance) - even aggressive AIs need brief pauses
+          this.currentState = Math.random() < 0.3 ? 'idle' : 'shoot'; // Prefer shooting over idle
+        }
+        
+        // Log the decision
+        console.log(`AI single player decision: ${this.currentState}, target: (${this.targetPosition.x}, ${this.targetPosition.y})`);
+        this.lastPositionChangeTime = time;
+      }
+      
+      return; // Skip the versus mode decision making
+    }
+    
+    // Versus mode decision making (requires valid target player)
+    if (!hasValidTarget) return;
     
     // Calculate distance to player
     const distToPlayer = Phaser.Math.Distance.Between(
@@ -948,6 +1091,12 @@ export class AIPlayerManager {
       this.tryToShoot(time);
     }
     
+    // In single player mode, shoot more aggressively when in "shoot" state
+    if (!this.isVersusMode && this.currentState === 'shoot') {
+      // Try shooting regardless of the distToPlayer check
+      this.tryToShoot(time);
+    }
+    
     // Reload if low ammo and not currently shooting
     if (this.currentAmmo <= 5 && !this.isReloading && this.currentState !== 'shoot') {
       this.reload();
@@ -969,20 +1118,7 @@ export class AIPlayerManager {
       y: this.aiPlayer.body ? this.aiPlayer.body.velocity.y : 0
     };
     
-    // Ensure debug mode is enabled for animation troubleshooting
-    if (!this.debugMode && !this.isVersusMode) {
-      this.debugMode = true;
-      if (this.aiPlayer && !this.debugText) {
-        // Create debug text above the AI player's head
-        this.debugText = this.scene.add.text(
-          this.aiPlayer.x, this.aiPlayer.y - 50, 
-          '', 
-          { fontSize: '10px', fill: '#ffffff', backgroundColor: '#000000' }
-        );
-        this.debugText.setOrigin(0.5, 1);
-        this.debugText.setDepth(20); // Make sure it's visible above everything
-      }
-    }
+    // Debug mode is disabled for production
     
     // If in story mode and idle, ensure periodic movement happens
     // This is CRITICAL for getting animations working properly
@@ -1484,10 +1620,26 @@ export class AIPlayerManager {
       this.animPrefix = aiCharacter !== 'default' ? `${aiCharacter}_` : '';
     }
     
+    // Check if we should override state based on velocity
+    const hasVelocity = this.aiPlayer.body && 
+      (Math.abs(this.aiPlayer.body.velocity.x) > 10 || 
+       Math.abs(this.aiPlayer.body.velocity.y) > 10);
+    
+    // If we're moving but the state is idle, change it to move
+    if (hasVelocity && state === 'idle') {
+      state = 'move';
+    }
+    
     // Map state to actual animation state used by player (idle -> idle, move -> walk)
     let animState = state;
     if (state === 'move') {
       animState = 'walk'; // Player animations use 'walk' instead of 'move'
+    }
+    
+    // Log animation change for debugging
+    if (this.lastAnimState !== animState) {
+      console.log(`AI animation state changing from ${this.lastAnimState || 'none'} to ${animState}`);
+      this.lastAnimState = animState;
     }
     
     // Build animation key based on current state
@@ -1527,6 +1679,7 @@ export class AIPlayerManager {
           if (this.scene.anims.exists(key) && 
               (this.aiPlayer.anims.currentAnim?.key !== key || forceAnimUpdate)) {
             this.aiPlayer.play(key, true);
+            console.log(`[AIPlayerManager] Animación reproducida para AI: personaje=${this.aiCharacter}, anim=${key}, textura=${this.aiPlayer.texture ? this.aiPlayer.texture.key : 'N/A'}, animActual=${this.aiPlayer.anims.currentAnim ? this.aiPlayer.anims.currentAnim.key : 'N/A'}`);
             //console.log(`Playing alternate AI animation: ${key} (original: ${animationKey})`);
             foundValidAnimation = true;
             break;
@@ -1570,6 +1723,12 @@ export class AIPlayerManager {
         const velX = this.aiPlayer.body ? this.aiPlayer.body.velocity.x.toFixed(0) : 0;
         const velY = this.aiPlayer.body ? this.aiPlayer.body.velocity.y.toFixed(0) : 0;
         this.debugText.setText(`vx: ${velX}, vy: ${velY}\ndir: ${this.lastDirection}, anim: ${animState}`);
+        
+        // If debug text is not part of the container, update its position manually
+        if (!(this.aiPlayer.add && typeof this.aiPlayer.add === 'function')) {
+          this.debugText.x = this.aiPlayer.x;
+          this.debugText.y = this.aiPlayer.y - 50;
+        }
       }
     } catch (error) {
       console.error(`Error playing animation ${animationKey}:`, error);
@@ -1638,8 +1797,23 @@ export class AIPlayerManager {
     // Check if enough time has passed since last shot
     if (time < this.lastShotTime + this.fireRate) return;
     
-    // Add some randomness to AI accuracy
-    let shouldShoot = Math.random() < this.shootAccuracy;
+    // Get AI mode
+    const isVersusMode = this.scene.versusMode === true;
+    
+    // Higher accuracy in single player mode for more aggressive AI
+    let shootAccuracy = this.shootAccuracy;
+    if (!isVersusMode) {
+      // Boost accuracy in single player for more challenge
+      shootAccuracy += 0.15; // Up to 15% more accurate
+    }
+    
+    // Higher chance to shoot in single player
+    let shouldShoot = Math.random() < (isVersusMode ? this.shootAccuracy : shootAccuracy);
+    
+    // In single player, if we're in shoot state, further increase chance
+    if (!isVersusMode && this.currentState === 'shoot') {
+      shouldShoot = shouldShoot || Math.random() < 0.6; // Additional 60% chance
+    }
     
     if (shouldShoot) {
       this.shoot();
@@ -1734,6 +1908,29 @@ export class AIPlayerManager {
         this.scene.sound.play('shot', { volume: 0.3 });
       }
       
+      // Special behavior for Omen character
+      if (this.aiCharacter === 'omen') {
+        // Teleport occasionally
+        if (Math.random() < 0.01 && !this.isTeleporting) {
+          console.log('Attempting Omen teleport');
+          this.teleportBehindPlayer();
+        }
+        
+        // Enhanced aggression for Omen
+        if (this.targetPlayer && this.aiPlayer) {
+          const distanceToPlayer = Phaser.Math.Distance.Between(
+            this.aiPlayer.x, this.aiPlayer.y, 
+            this.targetPlayer.x, this.targetPlayer.y
+          );
+          
+          // If too close, try to teleport more aggressively
+          if (distanceToPlayer < 200 && Math.random() < 0.05) {
+            console.log('Omen teleporting due to close proximity');
+            this.teleportBehindPlayer();
+          }
+        }
+      }
+      
       // If out of ammo, reload
       if (this.currentAmmo <= 0 && this.totalMagazines > 0) {
         this.reload();
@@ -1774,6 +1971,12 @@ export class AIPlayerManager {
     if (this.aiPlayerMarker) {
       this.aiPlayerMarker.x = this.aiPlayer.x;
       this.aiPlayerMarker.y = this.aiPlayer.y + 56; // Keep the offset
+    }
+    
+    // Update debug text position if it exists and is not a child of the player sprite
+    if (this.debugText && !(this.aiPlayer.add && typeof this.aiPlayer.add === 'function')) {
+      this.debugText.x = this.aiPlayer.x;
+      this.debugText.y = this.aiPlayer.y - 50;
     }
   }
 
@@ -2186,6 +2389,18 @@ export class AIPlayerManager {
       // Reset damage cooldown to ensure the new sprite can take damage
       this.aiPlayer.justDamaged = false;
       
+      // Preserve debug text if it existed
+      if (this.debugText) {
+        // Update the debug text position to follow the new AI player
+        if (!(this.aiPlayer.add && typeof this.aiPlayer.add === 'function')) {
+          this.debugText.x = this.aiPlayer.x;
+          this.debugText.y = this.aiPlayer.y - 50;
+        } else {
+          // If the AI player supports container functionality, add the debug text as a child
+          this.aiPlayer.add(this.debugText);
+        }
+      }
+      
       // Restore velocity if physics body exists
       if (this.aiPlayer.body && currentVelocityX !== undefined && currentVelocityY !== undefined) {
         this.aiPlayer.body.velocity.x = currentVelocityX;
@@ -2292,6 +2507,13 @@ export class AIPlayerManager {
       console.warn('AI is already dead or dying, ignoring health damage');
       return;
     }
+    
+    // Store the current character in case we need to recreate the AI player
+    if (this.aiCharacter) {
+      this.scene.registry.set('aiCharacter', this.aiCharacter);
+      console.log(`Stored AI character ${this.aiCharacter} in registry during damage`);
+    }
+    
     // Initialize health if needed
     if (this.aiPlayer.health === undefined) {
       this.aiPlayer.health = this.startingHealth;
