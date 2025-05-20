@@ -1,7 +1,8 @@
 import { GAME_WIDTH, GAME_HEIGHT } from '../../config.js';
+import { EnemyEffects } from './EnemyEffects.js';
 
 export class MultiplayerEnemy {
-    constructor(scene, playerId) {
+    constructor(scene, playerId, bloodContainer) {
         this.scene = scene;
         this.playerId = playerId;
         this.player = null;
@@ -25,6 +26,7 @@ export class MultiplayerEnemy {
         this.deathAnimProgress = { frame: 0 };
         this.deathAnimTimers = [];
         this.currentDeathFrame = 0;
+        this.effects = new EnemyEffects(scene, bloodContainer);
     }
 
     createPlayer(sX, sY) {
@@ -232,6 +234,8 @@ export class MultiplayerEnemy {
         let vx = 0, vy = 0;
         let inputHandled = false;
 
+        this.player.x = data.x;
+        this.player.y = data.y;
         vx = data.vx;
         vy = data.vy;
         // Get animation prefix for the selected character
@@ -937,6 +941,11 @@ export class MultiplayerEnemy {
                 console.error("Failed to create emergency animation:", e);
             }
         }
+    }
+
+    handlePlayerDamage() {
+        console.log("Enemy received player damage");
+        this.effects.createPlayerBloodSplatter(this.player);
     }
 
     // Handle when the player is killed

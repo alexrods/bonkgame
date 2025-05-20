@@ -33,42 +33,32 @@ export class BootScene extends Phaser.Scene {
     
     // Add loading event listeners for debugging and UI updates
     this.load.on('filecomplete', (key, type, data) => {
-      // Reduce logging to improve performance - only log certain key assets
-      if (key.startsWith('player_death_') || key === 'intro_music' || key === 'gameMusic') {
-        console.log(`Successfully loaded: ${key} (${type})`);
-      }
+      // console.log(`Successfully loaded: ${key} (${type})`);
       this.currentAsset = key;
       this.updateLoadingText();
       
-      // Throttle DOM updates to improve performance - only update every 10 assets or for key assets
-      const isKeyAsset = key.includes('music') || key.includes('player_death_') || key === 'game_logo';
-      if (isKeyAsset || Math.random() < 0.1) {  // Update UI for ~10% of assets or key assets
-        // Dispatch event for DOM-based loading UI
-        window.dispatchEvent(new CustomEvent('game-loading-progress', {
-          detail: { value: this.load.progress, currentAsset: key }
-        }));
+      // Verify death animation image assets specifically
+      if (key.startsWith('player_death_')) {
+        console.log(`Death animation frame loaded: ${key}`);
       }
+      
+      // Dispatch event for DOM-based loading UI
+      window.dispatchEvent(new CustomEvent('game-loading-progress', {
+        detail: { value: this.load.progress, currentAsset: key }
+      }));
     });
     
     this.load.on('loaderror', (file) => {
       console.error(`Error loading file: ${file.key} (${file.type}) - ${file.url}`);
-      
-      // Continue loading even if one file fails
-      this.load.on('filecomplete', () => {
-        this.load.start(); // Restart loading pipeline
-      }, this, true); // Once only
     });
     
     this.load.on('progress', (value) => {
       this.updateProgressBar(value);
       
-      // Throttle progress updates to improve performance
-      if (value % 0.05 <= 0.01) { // Update at roughly 5% intervals
-        // Dispatch event for DOM-based loading UI
-        window.dispatchEvent(new CustomEvent('game-loading-progress', {
-          detail: { value: value, currentAsset: this.currentAsset }
-        }));
-      }
+      // Dispatch event for DOM-based loading UI
+      window.dispatchEvent(new CustomEvent('game-loading-progress', {
+        detail: { value: value, currentAsset: this.currentAsset }
+      }));
     });
     
     // Add a listener for all load completion
@@ -179,6 +169,7 @@ export class BootScene extends Phaser.Scene {
     
     // Start the sequence with StartScene (logo screen)
     this.scene.start('StartScene');
+    // this.scene.start('MenuScene');
   }
   
   // Create a grayscale pipeline for black and white effect

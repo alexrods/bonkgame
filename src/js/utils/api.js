@@ -5,7 +5,7 @@ const myCipher = cipher("transactionsalt");
 
 // Create an instance of axios
 const api = axios.create({
-  baseURL: import.meta.env.VITE_BASE_API_URL,
+  baseURL: "http://localhost:9031/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -68,86 +68,20 @@ export const updateCredit = async (token, amount, tx_hash) => {
   }
 };
 
-export const withdrawCredit = async (token, solanaWallet, amount = null) => {
+export const withdrawCredit = async (token, solanaWallet, amount) => {
   try {
-    console.log('API.js - withdrawCredit - Iniciando retiro de créditos:', {
-      retirarTodo: amount === null,
-      amount: amount
-    });
-    
-    const requestData = {
-      encrypted_solana_wallet: myCipher(solanaWallet),
-    };
-    
-    // Si se proporciona una cantidad específica, cifrarla y enviarla
-    // Si no, no enviar el parámetro para que el backend retire todos los créditos
-    if (amount !== null) {
-      requestData.encrypted_del_credit = myCipher(amount.toString());
-    } else {
-      requestData.encrypted_del_credit = 'all';
-    }
-    
     const response = await api.post(
       "/users/withdraw",
-      requestData,
+      {
+        encrypted_solana_wallet: myCipher(solanaWallet),
+        encrypted_del_credit: myCipher(amount.toString()),
+      },
       {
         headers: { "x-auth-token": token },
       }
     );
-    
-    console.log('API.js - withdrawCredit - Respuesta:', {
-      status: response.status,
-      data: response.data
-    });
-    
     return response.data;
   } catch (error) {
-    console.error('API.js - withdrawCredit - Error:', {
-      message: error.message,
-      response: error.response ? { status: error.response.status, data: error.response.data } : null
-    });
-    throw error;
-  }
-};
-
-export const withdrawBonk = async (token, solanaWallet, amount = null) => {
-  try {
-    console.log('API.js - withdrawBonk - Initilizing bonk withdrawal:', {
-      retirarTodo: amount === null,
-      amount: amount
-    });
-    
-    const requestData = {
-      encrypted_solana_wallet: myCipher(solanaWallet),
-    };
-    
-    // If a specific amount is provided, encrypt it and send it
-    // If not, do not send the parameter to withdraw all bonks
-    if (amount !== null) {
-      requestData.encrypted_del_bonk = myCipher(amount.toString());
-    } else {
-      requestData.encrypted_del_bonk = 'all';
-    }
-    
-    const response = await api.post(
-      "/users/withdrawBonk",
-      requestData,
-      {
-        headers: { "x-auth-token": token },
-      }
-    );
-    
-    console.log('API.js - withdrawBonk - Response:', {
-      status: response.status,
-      data: response.data
-    });
-    
-    return response.data;
-  } catch (error) {
-    console.error('API.js - withdrawBonk - Error:', {
-      message: error.message,
-      response: error.response ? { status: error.response.status, data: error.response.data } : null
-    });
     throw error;
   }
 };

@@ -18,7 +18,6 @@ export class DroneWheel {
     this.rhythmGame = null;
     this.depositWithdrawPrompt = null;
     this.weaponsMenu = null;
-    this.enabled = true; // Flag to control whether the wheel can be shown
     
     console.log("DroneWheel constructor called");
     
@@ -115,8 +114,6 @@ export class DroneWheel {
       emote: 0,
       robot: 0
     };
-    // Disable drone wheel until the game starts (after SURVIVE)
-    this.enabled = false;
   }
 
   init() {
@@ -452,12 +449,6 @@ export class DroneWheel {
   }
 
   show() {
-    // Check if the wheel is enabled before showing it, but allow it in tutorial
-    if (!this.enabled && !this.scene.isTutorial) return;
-
-    // Log for debugging
-    console.log('DroneWheel show() - enabled:', this.enabled, 'isTutorial:', this.scene.isTutorial);
-    
     // Update credit text with the latest amount
     this.updateCredits();
     
@@ -691,27 +682,6 @@ export class DroneWheel {
     // Clean up weapons menu if it exists
     if (this.weaponsMenu) {
       this.weaponsMenu.cleanup();
-    }
-  }
-  
-  // Enable the DroneWheel to allow showing it
-  enable() {
-    if (!this.enabled) {
-      console.log('DroneWheel enabled');
-      this.enabled = true;
-    }
-  }
-  
-  // Disable the DroneWheel to prevent showing it
-  disable() {
-    if (this.enabled) {
-      console.log('DroneWheel disabled');
-      this.enabled = false;
-      
-      // If currently visible, hide it
-      if (this.isVisible) {
-        this.hide();
-      }
     }
   }
   
@@ -1026,7 +996,7 @@ export class DroneWheel {
           this.scene.playerAccount.playerData &&
           this.scene.playerAccount.playerData._id
         ) {
-          // Use the setCreditCount method directly from playerAccount
+          // Usar el método setCreditCount directo desde playerAccount
           this.scene.playerAccount.setCreditCount(
             this.scene.playerAccount.getGameAccountBalance()
           ).catch((err) => {

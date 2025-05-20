@@ -29,8 +29,6 @@ export class EnemyBehavior {
     const now = Date.now();
     
     // Second pass - handle movement and AI
-    if (!enemies || !enemies.children) return;
-    
     enemies.children.each(enemy => {
       // Skip updates for inactive enemies
       if (!enemy.active) return;

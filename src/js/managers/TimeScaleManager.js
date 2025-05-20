@@ -500,13 +500,7 @@ export class TimeScaleManager {
       return;
     }
     
-    const enemiesGroup = enemyManager.getEnemies();
-    if (!enemiesGroup) {
-      console.log('Enemy group is null, skipping entity adjustments');
-      return;
-    }
-    
-    const enemies = enemiesGroup.getChildren ? enemiesGroup.getChildren() : null;
+    const enemies = enemyManager.getEnemies()?.getChildren();
     if (!enemies || enemies.length === 0) {
       console.log('No enemies found, skipping entity adjustments');
       return;
@@ -633,13 +627,7 @@ export class TimeScaleManager {
       return;
     }
     
-    const enemiesGroup = enemyManager.getEnemies();
-    if (!enemiesGroup) {
-      console.log('Enemy group is null, skipping speed storage');
-      return;
-    }
-    
-    const enemies = enemiesGroup.getChildren ? enemiesGroup.getChildren() : null;
+    const enemies = enemyManager.getEnemies()?.getChildren();
     if (!enemies || enemies.length === 0) {
       console.log('No enemies found, skipping speed storage');
       return;
@@ -746,13 +734,7 @@ export class TimeScaleManager {
       return;
     }
     
-    const enemiesGroup = enemyManager.getEnemies();
-    if (!enemiesGroup) {
-      console.log('Enemy group is null, skipping reset all');
-      return;
-    }
-    
-    const enemies = enemiesGroup.getChildren ? enemiesGroup.getChildren() : null;
+    const enemies = enemyManager.getEnemies()?.getChildren();
     if (!enemies || enemies.length === 0) {
       console.log('No enemies found, skipping reset all');
       return;

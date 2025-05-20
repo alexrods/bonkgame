@@ -34,10 +34,8 @@ export class LabEnvironment {
 
   // Create the tiled floor background based on options
   createFloor() {
-    // Always use concrete floor for tutorial, lab floor for other scenes
+    // Determine which floor texture to use
     const floorTexture = this.scene.constructor.name === 'TutorialScene' ? 'tutorial_floor' : 'lab_floor';
-    
-    // Tutorial uses larger concrete tiles, lab uses smaller tiles
     const tileSize = floorTexture === 'tutorial_floor' ? 128 : 64;
     
     // Get actual camera dimensions (may have changed due to orientation)

@@ -3,12 +3,9 @@ import {
   getUserInfo,
   updateCredit,
   setCreditCount,
-  withdrawCredit,
-  withdrawBonk,
-  updateEarnCount
+  withdrawCredit
 } from "../utils/api.js";
 import { SolanaWallet } from "./SolanaWallet.js";
-import { nftCollectionChecker } from "../utils/nftCollectionChecker.js";
 import { WhitelistManager } from "./WhitelistManager.js";
 
 /**
@@ -25,6 +22,9 @@ export class PlayerAccount {
 
     // Game account balance - separate from wallet and arena
     this.gameAccountBalance = 0;
+
+    // BONK balance - separate from game account and arena
+    this.bonkBalance = 0;
 
     // Initialize whitelist manager
     this.whitelistManager = new WhitelistManager();
@@ -113,76 +113,12 @@ export class PlayerAccount {
       this.scene.events.emit("player-authenticated", this.playerData);
       this.scene.events.emit(
         "gameAccountUpdated",
-        this.playerData.credit_count
+        this.playerData.gameAccountBalance
       );
       this.scene.events.emit(
         "bonkBalanceUpdated",
         this.playerData.bonk_balance
       );
-      
-      // Verify if the user has NFTs from the configured collection
-      try {
-        // Clear any previous bloodline information
-        this.bloodlines = [];
-        localStorage.removeItem('playerBloodlines');
-        
-        // Initialize the NFT verifier
-        if (!nftCollectionChecker.wallet.isConnected) {
-          // Use the same connection we already have established
-          nftCollectionChecker.wallet = this.wallet;
-          nftCollectionChecker.authToken = this.authToken;
-          // Configure the network as devnet for testing
-          nftCollectionChecker.network = "devnet";
-        }
-        
-        // Verify the NFT collection using the checkCollection method
-        console.log("Verifying NFT collection for the user...");
-        const nftResult = await nftCollectionChecker.checkCollection();
-        
-        // Determine correctly if the user has NFTs
-        // If the result is an empty array or [] it means no NFTs were found
-        // If it's an object with needsNFT: true, it means NFTs are needed
-        // If it's false, it means there was an error
-        // Only if it's a non-empty array does the user have NFTs
-        const hasNFT = Array.isArray(nftResult) && nftResult.length > 0 && 
-                    !nftResult.needsNFT; // To ensure it's not an error object
-        
-        console.log("NFT verification result:", { 
-          resultType: typeof nftResult, 
-          isArray: Array.isArray(nftResult), 
-          length: Array.isArray(nftResult) ? nftResult.length : 'not an array',
-          hasNeedNFTFlag: nftResult && nftResult.needsNFT,
-          finalHasNFT: hasNFT
-        });
-        
-        // Store the result in playerData
-        this.playerData.hasCollectionNFT = hasNFT;
-        this.savePlayerData();
-        
-        // Emit an event with the result
-        this.scene.events.emit("nft-collection-check", {
-          hasNFT,
-          collectionAddress: nftCollectionChecker.defaultCollectionAddress
-        });
-        
-        // Show message in the game using the existing notification system
-        if (hasNFT) {
-          this.wallet.showNotification("¡Congratulations! You have NFTs from the special collection.");
-          console.log("The user has NFTs from the configured collection");
-          
-          // Also emit an event for other components to react
-          this.scene.events.emit("nft-collection-found", true);
-        } else {
-          this.wallet.showNotification("No NFTs from the special collection were found in your wallet.");
-          console.log("The user does not have NFTs from the configured collection");
-          
-          // Also emit an event for other components to react
-          this.scene.events.emit("nft-collection-found", false);
-        }
-      } catch (nftError) {
-        console.error("Error verifying NFT collection:", nftError);
-        // Don't interrupt the authentication flow if NFT verification fails
-      }
 
       console.log("Player authenticated:", publicKey);
     } catch (error) {
@@ -194,38 +130,23 @@ export class PlayerAccount {
   /**
    * Handle wallet disconnection
    */
-  async handleWalletDisconnect() {
-    // If already disconnected, no need to do anything
-    if (!this.isAuthenticated) return;
-    
-    // Update the state
+  handleWalletDisconnect() {
     this.isAuthenticated = false;
-    this.authToken = null;
-    
-    // Update player data to reflect disconnection
-    if (this.playerData) {
-      this.playerData.address = null;
-    }
-    
-    // Clear bloodlines on wallet disconnect
-    this.bloodlines = [];
-    
-    // Clear authenticated flag and bloodlines in localStorage
+
+    // Don't clear playerData completely, just mark as not authenticated
+    this.playerData.address = null;
+
+    // Clear authenticated flag in localStorage
     try {
       localStorage.removeItem("walletAuthenticated");
       localStorage.removeItem("connectedWalletAddress");
-      localStorage.removeItem('playerBloodlines');
     } catch (err) {
       console.warn("Could not clear wallet auth status from localStorage", err);
     }
-    
-    // Save updated state
-    this.savePlayerData();
-    
+
     // Notify the game that player is no longer authenticated
-    this.scene.events.emit("player-unauthenticated");
-    
-    console.log("Wallet disconnected from PlayerAccount");
+    this.scene.events.emit("player-disconnected");
+
     console.log("Player disconnected");
   }
 
@@ -297,7 +218,7 @@ export class PlayerAccount {
       // Query token accounts
       const tokenAccounts = await connection.getParsedTokenAccountsByOwner(
         publicKey,
-        { programId: new solanaWeb3.PublicKey('') }
+        { programId: new solanaWeb3.PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA') }
       );
       
       // Process token data
@@ -481,13 +402,13 @@ export class PlayerAccount {
     return this.gameAccountBalance;
   }
 
- /**
+  /**
    * Get the player's BONK balance
    * @returns {number} Current BONK balance
    */
- getBonkBalance() {
-  return this.bonkBalance;
-}
+  getBonkBalance() {
+    return this.bonkBalance;
+  }
 
   /**
    * Update the player's game account balance
@@ -522,41 +443,41 @@ export class PlayerAccount {
     return this.gameAccountBalance;
   }
 
- /**
+  /**
    * Update the player's BONK balance
    * @param {number} amount - Amount to add (positive) or subtract (negative)
    * @returns {number} New BONK balance
    */
- updateBonkBalance(amount) {
-  this.bonkBalance += amount;
+  updateBonkBalance(amount) {
+    this.bonkBalance += amount;
 
-  // Ensure balance doesn't go below zero
-  if (this.bonkBalance < 0) {
-    this.bonkBalance = 0;
-  }
-
-  // Update player data and save
-  this.playerData.bonkBalance = this.bonkBalance;
-  this.savePlayerData();
-
-  // FIXED: Emit an event so UI elements can update - with try/catch for safety
-  try {
-    if (this.scene && this.scene.events) {
-      console.log(
-        `Emitting bonkBalanceUpdated event with balance: ${this.bonkBalance}`
-      );
-      this.scene.events.emit("bonkBalanceUpdated", this.bonkBalance);
-    } else {
-      console.warn(
-        "Cannot emit bonkBalanceUpdated event - scene or events not available"
-      );
+    // Ensure balance doesn't go below zero
+    if (this.bonkBalance < 0) {
+      this.bonkBalance = 0;
     }
-  } catch (error) {
-    console.error("Error emitting bonkBalanceUpdated event:", error);
-  }
 
-  return this.bonkBalance;
-}
+    // Update player data and save
+    this.playerData.bonkBalance = this.bonkBalance;
+    this.savePlayerData();
+
+    // FIXED: Emit an event so UI elements can update - with try/catch for safety
+    try {
+      if (this.scene && this.scene.events) {
+        console.log(
+          `Emitting bonkBalanceUpdated event with balance: ${this.bonkBalance}`
+        );
+        this.scene.events.emit("bonkBalanceUpdated", this.bonkBalance);
+      } else {
+        console.warn(
+          "Cannot emit bonkBalanceUpdated event - scene or events not available"
+        );
+      }
+    } catch (error) {
+      console.error("Error emitting bonkBalanceUpdated event:", error);
+    }
+
+    return this.bonkBalance;
+  }
 
   /**
    * Deposit from Solana wallet to game account
@@ -595,42 +516,39 @@ export class PlayerAccount {
     }
   }
 
-   /**
-    * Withdraw all credits from game account to Solana wallet
-    * @returns {boolean} Whether the transaction succeeded
-    */
-   async withdrawFromGameAccount() {
-     if (!this.isAuthenticated || !this.authToken) {
-       throw new Error("Not authenticated");
-     }
- 
-     try {
-       // Get current credit count from player data
-       const totalCredits = this.gameAccountBalance || 0;
-       
-       if (totalCredits <= 0) {
-         console.log("No credits to withdraw");
-         return false;
-       }
-       
-       // Withdraw all credits
-       await withdrawCredit(this.authToken, this.wallet.getPublicKey(), totalCredits);
- 
-       // Update local state
-       this.gameAccountBalance = 0;
-       this.playerData.gameAccountBalance = 0;
-       this.savePlayerData();
- 
-       // Emit update event
-       this.scene.events.emit("gameAccountUpdated", 0);
- 
-       console.log(`Successfully withdrew all credits (${totalCredits})`);
-       return true;
-     } catch (error) {
-       console.error("Error withdrawing from game account:", error);
-       return false;
-     }
-   }
+  /**
+   * Withdraw from game account to Solana wallet
+   * @param {number} gameCredits - Amount of game credits to withdraw
+   * @param {number} solAmount - Equivalent SOL to receive
+   * @returns {boolean} Whether the transaction succeeded
+   */
+  async withdrawFromGameAccount(amount) {
+    if (!this.isAuthenticated || !this.authToken) {
+      throw new Error("Not authenticated");
+    }
+
+    try {
+      await withdrawCredit(this.authToken, this.wallet.getPublicKey(), amount);
+
+      // Update local state
+      this.playerData.credit_count = Math.max(
+        0,
+        this.playerData.credit_count - amount
+      );
+      this.savePlayerData();
+
+      // Emit update event
+      this.scene.events.emit(
+        "gameAccountUpdated",
+        this.playerData.credit_count
+      );
+
+      return true;
+    } catch (error) {
+      console.error("Error withdrawing from game account:", error);
+      return false;
+    }
+  }
 
   /**
    * Deposit from game account to arena - COMPLETELY REWRITTEN
@@ -942,7 +860,7 @@ export class PlayerAccount {
   async setCreditCount(creditCount) {
     if (!this.isAuthenticated || !this.authToken) {
       console.error("Cannot update credit count: Not authenticated");
-      console.log("Authentication state:", { 
+      console.log("Estado de autenticación:", { 
         isAuthenticated: this.isAuthenticated, 
         hasToken: !!this.authToken, 
         tokenLength: this.authToken ? this.authToken.length : 0 
@@ -951,11 +869,11 @@ export class PlayerAccount {
     }
     
     try {
-      console.log("Preparing credit_count update in DB:", {
+      console.log("Preparando actualización de credit_count en DB:", {
         creditCount,
         tokenLongitud: this.authToken ? this.authToken.length : 0,
         tokenPrimeros10: this.authToken ? this.authToken.substring(0, 10) + '...' : null,
-        userId: this.playerData?._id
+        address: this.playerData?.address
       });
       const response = await setCreditCount(this.authToken, creditCount);
       console.log("Credit count updated successfully in DB", response);
@@ -963,63 +881,11 @@ export class PlayerAccount {
     } catch (error) {
       console.error("Error updating credit_count in DB:", error);
       if (error.response) {
-        console.error("Error details:", {
+        console.error("Detalles del error:", {
           status: error.response.status,
           data: error.response.data
         });
       }
-      throw error;
-    }
-  }
-
-/**
-   * Withdraw BONK tokens from the game account.
-   * Calls the withdrawBonk function from api.js and explicitly updates the database balance.
-   * @param {number|null} amount - Amount to withdraw, or null to withdraw all.
-   * @returns {Promise<boolean>} - True if successful.
-   */
-  async withdrawBonkFromGameAccount(amount = null) {
-    if (!this.isAuthenticated || !this.authToken) {
-      console.error("Cannot withdraw bonks: Not authenticated");
-      throw new Error("Not authenticated");
-    }
-    const walletAddr = this.getWalletAddress();
-    if (!walletAddr) {
-      console.error("No wallet address available for withdrawal.");
-      throw new Error("No wallet address available.");
-    }
-    // Si no se especifica un monto, se retiran todos los bonks disponibles
-    if (amount === null) {
-      amount = this.bonkBalance;
-    }
-    try {
-      // 1. Primero enviamos los Bonks a la wallet del usuario
-      const result = await withdrawBonk(this.authToken, walletAddr, amount);
-      console.log("WithdrawBonkFromGameAccount result:", result);
-      
-      // 2. Calculamos el nuevo saldo de Bonks
-      const newBonkBalance = amount === this.bonkBalance ? 0 : Math.max(0, this.bonkBalance - amount);
-      
-      // 3. Actualizamos explícitamente el saldo en la base de datos
-      const updateResult = await updateEarnCount(this.authToken, newBonkBalance);
-      console.log("UpdateBonkCount result:", updateResult);
-      
-      // 4. Actualizamos el saldo local con el valor de la base de datos
-      if (updateResult && updateResult.newBonkBalance !== undefined) {
-        this.bonkBalance = updateResult.newBonkBalance;
-        this.playerData.bonkBalance = updateResult.newBonkBalance;
-      } else {
-        // Si no recibimos un nuevo valor, usamos el calculado localmente
-        this.bonkBalance = newBonkBalance;
-        this.playerData.bonkBalance = newBonkBalance;
-      }
-      
-      // 5. Guardamos los datos actualizados localmente
-      this.savePlayerData();
-      
-      return true;
-    } catch (error) {
-      console.error("Failed to withdraw bonks:", error);
       throw error;
     }
   }

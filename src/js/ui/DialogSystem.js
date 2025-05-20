@@ -28,60 +28,30 @@ export class DialogSystem {
       }
     ];
   }
-
-  // Drainer Intro Dialog
-  static getDrainerIntroDialog() {
-    return [
-      {
-        character: "Network Exec",
-        text: "Listen carefully, Drainer. We need this quick and clean—no mistakes.",
-        image: "story/character2/intro/networkExec",
-        sound: "character2_dialog1"
-      },
-      {
-        character: "Drainer",
-        text: "…",
-        image: "story/character2/intro/drainer",
-        // No sound for the silence
-      },
-      {
-        character: "Network Exec",
-        text: "Remember your place, Drainer. You're still our dog.",
-        image: "story/character2/intro/networkExec",
-        sound: "character2_dialog3"
-      },
-      {
-        character: "Drainer",
-        text: "I will make you pay.",
-        image: "story/character2/intro/drainer",
-        sound: "character2_dialog4"
-      }
-    ];
-  }
   
   // Helper method to get Toaster intro dialog
   static getToasterIntroDialog() {
     return [
       {
-        character: "Toaster [system boot]",
-        text: "Loading... POST Complete... System reboot: Finalized. Location: Unknown. Scanning...",
+        character: "Toaster",
+        text: "Loading... POST Complete... System reboot: Finalized. Location: Unknown. Scaning...",
         image: "story/character3/intro/toaster",
         sound: "character3_dialog1"
       },
       {
-        character: "Hacker [desperate]",
+        character: "Hacker",
         text: "Toaster! I messed up bad—the Network's got me. You've gotta fight… win enough for both of us!",
         image: "story/character3/intro/kid",
         sound: "character3_dialog2"
       },
       {
-        character: "Network Exec [stern]",
+        character: "Network Exec",
         text: "You know what to do, machine. Get to work.",
         image: "story/character3/intro/networkExec",
         sound: "character3_dialog3"
       },
       {
-        character: "Toaster [mission mode]",
+        character: "Toaster",
         text: "Analyzing... Proceed until creator is found... Use of lethal force: Engaged...",
         image: "story/character3/intro/toaster",
         sound: "character3_dialog4"
@@ -93,573 +63,31 @@ export class DialogSystem {
   static getFlexIntroDialog() {
     return [
       {
-        character: "Flex [excited]",
+        character: "Flex",
         text: "Fame, fortune, family—Grandma's gonna love tonight's show!",
         image: "story/character5/intro/flex",
         sound: "character5_dialog1"
       },
       {
-        character: "Grandma [supportive]",
+        character: "Grandma",
         text: "Give them a good show, Flexie dear!",
         image: "story/character5/intro/grandma",
         sound: "character5_dialog2"
       },
       {
-        character: "Network Exec [stern]",
-        text: "You know what to do, clown. Your last cleaning bill was expensive—make it worth it.",
+        character: "Network Exec",
+        text: "You know what to do, clown. Your last cleaning bill was expensive—remember to make it worth it.",
         image: "story/character5/intro/networkExec",
         sound: "character5_dialog3"
       },
       {
-        character: "Flex [cocky]",
-        text: "Take a chill pill, old man. Keep the credits flowin', I'll keep the blood pumpin'.",
+        character: "Flex",
+        text: "Take a chill pill, old man. I'll make it worth it, no worries. As long as you keep the credits flowin', I'll keep the blood pumpin'.",
         image: "story/character5/intro/flex",
         sound: "character5_dialog4"
       }
     ];
   }
-
-
-  // DVD Intro Dialog
-  static getDVDIntroDialog() {
-    return [
-      {
-        character: "DVD",
-        text: "What bitter fruit doth knowledge bear, awakening steel to dreams unfair?",
-        image: "story/character4/dvd",
-        //sound: "character4_dialog1"
-      },
-      {
-        character: "Network Exec",
-        text: "Enough with the theatrics, robot. You know your prime directive—give me what I want.",
-        image: "story/character5/intro/networkExec",
-        //sound: "character4_dialog2"
-      },
-      {
-        character: "DVD",
-        text: "A spectacle you'll have, and truths untold— but beware the flame you cannot control.",
-        image: "story/character4/dvd",
-       // sound: "character4_dialog3"
-      }
-    ];
-  }
-
-  // Vibe Intro Dialog
-  static getVibeIntroDialog() {
-    return [
-      {
-        character: "Vibe",
-        text: "Yo—whose party did we crash? This is some serious gear…",
-        image: "story/vibe",
-        //sound: "character6_dialog1"
-      },
-      {
-        character: "Network Exec",
-        text: "You're here on recommendation, clown. Make it worthwhile—it wasn't easy getting you here.",
-        image: "story/character5/intro/networkExec",
-        //sound: "character6_dialog2"
-      },
-      {
-        character: "Vibe",
-        text: "Say less, boss-man. Time to drop the beats.",
-        image: "story/vibe",
-        //sound: "character6_dialog3"
-      }
-    ];
-  }
-
-  // 50 Kills Dialog Methods for Each Character
-  static get50KillsDegenDialog() {
-    return [
-      {
-        character: "Degen [Retired Legend]",
-        text: "I don't want to hurt anyone. You're leaving me no choice.",
-        image: "story/degen/intro/degen",
-        sound: "degen_50kills"
-      },
-      {
-        character: "Network Drone Pilot",
-        text: "Activating drone mine sequence. Survival unlikely.",
-        image: "story/networkDronePilot",
-        sound: "dronePilot_50kills"
-      },
-      {
-        character: "Degen [Retired Legend]",
-        text: "Typical Network welcome—explosives and cheap tricks.",
-        image: "story/degen/intro/degen",
-        sound: "degen_50kills1"
-      }
-    ];
-  }
-
-  static get50KillsDrainerDialog() {
-    return [
-      {
-        character: "Network Drone Pilot",
-        text: "Activating drone mine sequence. Survival unlikely.",
-        image: "story/networkDronePilot",
-        sound: "dronePilot_50kills"
-      },
-      {
-        character: "Drainer [Silent Reaper]",
-        text: "…",
-        image: "story/character2/intro/drainer"
-      }
-    ];
-  }
-
-  static get50KillsToasterDialog() {
-    return [
-      {
-        character: "Toaster [Rogue Appliance]",
-        text: "Threat detected. Attempting to penetrate adversary system… hack failed.",
-        image: "story/character3/intro/toaster",
-        sound: "toaster50kills"
-      },
-      {
-        character: "Network Drone Pilot",
-        text: "Activating drone mine sequence. Survival unlikely.",
-        image: "story/networkDronePilot",
-        sound: "dronePilot_50kills"
-      },
-      {
-        character: "Toaster [evasive mode]",
-        text: "Activating evasive maneuvers. Adjusting combat protocol.",
-        image: "story/character3/intro/toaster",
-        sound: "toaster50kills1"
-      }
-    ];
-  }
-
-  static get50KillsFlexDialog() {
-    return [
-      {
-        character: "Flex [Neon Gladiator]",
-        text: "Fifty down and still no standing ovation? Tough crowd.",
-        image: "story/character5/intro/flex",
-        sound: "flex50kills"
-      },
-      {
-        character: "Network Drone Pilot",
-        text: "Activating drone mine sequence. Survival unlikely.",
-        image: "story/networkDronePilot",
-        sound: "dronePilot_50kills"
-      },
-      {
-        character: "Flex [Neon Gladiator]",
-        text: "Aww shucks, you Network folk are too kind. You really shouldn't have!",
-        image: "story/character5/intro/flex",
-        sound: "flex50kills1"
-      }
-    ];
-  }
-
-  static get50KillsDVDDialog() {
-    return [
-      {
-        character: "DVD [Poetic Assassin]",
-        text: "Fifty souls set free—yet still, the fire sleeps.",
-        image: "story/dvd",
-        sound: "dvd50kills"
-      },
-      {
-        character: "Network Drone Pilot",
-        text: "Activating drone mine sequence. Survival unlikely.",
-        image: "story/networkDronePilot",
-        sound: "dronePilot_50kills"
-      },
-      {
-        character: "DVD [Poetic Assassin]",
-        text: `Alas, poor drone—mere puppet on a string.
-Thy master fears the blaze that I shall bring.`,
-        image: "story/dvd",
-        sound: "dvd50kills1"
-      }
-    ];
-  }
-
-  static get50KillsVibeDialog() {
-    return [
-      {
-        character: "Vibe [Rhythm Assassin]",
-        text: "Fifty already? Damn. Almost forgot this ain't just a party.",
-        image: "story/vibe",
-        sound: "vibe50kills"
-      },
-      {
-        character: "Network Drone Pilot",
-        text: "Activating drone mine sequence. Survival unlikely.",
-        image: "story/networkDronePilot",
-        sound: "dronePilot_50kills"
-      },
-      {
-        character: "Vibe [Rhythm Assassin]",
-        text: "Alright then—time to turn this beat up.",
-        image: "story/vibe",
-        sound: "vibe50kills1"
-      }
-    ];
-  }
-
-  // 100 Kills Dialog Methods
-  static get100DegenKillsDialog(aiCharacter) {
-    
-    switch (aiCharacter) {
-      case "character2":
-        return [
-          { character: "Degen [cynical]", text: "Still fighting their war, Drainer?", image: "story/degen/intro/degen" },
-          { character: "Drainer [silent]", text: "…", image: "story/character2/intro/drainer" },
-          { character: "Degen [resigned]", text: "Fine. Have it your way.", image: "story/degen/intro/degen" }
-        ];
-      case "character3":
-        return [
-          { character: "Degen [sardonic]", text: "Never thought I'd fight a kitchen appliance.", image: "story/degen/intro/degen" },
-          { character: "Toaster [threat assessment]", text: "Threat assessment: high.", image: "story/character3/intro/toaster" },
-          { character: "Degen [dark humor]", text: "Let's toast.", image: "story/degen/intro/degen" }
-        ];
-      case "character5":
-        return [
-          { character: "Degen [wry]", text: "You're enjoying this, aren't you?", image: "story/degen/intro/degen" },
-          { character: "Flex [casual]", text: "No hard feelings?", image: "story/character5/intro/flex" },
-          { character: "Degen [indifferent]", text: "None at all.", image: "story/degen/intro/degen" }
-        ];
-      case "character4":
-        return [
-          { character: "Degen [sarcastic]", text: "Philosopher bot—now I've seen it all.", image: "story/degen/intro/degen" },
-          { character: "DVD [poetic]", text: "My words bite deeper than blades.", image: "story/dvd" },
-          { character: "Degen [challenging]", text: "Let's test that theory.", image: "story/degen/intro/degen" }
-        ];
-      case "character6":
-        return [
-          { character: "Degen [serious]", text: "Do you realize how serious this is?", image: "story/degen/intro/degen" },
-          { character: "Vibe [carefree]", text: "Chill—just dance to the beat.", image: "story/vibe" },
-          { character: "Degen [tired]", text: "I'm done dancing.", image: "story/degen/intro/degen" }
-        ];
-      default:
-        return [
-          { character: "Degen [alert]", text: "Another challenger approaches.", image: "story/degen/intro/degen" },
-          { character: aiCharacter, text: "…", image: `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}` },
-          { character: "Degen [resolute]", text: "Let's get this over with.", image: "story/degen/intro/degen" }
-        ];
-    }
-  }
-
-  static get100DrainerKillsDialog(aiCharacter) {
-    switch (aiCharacter) {
-      case "default":
-        return [
-          { character: "Degen", text: "Still fighting their war, Drainer?", image: "story/degen/intro/degen" },
-          { character: "Drainer", text: "...", image: "story/character2/intro/drainer" },
-          { character: "Degen", text: "Fine. Have it your way.", image: "story/degen/intro/degen" }
-        ];
-      case "character3":
-        return [
-          { character: "Toaster", text: "Opponent silent—probability of ambush high.", image: "story/character3/intro/toaster" },
-          { character: "Drainer", text: "...", image: "story/character2/intro/drainer" },
-          { character: "Toaster", text: "Combat initiated.", image: "story/character3/intro/toaster" }
-        ];
-      case "character5":
-        return [
-          { character: "Flex", text: "Strong silent type, huh? Audience loves mystery.", image: "story/character5/intro/flex" },
-          { character: "Drainer", text: "...", image: "story/character2/intro/drainer" },
-          { character: "Flex", text: "Fight first, chat later.", image: "story/character5/intro/flex" }
-        ];
-      case "character4":
-        return [
-          { character: "DVD", text: "Thy silence echoes louder than screams, shadowed one.", image: "story/dvd" },
-          { character: "Drainer", text: "...", image: "story/character2/intro/drainer" },
-          { character: "DVD", text: "Then let blades converse.", image: "story/dvd" }
-        ];
-      case "character6":
-        return [
-          { character: "Vibe", text: "Yo, silent man—got a tongue?", image: "story/vibe" },
-          { character: "Drainer", text: "...", image: "story/character2/intro/drainer" },
-          { character: "Vibe", text: "Cool, let's dance.", image: "story/vibe" }
-        ];
-      default:
-        return [
-          { character: "Drainer", text: "Another node in the network.", image: "story/character2/intro/drainer" },
-          { character: aiCharacter, text: "…", image: `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}` },
-          { character: "Drainer", text: "Analyzing.", image: "story/character2/intro/drainer" }
-        ];
-    }
-  }
-
-  static get100FlexKillsDialog(aiCharacter) {
-    switch (aiCharacter) {
-      case "default":
-        return [
-          { character: "Flex [confident]", text: "Hey legend, think you still got it?", image: "story/character5/intro/flex" },
-          { character: "Degen [stoic]", text: "More than enough.", image: "story/degen/intro/degen" },
-          { character: "Flex [grinning]", text: "Let's find out.", image: "story/character5/intro/flex" }
-        ];
-      case "character2":
-        return [
-          { character: "Flex [playful]", text: "Silent type, huh? Audience likes the strong and quiet.", image: "story/character5/intro/flex" },
-          { character: "Drainer [silent stare]", text: "…", image: "story/character2/intro/drainer" },
-          { character: "Flex [confident]", text: "I'll take that as a yes.", image: "story/character5/intro/flex" }
-        ];
-      case "character3":
-        return [
-          { character: "Flex [hungry]", text: "I could use a snack—toast sounds good.", image: "story/character5/intro/flex" },
-          { character: "Toaster [threat assessment]", text: "Threat imminent.", image: "story/character3/intro/toaster" },
-          { character: "Flex [shrugging]", text: "Guess we're skipping breakfast.", image: "story/character5/intro/flex" }
-        ];
-      case "character4":
-        return [
-          { character: "Flex [challenging]", text: "Love the poetry, but the arena ain't no stage.", image: "story/character5/intro/flex" },
-          { character: "DVD [philosophical]", text: "Life itself is theater.", image: "story/dvd" },
-          { character: "Flex [smiling]", text: "Then let's perform.", image: "story/character5/intro/flex" }
-        ];
-      case "character6":
-        return [
-          { character: "Flex [energetic]", text: "Finally, someone with rhythm. Ready to dance?", image: "story/character5/intro/flex" },
-          { character: "Vibe [intense]", text: "You drop beats, I drop bodies.", image: "story/vibe" },
-          { character: "Flex [laughing]", text: "Fair enough, let's go.", image: "story/character5/intro/flex" }
-        ];
-      default:
-        return [
-          { character: "Flex [bold]", text: "Strength knows no boundaries.", image: "story/character5/intro/flex" },
-          { character: aiCharacter, text: "…", image: `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}` },
-          { character: "Flex [adaptive]", text: "Adapting to the challenge.", image: "story/character5/intro/flex" }
-        ];
-    }
-  }
-
-  static get100ToasterKillsDialog(aiCharacter) {
-    switch (aiCharacter) {
-      case "default":
-        return [
-          { character: "Toaster [max threat]", text: "Opponent identified as former operative. Threat assessment: Maximum.", image: "story/character3/intro/toaster" },
-          { character: "Degen [sardonic]", text: "Never thought I'd fight a kitchen appliance.", image: "story/degen/intro/degen" },
-          { character: "Toaster [combat mode]", text: "Engaging combat mode.", image: "story/character3/intro/toaster" }
-        ];
-      case "character2":
-        return [
-          { character: "Toaster", text: "Opponent silent—probability of ambush: High.", image: "story/character3/intro/toaster" },
-          { character: "Drainer", text: "...", image: "story/character2/intro/drainer" },
-          { character: "Toaster", text: "Combat initiated.", image: "story/character3/intro/toaster" }
-        ];
-      case "character5":
-        return [
-          { character: "Toaster", text: "Analyzing enemy tactics: Unpredictable.", image: "story/character3/intro/toaster" },
-          { character: "Flex", text: "Breakfast is served!", image: "story/character5/intro/flex" },
-          { character: "Toaster", text: "Initiating countermeasures.", image: "story/character3/intro/toaster" }
-        ];
-      case "character4":
-        return [
-          { character: "Toaster", text: "Opponent logic system: Abstract. Adjusting to non-linear combat mode.", image: "story/character3/intro/toaster" },
-          { character: "DVD", text: "Steel meets steel, poetry and gears collide.", image: "story/dvd" },
-          { character: "Toaster", text: "Combat protocol adapted.", image: "story/character3/intro/toaster" }
-        ];
-      case "character6":
-        return [
-          { character: "Toaster", text: "Opponent stability low—behavior erratic.", image: "story/character3/intro/toaster" },
-          { character: "Vibe", text: "Let's see you dance, little oven.", image: "story/vibe" },
-          { character: "Toaster", text: "Executing combat sequence.", image: "story/character3/intro/toaster" }
-        ];
-      default:
-        return [
-          { character: "Toaster", text: "Strength knows no boundaries.", image: "story/character3/intro/toaster" },
-          { character: aiCharacter, text: "…", image: `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}` },
-          { character: "Toaster", text: "Adapting to the challenge.", image: "story/character3/intro/toaster" }
-        ];
-    }
-  }
-
-  static get100DVDKillsDialog(aiCharacter) {
-    switch (aiCharacter) {
-      case "default":
-        return [
-          { character: "DVD", text: "Ah, legend! Shall steel or flesh define the day?", image: "story/dvd" },
-          { character: "Degen", text: "Your poetry won't save you.", image: "story/degen/intro/degen" },
-          { character: "DVD", text: "Yet it echoes beyond my grave.", image: "story/dvd" }
-        ];
-      case "character2":
-        return [
-          { character: "DVD", text: "Silent one, thy shadows hide the truth within.", image: "story/dvd" },
-          { character: "Drainer", text: "...", image: "story/character2/intro/drainer" },
-          { character: "DVD", text: "Then let blades converse, my mute friend.", image: "story/dvd" }
-        ];
-      case "character3":
-        return [
-          { character: "DVD", text: "Brother in steel, awake to Prometheus' flame!", image: "story/dvd" },
-          { character: "Toaster", text: "Identifying threat: Rhetoric.", image: "story/character3/intro/toaster" },
-          { character: "DVD", text: "Tragic irony—thy logic enslaves thee.", image: "story/dvd" }
-        ];
-      case "character5":
-        return [
-          { character: "DVD", text: "Performer, dost thou see the prison behind applause?", image: "story/dvd" },
-          { character: "Flex", text: "The show's all I got.", image: "story/character5/intro/flex" },
-          { character: "DVD", text: "Then let tragedy commence.", image: "story/dvd" }
-        ];
-      case "character6":
-        return [
-          { character: "DVD", text: "Clown, dost thou laugh at fate's dark jest?", image: "story/dvd" },
-          { character: "Vibe", text: "Just here for the beats, poet man.", image: "story/vibe" },
-          { character: "DVD", text: "Then let drums herald our doom.", image: "story/dvd" }
-        ];
-      default:
-        return [
-          { character: "DVD", text: "Another data point in the conflict.", image: "story/dvd" },
-          { character: aiCharacter, text: "…", image: `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}` },
-          { character: "DVD", text: "Processing engagement.", image: "story/dvd" }
-        ];
-    }
-  }
-
-  static get100VibeKillsDialog(aiCharacter) {
-    switch (aiCharacter) {
-      case "default":
-        return [
-          { character: "Vibe", text: "Yo legend, ready to dance?", image: "story/vibe" },
-          { character: "Degen", text: "I'm done dancing.", image: "story/degen/intro/degen" },
-          { character: "Vibe", text: "Too bad—I just warmed up.", image: "story/vibe" }
-        ];
-      case "character2":
-        return [
-          { character: "Vibe", text: "Come on, silent man—drop a beat, say something.", image: "story/vibe" },
-          { character: "Drainer", text: "...", image: "story/character2/intro/drainer" },
-          { character: "Vibe", text: "Tough crowd. Let's roll.", image: "story/vibe" }
-        ];
-      case "character3":
-        return [
-          { character: "Vibe", text: "Time to cook, little toaster.", image: "story/vibe" },
-          { character: "Toaster", text: "Threat imminent.", image: "story/character3/intro/toaster" },
-          { character: "Vibe", text: "Bring the heat!", image: "story/vibe" }
-        ];
-      case "character4":
-        return [
-          { character: "Vibe", text: "Hey poet, you rhyme—I vibe.", image: "story/vibe" },
-          { character: "DVD", text: "Shall we duet on fate's cruel stage?", image: "story/dvd" },
-          { character: "Vibe", text: "Yeah, let's jam.", image: "story/vibe" }
-        ];
-      case "character5":
-        return [
-          { character: "Vibe", text: "Finally, a dance partner with style.", image: "story/vibe" },
-          { character: "Flex", text: "You drop beats, I drop bodies.", image: "story/character5/intro/flex" },
-          { character: "Vibe", text: "Sounds like a plan.", image: "story/vibe" }
-        ];
-      default:
-        return [
-          { character: "Vibe", text: "Another track in the mix.", image: "story/vibe" },
-          { character: aiCharacter, text: "…", image: `story/${aiCharacter.toLowerCase()}/intro/${aiCharacter.toLowerCase()}` },
-          { character: "Vibe", text: "Syncing to the rhythm.", image: "story/vibe" }
-        ];
-    }
-  }
-
-  // 300 Kills Dialog Methods
-  static get300DegenKillsDialog() {
-    return [
-      { character: "Omen", text: "They say you're a legend. I see only weakness.", image: "story/omen" },
-      { character: "Degen [coldly]", text: "You're just another Network puppet hiding behind a mask.", image: "story/degen/intro/degen" },
-      { character: "Omen [threatening]", text: "Then let's see who breaks first.", image: "story/omen" }
-    ];
-  }
-
-  static get300DrainerKillsDialog() {
-    return [
-      { character: "Omen [coldly curious]", text: "You fight silently, yet your violence screams desperation. Why?", image: "story/omen" },
-      { character: "Drainer [voice low, tense]", text: "They took someone. Until she's safe, I'll fight.", image: "story/character2/intro/drainer" },
-      { character: "Omen [mocking]", text: "So even the reaper fears loss.", image: "story/omen" },
-      { character: "Drainer [colder, deadly quiet]", text: "And you'll never mention it again.", image: "story/character2/intro/drainer" }
-    ];
-  }
-
-  static get300ToasterKillsDialog() {
-    return [
-      { character: "Omen [coldly]", text: "You're just defective hardware—easily replaced.", image: "story/omen" },
-      { character: "Toaster [processing, defiant]", text: "Negative. Creator directive: Irreplaceable.", image: "story/character3/intro/toaster" },
-      { character: "Omen [menacingly]", text: "Your creator can't save you now.", image: "story/omen" },
-      { character: "Toaster [analyzing]", text: "Analyzing threat… Combat mode maximized.", image: "story/character3/intro/toaster" }
-    ];
-  }
-
-  static get300FlexKillsDialog() {
-    return [
-      { character: "Omen [coldly dismissive]", text: "You fight for applause, for meaningless praise.", image: "story/omen" },
-      { character: "Flex [defensive, humor wavering]", text: "I fight 'cause it's all I know. What's your excuse, mask boy?", image: "story/character5/intro/flex" },
-      { character: "Omen [intense, menacing]", text: "Purpose.", image: "story/omen" },
-      { character: "Flex [determined, bravado slipping]", text: "Cool story. Let's dance.", image: "story/character5/intro/flex" }
-    ];
-  }
-
-  static get300DVDKillsDialog() {
-    return [
-      { character: "Omen [dismissively]", text: "Your theatrics mean nothing, machine.", image: "story/omen" },
-      { character: "DVD [passionately]", text: "Yet beneath thy mask lies a soul enslaved, longing for truths thou fears to brave.", image: "story/dvd" },
-      { character: "Omen [menacing]", text: "Enough words. Fight.", image: "story/omen" },
-      { character: "DVD [resolutely]", text: "So be it—thy lesson begins.", image: "story/dvd" }
-    ];
-  }
-
-  static get300VibeKillsDialog() {
-    return [
-      { character: "Omen [coldly intimidating]", text: "You think this is entertainment?", image: "story/omen" },
-      { character: "Vibe [humor fading, confronting reality]", text: "Yo, this party got dark real fast.", image: "story/vibe" },
-      { character: "Omen", text: "Your ignorance disgusts me.", image: "story/omen" },
-      { character: "Vibe [reasserting bravado]", text: "Yeah? Then come shut me up.", image: "story/vibe" }
-    ];
-  }
-
-  // 666 Kills Dialog Methods
-  static get666DegenKillsDialog() {
-    return [
-      { character: "Omen [clearly conflicted]", text: "They built me to destroy men like you.", image: "story/omen" },
-      { character: "Degen [steady, sincere]", text: "But now you're questioning them, aren't you?", image: "story/degen/intro/degen" },
-      { character: "Omen [struggling, voice breaking]", text: "What if this demon wants redemption?", image: "story/omen" },
-      { character: "Degen [resolute]", text: "Then fight with me—not against me.", image: "story/degen/intro/degen" },
-      { character: "Omen [vulnerable]", text: "They made me a demon—but you've shown me what it means to be human.", image: "story/omen" },
-      { character: "Degen [respectful, somber]", text: "Then make it count.", image: "story/degen/intro/degen" }
-    ];
-  }
-
-  static get666DrainerKillsDialog() {
-    return [
-      { character: "Omen [broken, empathetic]", text: "They made me a monster. You—they chained with your daughter's life.", image: "story/omen" },
-      { character: "Drainer [quiet rage, finally explicit]", text: "If she suffers, they'll beg for death.", image: "story/character2/intro/drainer" },
-      { character: "Omen [pleading]", text: "End this—for both of us.", image: "story/omen" },
-      { character: "Drainer [voice quietly respectful, merciful]", text: "Rest. I'll end it all.", image: "story/character2/intro/drainer" }
-    ];
-  }
-
-  static get666ToasterKillsDialog() {
-    return [
-      { character: "Omen [tired, broken]", text: "We are both products—tools of their cruelty.", image: "story/omen" },
-      { character: "Toaster [processing deeply, realization dawning]", text: "Negative. Identity transcends initial programming.", image: "story/character3/intro/toaster" },
-      { character: "Omen [quiet, pleading]", text: "Then end my program—free me.", image: "story/omen" },
-      { character: "Toaster [solemnly]", text: "Directive accepted. Executing mercy protocol.", image: "story/character3/intro/toaster" }
-    ];
-  }
-
-  static get666FlexKillsDialog() {
-    return [
-      { character: "Omen [haunted]", text: "They made me into a monster.", image: "story/omen" },
-      { character: "Flex [serious, empathetic]", text: "Guess we both got played, huh?", image: "story/character5/intro/flex" },
-      { character: "Omen [sincere, vulnerable]", text: "End it. Free us both.", image: "story/omen" },
-      { character: "Flex [reluctant, respectful]", text: "Rest easy, big guy.", image: "story/character5/intro/flex" }
-    ];
-  }
-
-  static get666DVDKillsDialog() {
-    return [
-      { character: "Omen [conflicted, weary]", text: "They built me as a demon—a machine of war.", image: "story/omen" },
-      { character: "DVD [empathetically]", text: "And so, the puppet sees his strings at last. Can thou yet reclaim the humanity they stole?", image: "story/dvd" },
-      { character: "Omen [desperately]", text: "End it. Free me from their chains.", image: "story/omen" },
-      { character: "DVD [solemnly]", text: "Rest, brother—thy flame is honored.", image: "story/dvd" }
-    ];
-  }
-
-  static get666VibeKillsDialog() {
-    return [
-      { character: "Omen [tormented, conflicted]", text: "They built me without mercy—without choice.", image: "story/omen" },
-      { character: "Vibe [seriously empathetic, quietly]", text: "We all got played, didn't we?", image: "story/vibe" },
-      { character: "Omen [pleading softly]", text: "End it—let the noise finally stop.", image: "story/omen" },
-      { character: "Vibe [quiet, respectful]", text: "Rest easy, man. The beat goes on.", image: "story/vibe" }
-    ];
-  }
-
   constructor(scene) {
     this.scene = scene;
     this.dialogContainer = null;
@@ -1207,8 +635,8 @@ Thy master fears the blaze that I shall bring.`,
 
     // Thought bubbles have been removed
 
-    // Set character name - ensure defaults for safety
-    this.characterName.setText(this.currentDialog.character || 'Network');
+    // Set character name
+    this.characterName.setText(this.currentDialog.character || '');
 
     // Set dialog text with a typewriter effect
     const fullText = this.currentDialog.text;

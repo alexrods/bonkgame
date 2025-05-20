@@ -12,7 +12,6 @@ import { WeaponsMenu } from '../ui/WeaponsMenu.js';
 export class TutorialScene extends Phaser.Scene {
   constructor() {
     super({ key: 'TutorialScene' });
-    this.isTutorial = true;
     this.introMusic = null;
     this.playerAccount = null;
     this.tutorialStep = 0;
@@ -2493,10 +2492,7 @@ export class TutorialScene extends Phaser.Scene {
   checkPlayerEnemyCollisions() {
     const player = this.playerManager.getPlayer();
     
-    const enemies = this.enemyManager.getEnemies();
-    if (!enemies || !enemies.children) return;
-    
-    enemies.children.each(enemy => {
+    this.enemyManager.getEnemies().children.each(enemy => {
       if (enemy.isAttacking) return;
       
       const dx = player.x - enemy.x;

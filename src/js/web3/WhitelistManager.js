@@ -35,6 +35,7 @@ export class WhitelistManager {
       addresses.forEach(address => {
         this.whitelistedAddresses.add(address);
       });
+      console.log("addresses", addresses);
       
       this.isLoaded = true;
       console.log(`Whitelist loaded: ${this.whitelistedAddresses.size} addresses`);

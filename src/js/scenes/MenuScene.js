@@ -1,6 +1,7 @@
-import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from "../../config.js";
+import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG, VERSUS_MODE_COST } from "../../config.js";
 import { PlayerAccount } from "../web3/PlayerAccount.js";
 import { DepositWithdrawPrompt } from "../ui/DepositWithdrawPrompt.js";
+import { setCreditCount } from "../utils/api.js";
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -9,6 +10,7 @@ export class MenuScene extends Phaser.Scene {
     this.playerAccount = null;
     this.cachedAudioElements = {}; // Cache for HTML Audio objects
     this.depositWithdrawPrompt = null;
+    this.multiplayerButtons = [];
   }
 
   init(data) {
@@ -495,7 +497,7 @@ export class MenuScene extends Phaser.Scene {
 
     // Create bonk balance text
     const accountBalanceText = this.add.text(
-      0,
+      50,
       15,
       formattedAccountBalanceBalance,
       {
@@ -818,7 +820,7 @@ export class MenuScene extends Phaser.Scene {
       this.registry.set("forceHost", true);
 
       // Start character select before lobby
-      this.scene.start("CharacterSelectScene");
+      this.scene.start("CoopHostScene");
     });
 
     joinButton.on("pointerdown", () => {
@@ -1136,8 +1138,7 @@ export class MenuScene extends Phaser.Scene {
       ) {
         this.load.image(
           selectedCharacter === "default" ? "degen" : selectedCharacter,
-          `assets/story/${characterPath}/intro/${
-            selectedCharacter === "default" ? "degen" : selectedCharacter
+          `assets/story/${characterPath}/intro/${selectedCharacter === "default" ? "degen" : selectedCharacter
           }.png`
         );
       }
@@ -1352,39 +1353,118 @@ export class MenuScene extends Phaser.Scene {
     }
 
     // Check if warning already exists
+
+    // Check if warning already exists
     if (this.warningText) {
       // If it exists, reset the animation
-      this.warningText.setAlpha(1);
-      this.time.removeEvent(this.warningFadeEvent);
-      this.tweens.killTweensOf(this.warningText);
-    } else {
-      // Calculate responsive font size for warning text
-      const screenWidth = this.cameras.main.width;
-      let warningFontSize = Math.max(20, Math.floor(screenWidth * 0.038)); // 3.8% of screen width, minimum 20px
-
-      // Create warning text matching the style of other menu elements but in red
-      this.warningText = this.add.text(
-        this.cameras.main.width / 2,
-        this.cameras.main.height * 0.88, // Positioned below tutorial button
-        "CONNECT WALLET TO PLAY!",
-        {
-          fontFamily: "Arial Black", // Same as other menu text
-          fontSize: `${warningFontSize}px`,
-          color: "#ff0000", // Red text
-          stroke: "#000000",
-          strokeThickness: 6,
-          shadow: {
-            offsetX: 2,
-            offsetY: 2,
-            color: "#aa0000", // Darker red shadow
-            blur: 5,
-            stroke: true,
-            fill: true,
-          },
-        }
-      );
-      this.warningText.setOrigin(0.5);
+      this.warningText.destroy();
+      this.warningText = null;
     }
+    // Calculate responsive font size for warning text
+    const screenWidth = this.cameras.main.width;
+    let warningFontSize = Math.max(20, Math.floor(screenWidth * 0.038)); // 3.8% of screen width, minimum 20px
+
+    // Create warning text matching the style of other menu elements but in red
+    this.warningText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height * 0.88, // Positioned below tutorial button
+      "CONNECT WALLET TO PLAY!",
+      {
+        fontFamily: "Arial Black", // Same as other menu text
+        fontSize: `${warningFontSize}px`,
+        color: "#ff0000", // Red text
+        stroke: "#000000",
+        strokeThickness: 6,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: "#aa0000", // Darker red shadow
+          blur: 5,
+          stroke: true,
+          fill: true,
+        },
+      }
+    );
+    this.warningText.setOrigin(0.5);
+
+    // Now recreate the scanlines so they're on top of the warning
+    this.scanlines = this.createScanlines();
+    if (scanlinesDepth > 0) {
+      this.scanlines.setDepth(scanlinesDepth);
+    }
+
+    // Just animate the warning text
+    const warningElements = [this.warningText];
+
+    // Add shaking animation to the warning text
+    this.tweens.add({
+      targets: warningElements,
+      x: {
+        from: this.cameras.main.width / 2 - 10,
+        to: this.cameras.main.width / 2 + 10,
+      },
+      duration: 60,
+      yoyo: true,
+      repeat: 5,
+      ease: "Sine.easeInOut",
+    });
+
+    // Fade out after 2 seconds
+    this.warningFadeEvent = this.time.delayedCall(2000, () => {
+      this.tweens.add({
+        targets: warningElements,
+        alpha: 0,
+        duration: 500,
+        onComplete: () => {
+          if (this.warningText) {
+            this.warningText.destroy();
+            this.warningText = null;
+          }
+        },
+      });
+    });
+  }
+
+  showNotEnoughAccountBalanceWarning() {
+    // Check if scanlines exist and temporarily store their depth
+    let scanlinesDepth = 0;
+    if (this.scanlines) {
+      scanlinesDepth = this.scanlines.depth || 0;
+      this.scanlines.destroy();
+    }
+
+    // Check if warning already exists
+    if (this.warningText) {
+      // If it exists, reset the animation
+      this.warningText.destroy();
+      this.warningText = null;
+    }
+    // Calculate responsive font size for warning text
+    const screenWidth = this.cameras.main.width;
+    let warningFontSize = Math.max(20, Math.floor(screenWidth * 0.038)); // 3.8% of screen width, minimum 20px
+
+    // Create warning text matching the style of other menu elements but in red
+    this.warningText = this.add.text(
+      this.cameras.main.width / 2,
+      this.cameras.main.height * 0.88, // Positioned below tutorial button
+      "Please Charge To Play!",
+      {
+        fontFamily: "Arial Black", // Same as other menu text
+        fontSize: `${warningFontSize}px`,
+        color: "#ff0000", // Red text
+        stroke: "#000000",
+        strokeThickness: 6,
+        shadow: {
+          offsetX: 2,
+          offsetY: 2,
+          color: "#aa0000", // Darker red shadow
+          blur: 5,
+          stroke: true,
+          fill: true,
+        },
+      }
+    );
+    this.warningText.setOrigin(0.5);
 
     // Now recreate the scanlines so they're on top of the warning
     this.scanlines = this.createScanlines();
@@ -1862,6 +1942,7 @@ export class MenuScene extends Phaser.Scene {
     this.scanlines.setDepth(100); // Ensure it's above everything
   }
 
+
   createPlayOrConnectButton() {
     // Clean up any existing buttons
     if (this.playButton) {
@@ -2089,7 +2170,7 @@ export class MenuScene extends Phaser.Scene {
     // Add click event for the versus button
     this.versusButton.on("pointerdown", () => {
       // Only start the game if wallet is connected
-      if (this.playerAccount.isPlayerAuthenticated()) {
+      if (this.playerAccount.isPlayerAuthenticated()){
         // Record that we're playing versus mode
         this.registry.set("multiplayer", false); // Not using multiplayer networking
         this.registry.set("versusMode", true); // Flag for versus AI mode
@@ -2102,8 +2183,14 @@ export class MenuScene extends Phaser.Scene {
           // New player MUST play the tutorial first
           this.startTutorial();
         } else {
-          // Go to character select screen to choose player character
-          this.scene.start("CharacterSelectScene", { versusMode: true });
+          const existingAccount = this.registry.get("playerAccount");
+          if (existingAccount.gameAccountBalance >= VERSUS_MODE_COST) {
+            // Go to lobby scene
+            this.scene.start('LobbyScene');
+          } else {
+            console.log('Not enough balance to play versus mode');
+            this.showNotEnoughAccountBalanceWarning();
+          }
         }
       } else {
         // Show error message when trying to play without wallet
@@ -2382,7 +2469,7 @@ export class MenuScene extends Phaser.Scene {
       // Vertical navigation (D-pad or left stick)
       const verticalInput =
         (gamepad.buttons[12]?.pressed ? -1 : 0) +
-          (gamepad.buttons[13]?.pressed ? 1 : 0) || // D-pad up/down
+        (gamepad.buttons[13]?.pressed ? 1 : 0) || // D-pad up/down
         gamepad.axes[1]; // Left stick vertical
 
       if (Math.abs(verticalInput) > 0.5) {
@@ -2438,7 +2525,7 @@ export class MenuScene extends Phaser.Scene {
     );
 
     // Create glow effect (using green for ATM mode)
-    const atmGlow = this.add.rectangle(0, 0, 180, 90, 0x00ff00, 0.2);
+    const atmGlow = this.add.rectangle(0, 50, 180, 90, 0x00ff00, 0.2);
     this.atmButtonContainer.add(atmGlow);
 
     // Add pulsating animation to the glow
@@ -2462,7 +2549,7 @@ export class MenuScene extends Phaser.Scene {
     ); // 6.2% of screen width, minimum 30px
 
     // Create ATM button
-    this.atmButton = this.add.text(0, 0, "ATM", {
+    this.atmButton = this.add.text(0, 50, "ATM", {
       fontFamily: '"Tektur", monospace, Courier, Arial',
       fontSize: `${atmFontSize}px`,
       color: "#ffffff",
@@ -2644,10 +2731,6 @@ export class MenuScene extends Phaser.Scene {
       characterImageKey = "cutscene_character3";
     } else if (selectedCharacter === "character5") {
       characterImageKey = "cutscene_character5";
-    } else if (selectedCharacter === "character6") {
-      characterImageKey = "cutscene_character6";
-    } else if (selectedCharacter === "character4") {
-      characterImageKey = "cutscene_character4";
     }
 
     // Position character image at the bottom of the screen initially
