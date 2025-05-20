@@ -68,8 +68,10 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     // Connect to the socket.io server
-    console.log('Connecting to socket.io server');
-    this.socket = io('http://192.168.144.47:9031', {
+    // Get the base URL from environment variable and remove the '/api' suffix
+    const baseURL = import.meta.env.VITE_BASE_API_URL.replace('/api', '');
+    console.log('Connecting to socket.io server at:', baseURL);
+    this.socket = io(baseURL, {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
