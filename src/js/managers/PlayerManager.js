@@ -16,26 +16,26 @@ export class PlayerManager {
     this.autoFireTimer = null;
     this.autoFireStartTime = 0; // Track when auto-fire started
     this.bullets = null;
-    this.fireRate = 100; // Default fire rate in ms - can be modified by upgrades
+    this.fireRate = 250; // Default fire rate in ms - can be modified by upgrades
     this.controlsEnabled = true; // Flag to disable controls during deposit/withdraw screens
     
     // Weapon system
-    this.weaponType = 'shotgun'; // Default weapon type (can be 'rifle' or 'shotgun')
+    this.weaponType = 'rifle'; // Default weapon type (can be 'rifle' or 'shotgun')
     this.originalWeaponType = 'rifle';
     
     // Ammo system
-    this.magazineSize = 1000; // AR-15 standard capacity
+    this.magazineSize = 30; // AR-15 standard capacity
     this.currentAmmo = this.magazineSize; // Start with a full mag
     
     // Check if we're in tutorial scene to give more magazines
     if (scene.constructor.name === 'TutorialScene' || scene.key === 'TutorialScene') {
-      this.totalMagazines = 10; // Start with 5 extra magazines in tutorial (6 total with the loaded one)
+      this.totalMagazines = 5; // Start with 5 extra magazines in tutorial (6 total with the loaded one)
       console.log("Tutorial detected, starting with 5 extra magazines (6 total with loaded magazine)");
     } else {
-      this.totalMagazines = 10; // Start with three extra mags in regular game
+      this.totalMagazines = 3; // Start with three extra mags in regular game
     }
     this.isReloading = false;
-    this.reloadTime = 10; // 1.5 seconds to reload
+    this.reloadTime = 1500; // 1.5 seconds to reload
     this.reloadTimer = null;
     this.ammoDisplay = null;
     this.reloadPrompt = null;
@@ -62,6 +62,16 @@ export class PlayerManager {
     this.deathAnimProgress = { frame: 0 };
     this.deathAnimTimers = [];
     this.currentDeathFrame = 0;
+    
+    // Multiplayer properties
+    this.isMultiplayer = scene.registry.get('multiplayer') || false;
+    this.isHost = scene.registry.get('isHost') || false;
+    this.otherPlayer = null;
+    this.otherPlayerShadows = [];
+    this.otherPlayerBullets = null;
+    this.lastUpdateTimestamp = 0;
+    this.updateInterval = 50; // Send updates every 50ms
+    this.lastPlayerState = null;
   }
 
   detectMobile() {
@@ -84,6 +94,11 @@ export class PlayerManager {
     
     // Initialize ammo display early
     this.createAmmoDisplay();
+    
+    // Initialize multiplayer bullets if in multiplayer mode
+    if (this.isMultiplayer) {
+      this.createOtherPlayerBulletGroup();
+    }
     
     this.setupInput();
     
@@ -116,6 +131,227 @@ export class PlayerManager {
       window.addEventListener('gamepaddisconnected', (e) => {
         this.handleGamepadDisconnection(e);
       });
+    }
+    
+    // Set up multiplayer event handlers
+    if (this.isMultiplayer) {
+      this.setupMultiplayerEvents();
+    }
+  }
+  
+  // Setup multiplayer event listeners
+  setupMultiplayerEvents() {
+    console.log(`Setting up multiplayer events. Host: ${this.isHost}`);
+    
+    // Initialize Socket.io connection
+    this.socket = io('http://localhost:3000');
+    console.log('Initializing socket.io connection');
+    
+    // Listen for connection event
+    this.socket.on('connect', () => {
+      console.log('Connected to socket.io server with ID:', this.socket.id);
+      
+      // Join game room using sessionId from the registry
+      const sessionId = this.scene.registry.get('sessionId');
+      
+      if (sessionId) {
+        console.log(`Joining game room: ${sessionId}`);
+        this.socket.emit('joinRoom', {
+          sessionId: sessionId,
+          playerId: this.scene.registry.get('playerId'),
+          isHost: this.isHost
+        });
+      } else {
+        console.error('No sessionId found in registry for multiplayer');
+      }
+    });
+    
+    // Connection error handling
+    this.socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+    
+    // Listen for player updates from the other player
+    this.socket.on('playerUpdate', (data) => {
+      this.handleOtherPlayerUpdate(data);
+    });
+    
+    // Listen for bullet creation from the other player
+    this.socket.on('bulletFired', (data) => {
+      this.handleOtherPlayerBullet(data);
+    });
+    
+    // Also set up a local event emitter as fallback
+    if (!this.scene.registry.get('multiplayerEvents')) {
+      this.scene.registry.set('multiplayerEvents', new Phaser.Events.EventEmitter());
+    }
+    this.multiplayerEvents = this.scene.registry.get('multiplayerEvents');
+  }
+  
+  // Create bullet group for other player
+  createOtherPlayerBulletGroup() {
+    // Create group for other player's bullets (visual only, no collisions)
+    this.otherPlayerBullets = this.scene.physics.add.group({
+      defaultKey: 'bullet',
+      maxSize: 30,
+      allowGravity: false,
+      runChildUpdate: true,
+      collideWorldBounds: false,
+      classType: Phaser.Physics.Arcade.Sprite
+    });
+    
+    console.log("Other player bullet group created");
+  }
+  
+  // Handle updates from the other player
+  handleOtherPlayerUpdate(data) {
+    if (!this.otherPlayer) {
+      this.createOtherPlayer();
+    }
+    
+    // Update other player's position and animation
+    this.otherPlayer.x = data.x;
+    this.otherPlayer.y = data.y;
+    this.otherPlayer.setFlipX(data.isFlipped);
+    
+    // Update animation based on received state
+    const otherCharacter = this.selectedCharacter === 'default' ? 'character2' : 'default';
+    const animPrefix = otherCharacter !== 'default' ? `${otherCharacter}_` : '';
+    
+    // Helper function to safely play animation with fallback for other player
+    const safePlayOtherPlayerAnimation = (animKey, fallbackKey) => {
+      // Check if otherPlayer exists first
+      if (!this.otherPlayer) {
+        console.error("Other player sprite is undefined, cannot play animation");
+        return;
+      }
+      
+      if (this.scene.anims.exists(animKey)) {
+        this.otherPlayer.play(animKey, true);
+      } else if (this.scene.anims.exists(fallbackKey)) {
+        this.otherPlayer.play(fallbackKey, true);
+      } else if (this.scene.anims.exists('down_idle')) {
+        // Last resort fallback
+        this.otherPlayer.play('down_idle', true);
+      } else {
+        console.error(`No animations found for other player: ${animKey}, ${fallbackKey}`);
+      }
+    };
+    
+    // If the player is actively shooting
+    if (data.isShooting && (data.shootDir.x !== 0 || data.shootDir.y !== 0)) {
+      // Calculate angle for direction-based animation
+      const shootAngle = Math.atan2(data.shootDir.y, data.shootDir.x);
+      const shootDegrees = (shootAngle * 180 / Math.PI + 360) % 360;
+      
+      // Use the same 8-way direction logic for shooting animations
+      if (shootDegrees >= 337.5 || shootDegrees < 22.5) {
+        // Right direction
+        safePlayOtherPlayerAnimation(`${animPrefix}side_idle`, 'side_idle');
+        this.otherPlayer.setFlipX(false);
+      } else if (shootDegrees >= 22.5 && shootDegrees < 67.5) {
+        // Down-right
+        safePlayOtherPlayerAnimation(`${animPrefix}down_corner_idle`, 'down_corner_idle');
+        this.otherPlayer.setFlipX(false);
+      } else if (shootDegrees >= 67.5 && shootDegrees < 112.5) {
+        // Down
+        safePlayOtherPlayerAnimation(`${animPrefix}down_idle`, 'down_idle');
+      } else if (shootDegrees >= 112.5 && shootDegrees < 157.5) {
+        // Down-left
+        safePlayOtherPlayerAnimation(`${animPrefix}down_corner_idle`, 'down_corner_idle');
+        this.otherPlayer.setFlipX(true);
+      } else if (shootDegrees >= 157.5 && shootDegrees < 202.5) {
+        // Left
+        safePlayOtherPlayerAnimation(`${animPrefix}side_idle`, 'side_idle');
+        this.otherPlayer.setFlipX(true);
+      } else if (shootDegrees >= 202.5 && shootDegrees < 247.5) {
+        // Up-left
+        safePlayOtherPlayerAnimation(`${animPrefix}up_corner_idle`, 'up_corner_idle');
+        this.otherPlayer.setFlipX(true);
+      } else if (shootDegrees >= 247.5 && shootDegrees < 292.5) {
+        // Up
+        safePlayOtherPlayerAnimation(`${animPrefix}up_idle`, 'up_idle');
+      } else if (shootDegrees >= 292.5 && shootDegrees < 337.5) {
+        // Up-right
+        safePlayOtherPlayerAnimation(`${animPrefix}up_corner_idle`, 'up_corner_idle');
+        this.otherPlayer.setFlipX(false);
+      }
+    } else {
+      // No shooting, just movement animations
+      if (data.vx === 0 && data.vy === 0) {
+        // Idle
+        const idleKey = `${animPrefix}${data.animState}_idle`;
+        safePlayOtherPlayerAnimation(idleKey, `${data.animState}_idle`);
+      } else {
+        // Walking
+        const walkKey = `${animPrefix}${data.animState}_walk`;
+        safePlayOtherPlayerAnimation(walkKey, `${data.animState}_walk`);
+      }
+    }
+    
+    // Update shadows
+    this.updateOtherPlayerShadows();
+  }
+  
+  // Handle bullets fired by the other player
+  handleOtherPlayerBullet(data) {
+    if (!this.otherPlayerBullets) return;
+    
+    // Get the bullet origin
+    const { x, y, angle, weaponType } = data;
+    
+    if (weaponType === 'shotgun') {
+      // Create multiple pellets in a cone pattern
+      const numPellets = 5;
+      const spreadAngle = Math.PI / 6; // 30 degrees spread
+      
+      for (let i = 0; i < numPellets; i++) {
+        // Calculate angle for each pellet
+        const pelletAngle = angle - (spreadAngle / 2) + (spreadAngle * i / (numPellets - 1));
+        this.createOtherPlayerBullet(x, y, pelletAngle, true);
+      }
+    } else {
+      // Regular rifle shot
+      this.createOtherPlayerBullet(x, y, angle, false);
+    }
+    
+    // Play shot sound - reuse existing shot sound
+    if (this.shotSound) {
+      this.shotSound.play({ volume: 0.5 }); // Lower volume for other player's shots
+    }
+  }
+  
+  // Create a bullet for the other player (visual only)
+  createOtherPlayerBullet(x, y, angle, isShotgun) {
+    // Get bullet from pool
+    let bullet = this.otherPlayerBullets.get(x, y, 'bullet');
+    
+    if (bullet) {
+      bullet.enableBody(true, x, y, true, true);
+      bullet.setActive(true);
+      bullet.setVisible(true);
+      bullet.setRotation(angle);
+      
+      // Smaller for shotgun
+      if (isShotgun) {
+        bullet.setScale(0.8);
+        bullet.body.radius = 4;
+      } else {
+        bullet.setScale(1.2);
+        bullet.body.radius = 6;
+      }
+      
+      // Set velocity
+      const speed = isShotgun ? 750 - 100 + (Math.random() * 200) : 750;
+      bullet.body.velocity.x = Math.cos(angle) * speed;
+      bullet.body.velocity.y = Math.sin(angle) * speed;
+      
+      // Set bullet depth
+      bullet.setDepth(15);
+      
+      // Set alpha lower for other player's bullets to differentiate
+      bullet.setAlpha(0.7);
+      bullet.setTint(0x00ffff); // Cyan tint for other player's bullets
     }
   }
   
@@ -365,6 +601,19 @@ export class PlayerManager {
     // Get the selected character
     let selectedCharacter = this.scene.registry.get('selectedCharacter') || 'default';
     
+    // In multiplayer, make sure host and player 2 use different characters
+    if (this.isMultiplayer) {
+      console.log(`Creating player in multiplayer mode. isHost=${this.isHost}`);
+      if (this.isHost) {
+        // Host uses selected character
+        console.log(`Host using character: ${selectedCharacter}`);
+      } else {
+        // Player 2 uses a different character
+        selectedCharacter = (selectedCharacter === 'default') ? 'character2' : 'default';
+        console.log(`Player 2 using different character: ${selectedCharacter}`);
+      }
+    }
+    
     // Set the texture prefix based on the selected character
     const prefix = selectedCharacter === 'default' ? '' : `${selectedCharacter}_`;
     
@@ -378,6 +627,19 @@ export class PlayerManager {
     // Determine starting position - players start back-to-back in multiplayer
     let startX = GAME_WIDTH / 2;
     let startY = GAME_HEIGHT / 2;
+    
+    // In multiplayer, position players back-to-back
+    if (this.isMultiplayer) {
+      if (this.isHost) {
+        // Host player faces right
+        startX -= 75; // Positioned to the left
+        this.lastDirection = 'side'; // Face right side
+      } else {
+        // Second player faces left
+        startX += 75; // Positioned to the right
+        this.lastDirection = 'side'; // Will be flipped to face left
+      }
+    }
     
     // Create the player sprite in the center with the appropriate texture
     this.player = this.scene.physics.add.sprite(
@@ -462,18 +724,116 @@ export class PlayerManager {
     this.player.speed = 250; // Default movement speed that can be boosted by upgrades
     
     // Initialize player health system
-    this.health = 3; // Player now has 3 hit points
-    this.maxHealth = 10; // Maximum health with shields
+    this.health = 5; // Player now has 5 hit points
+    this.maxHealth = 10; // Maximum health 10 with shields
     
     // Set initial animation with the appropriate character prefix if needed
     const animPrefix = selectedCharacter !== 'default' ? `${selectedCharacter}_` : '';
     
-    // In single player, just use default down animation
-    this.player.play(`${animPrefix}down_idle`);
-    this.lastDirection = 'down';
+    // In multiplayer, set players to face each other back-to-back
+    if (this.isMultiplayer) {
+      // Both players use side animation but flip differently
+      this.player.play(`${animPrefix}side_idle`);
+      
+      // Set the appropriate facing direction
+      if (this.isHost) {
+        // Host player faces right
+        this.player.setFlipX(false);
+      } else {
+        // Second player faces left
+        this.player.setFlipX(true);
+      }
+    } else {
+      // In single player, just use default down animation
+      this.player.play(`${animPrefix}down_idle`);
+      this.lastDirection = 'down';
+    }
     
     // Listen for orientation changes to update sprite size
     this.scene.events.on('orientationChange', this.handleOrientationChange, this);
+    
+    // In multiplayer mode, create the other player
+    if (this.isMultiplayer) {
+      this.createOtherPlayer();
+    }
+  }
+  
+  // Create the other player for multiplayer
+  createOtherPlayer() {
+    console.log("Creating other player for multiplayer");
+    
+    // Since we already set different characters for host and player2 in createPlayer(),
+    // use the opposite character for the other player
+    const otherCharacter = this.isHost ? 'character2' : 'default';
+    const prefix = otherCharacter === 'default' ? '' : `${otherCharacter}_`;
+    
+    console.log(`Creating other player with character: ${otherCharacter}`);
+    
+    // Store the other character info
+    this.otherPlayerCharacter = otherCharacter;
+    this.otherPlayerPrefix = prefix;
+    
+    // Determine starting position - should be back-to-back with main player
+    let startX = GAME_WIDTH / 2;
+    let startY = GAME_HEIGHT / 2;
+    
+    // Position based on host status
+    if (this.isHost) {
+      startX += 150; // Other player to the right if host
+    } else {
+      startX -= 150; // Other player to the left if not host
+    }
+    
+    // Create the other player sprite
+    this.otherPlayer = this.scene.physics.add.sprite(
+      startX, 
+      startY, 
+      `${prefix}down_idle_1`
+    );
+    
+    // Set scale and properties
+    this.otherPlayer.setScale(0.5);
+    this.otherPlayer.setOrigin(0.5, 0.5);
+    this.otherPlayer.setDepth(10);
+    
+    // Create shadows for other player
+    this.otherPlayerShadows = [];
+    this.shadowOffsets.forEach(offset => {
+      let shadow = this.scene.add.image(
+        this.otherPlayer.x + offset.x, 
+        this.otherPlayer.y + offset.y + 50,
+        'shadow'
+      );
+      shadow.setScale(1.1);
+      shadow.setAlpha(0.675 / this.shadowOffsets.length);
+      shadow.setDepth(1);
+      this.otherPlayerShadows.push({ sprite: shadow, offset: offset });
+    });
+    
+    // Set initial animation - face opposite to main player
+    const animPrefix = otherCharacter !== 'default' ? `${otherCharacter}_` : '';
+    this.otherPlayer.play(`${animPrefix}side_idle`);
+    
+    // Flip based on host status to make players face each other back-to-back
+    if (this.isHost) {
+      // If main player is host, other player faces left
+      this.otherPlayer.setFlipX(true);
+    } else {
+      // If main player is not host, other player faces right
+      this.otherPlayer.setFlipX(false);
+    }
+    
+    console.log(`Other player created with character: ${otherCharacter}`);
+  }
+  
+  // Update shadows for other player
+  updateOtherPlayerShadows() {
+    if (this.otherPlayer && this.otherPlayerShadows) {
+      this.otherPlayerShadows.forEach(shadowData => {
+        shadowData.sprite.x = this.otherPlayer.x + shadowData.offset.x;
+        shadowData.sprite.y = this.otherPlayer.y + shadowData.offset.y + 50;
+      });
+    }
   }
   
   // Update player marker position in versus mode
@@ -762,7 +1122,7 @@ export class PlayerManager {
     this.healthContainer.add(this.shieldIcon);
     
     // Initialize health and maxHealth if they're undefined
-    if (this.health === undefined) this.health = 3;
+    if (this.health === undefined) this.health = 5; // Changed from 3 to 5 to match player's initial health
     if (this.maxHealth === undefined) this.maxHealth = 10;
     
     // Add a text display showing health value - centered in the health bar
@@ -925,6 +1285,11 @@ export class PlayerManager {
       
       this.cleanupBullets();
       
+      // In multiplayer, also update other player shadows
+      if (this.isMultiplayer && this.otherPlayer) {
+        this.updateOtherPlayerShadows();
+      }
+      
       return;
     }
     
@@ -976,6 +1341,110 @@ export class PlayerManager {
     }
     
     this.cleanupBullets();
+    
+    // In multiplayer, additionally:
+    if (this.isMultiplayer) {
+      // 1. Update other player shadows
+      if (this.otherPlayer) {
+        this.updateOtherPlayerShadows();
+      }
+      
+      // 2. Send updates about our own position and state 
+      this.sendPlayerUpdates();
+      
+      // 3. Clean up other player's bullets
+      this.cleanupOtherPlayerBullets();
+    }
+  }
+  
+  // Send player updates to the other player
+  sendPlayerUpdates() {
+    // Only send updates at the specified interval, not every frame
+    const now = this.scene.time.now;
+    if (now - this.lastUpdateTimestamp < this.updateInterval) {
+      return;
+    }
+    
+    this.lastUpdateTimestamp = now;
+    
+    // Create player state snapshot
+    const playerState = {
+      x: this.player.x,
+      y: this.player.y,
+      vx: this.player.body.velocity.x,
+      vy: this.player.body.velocity.y,
+      animState: this.lastDirection,
+      isFlipped: this.player.flipX,
+      isShooting: this.autoFireTimer !== null,
+      shootDir: this.shootingDirection
+    };
+    
+    // Only send update if state has changed
+    if (this.hasStateChanged(playerState)) {
+      // Send via socket.io if connected
+      if (this.socket && this.socket.connected) {
+        this.socket.emit('playerUpdate', playerState);
+      } 
+      // Use local event emitter as fallback
+      else if (this.multiplayerEvents) {
+        this.multiplayerEvents.emit('playerUpdate', playerState);
+      }
+      
+      // Store current state
+      this.lastPlayerState = playerState;
+    }
+  }
+  
+  // Check if player state has changed significantly
+  hasStateChanged(newState) {
+    if (!this.lastPlayerState) return true;
+    
+    const last = this.lastPlayerState;
+    
+    // Check if position changed by more than 1 pixel
+    const positionChanged = 
+      Math.abs(newState.x - last.x) > 1 || 
+      Math.abs(newState.y - last.y) > 1;
+    
+    // Check if velocity changed by more than 1 pixel per frame
+    const velocityChanged = 
+      Math.abs(newState.vx - last.vx) > 1 || 
+      Math.abs(newState.vy - last.vy) > 1;
+    
+    // Check if animation state changed
+    const animStateChanged = 
+      newState.animState !== last.animState || 
+      newState.isFlipped !== last.isFlipped;
+    
+    // Check if shooting state changed
+    const shootingChanged = 
+      newState.isShooting !== last.isShooting || 
+      (newState.shootDir.x !== last.shootDir.x || 
+       newState.shootDir.y !== last.shootDir.y);
+    
+    return positionChanged || velocityChanged || animStateChanged || shootingChanged;
+  }
+  
+  // Clean up other player's bullets
+  cleanupOtherPlayerBullets() {
+    if (!this.otherPlayerBullets || !this.otherPlayerBullets.children) {
+      return;
+    }
+    
+    // Remove off-screen bullets - use a larger boundary
+    const buffer = 200;
+    this.otherPlayerBullets.children.each(function(bullet) {
+      if (bullet.active && 
+          (bullet.x < -buffer || 
+           bullet.x > GAME_WIDTH + buffer || 
+           bullet.y < -buffer || 
+           bullet.y > GAME_HEIGHT + buffer)) {
+        
+        bullet.setActive(false);
+        bullet.setVisible(false);
+        bullet.body.enable = false;
+      }
+    }, this);
   }
 
   handleMovement() {
@@ -1005,7 +1474,7 @@ export class PlayerManager {
     }
     
     // Player movement.
-    let speed = this.player ? this.player.speed : 500; // Use player's speed property for upgrades
+    let speed = this.player ? this.player.speed : 250; // Use player's speed property for upgrades
     let vx = 0, vy = 0;
     let inputHandled = false;
     
@@ -1320,6 +1789,12 @@ export class PlayerManager {
   }
   
   cleanupBullets() {
+    // Check that bullets and children exist before attempting cleanup
+    if (!this.bullets || !this.bullets.children) {
+      console.warn('Cannot cleanup bullets: bullets group or children is null');
+      return;
+    }
+    
     // Remove off-screen bullets - use a larger boundary to prevent premature cleanup
     // Add a 200px buffer to each dimension
     const buffer = 200;
@@ -1542,9 +2017,41 @@ export class PlayerManager {
     if (this.weaponType === 'shotgun') {
       // Create multiple bullets in a cone pattern
       this.fireShotgun(angle, muzzleOffsetX, muzzleOffsetY, damageMultiplier);
+      
+      // For multiplayer, send bullet event through socket.io
+      if (this.isMultiplayer) {
+        const bulletData = {
+          x: bulletOriginX,
+          y: bulletOriginY,
+          angle: angle,
+          weaponType: 'shotgun'
+        };
+        
+        if (this.socket && this.socket.connected) {
+          this.socket.emit('bulletFired', bulletData);
+        } else if (this.multiplayerEvents) {
+          this.multiplayerEvents.emit('bulletFired', bulletData);
+        }
+      }
     } else {
       // Default rifle - fire a single bullet
       this.fireRifle(angle, muzzleOffsetX, muzzleOffsetY, damageMultiplier);
+      
+      // For multiplayer, send bullet event through socket.io
+      if (this.isMultiplayer) {
+        const bulletData = {
+          x: bulletOriginX,
+          y: bulletOriginY,
+          angle: angle,
+          weaponType: 'rifle'
+        };
+        
+        if (this.socket && this.socket.connected) {
+          this.socket.emit('bulletFired', bulletData);
+        } else if (this.multiplayerEvents) {
+          this.multiplayerEvents.emit('bulletFired', bulletData);
+        }
+      }
     }
     
     // Track shot fired for accuracy calculation
