@@ -13,7 +13,7 @@ export default defineConfig({
       ]
     }),
     viteImagemin({
-      webp: { quality: 80 },
+      webp: { quality: 60 },
       avif: { quality: 50 },
     })
   ],
