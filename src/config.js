@@ -23,8 +23,8 @@ const isMobile = (
 );
 
 // Get initial dimensions
-let width = 1000;
-let height = 1000;
+let width = window.innerWidth;
+let height = window.innerHeight;
 
 // No need to swap dimensions - we'll support both orientations now
 
