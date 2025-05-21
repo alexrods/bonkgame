@@ -1,106 +1,113 @@
-// Loads all assets (sprites, images, and sounds) used in the game.
+// Asset loading configuration
+const ASSET_GROUPS = {
+  // Essential assets loaded immediately
+  essential: {
+    audio: [
+      { key: 'shot', urls: ['/assets/sound/sfx/shot.mp3'] },
+      { key: 'keystroke', urls: ['/assets/sound/sfx/keystroke.mp3'] },
+      { key: 'empty_mag', urls: ['/assets/sound/sfx/empty_shot.mp3'] },
+      { key: 'reload', urls: ['/assets/sound/sfx/rifle_reload.mp3'] },
+      { key: 'mine_explosion', urls: ['/assets/sound/sfx/explosion.mp3'] }
+    ]
+  },
+  
+  // Background music loaded after game starts
+  music: {
+    audio: [
+      { key: 'intro_music', urls: ['/assets/sound/music/intro.mp3'] },
+      { key: 'scroll_beat', urls: ['/assets/sound/music/scroll_beat.mp3'] },
+      { key: 'gameover_music', urls: ['/assets/sound/music/gameover.mp3'] }
+    ]
+  },
+  
+  // Secondary sound effects loaded on demand
+  sfx: {
+    audio: [
+      { key: 'keystroke1', urls: ['/assets/sound/sfx/keystroke1.mp3'] },
+      { key: 'keystroke3', urls: ['/assets/sound/sfx/keystroke3.mp3'] },
+      { key: 'interference', urls: ['/assets/sound/sfx/interference.mp3'] },
+      { key: 'narration', urls: ['/assets/sound/sfx/narration.mp3'] },
+      { key: 'drone_buzz', urls: ['/assets/sound/sfx/drone_buzz.mp3'] },
+      { key: 'reloading_announce', urls: ['/assets/sound/sfx/reloading.mp3'] },
+      { key: 'low_ammo', urls: ['/assets/sound/sfx/lowAmmo.mp3'] },
+      { key: 'last_mag', urls: ['/assets/sound/sfx/lastMag.mp3'] },
+      { key: 'mine_beep', urls: ['/assets/sound/sfx/beep.mp3'] },
+      { key: 'survive', urls: ['/assets/sound/sfx/survive.mp3'] },
+      { key: 'whoo', urls: ['/assets/sound/sfx/whoo.mp3'] }
+    ]
+  }
+};
+
+// Track which assets are loaded
+const loadedAssets = {
+  essential: false,
+  music: false,
+  sfx: false
+};
+
+// Loads only essential assets needed for initial game start
+export function preloadEssentialAssets(scene) {
+  if (loadedAssets.essential) return;
+  
+  scene.load.setPath('');
+  loadAssetGroup(scene, 'essential');
+  loadedAssets.essential = true;
+}
+
+// Loads background music after game starts
+export function loadBackgroundMusic(scene) {
+  if (loadedAssets.music) return;
+  
+  loadAssetGroup(scene, 'music');
+  scene.load.start();
+  loadedAssets.music = true;
+}
+
+// Loads a specific sound effect on demand
+export function loadSoundEffect(scene, soundKey) {
+  if (loadedAssets.sfx) return;
+  
+  const sfx = ASSET_GROUPS.sfx.audio.find(sound => sound.key === soundKey);
+  if (sfx) {
+    scene.load.audio(sfx.key, sfx.urls);
+    scene.load.once('complete', () => {
+      console.log(`Loaded sound effect: ${soundKey}`);
+    });
+    scene.load.start();
+  }
+}
+
+// Internal function to load an asset group
+function loadAssetGroup(scene, groupName) {
+  const group = ASSET_GROUPS[groupName];
+  if (!group) return;
+  
+  // Load audio files
+  if (group.audio) {
+    group.audio.forEach(sound => {
+      if (!scene.cache.audio.exists(sound.key)) {
+        scene.load.audio(sound.key, sound.urls);
+      }
+    });
+  }
+}
+
+// Backward compatibility - loads all assets at once
 export function preloadSprites(scene) {
-  // Try multiple audio formats and approaches
+  preloadEssentialAssets(scene);
+  loadBackgroundMusic(scene);
+  
+  // Load all SFX but don't block
+  if (!loadedAssets.sfx) {
+    loadAssetGroup(scene, 'sfx');
+    scene.load.start();
+    loadedAssets.sfx = true;
+  }
+  
+  // Load story dialog sounds - use direct paths without array for better compatibility
+  console.log("Loading dialog sound files...");
+  
   try {
-    // First set the base path for all assets
-    scene.load.setPath('');
-    
-    // Custom fonts are loaded via CSS instead of Phaser's loader
-    // This approach avoids the error with hasCacheConflict
-    
-    // Try loading with multiple formats for browser compatibility
-    scene.load.audio('shot', [
-      '/assets/sound/sfx/shot.mp3'
-    ]);
-    
-    // Load intro music
-    scene.load.audio('intro_music', [
-      '/assets/sound/music/intro.mp3'
-    ]);
-    
-    // Load scroll beat music
-    scene.load.audio('scroll_beat', [
-      '/assets/sound/music/scroll_beat.mp3'
-    ]);
-    
-    // Load game over music
-    scene.load.audio('gameover_music', [
-      '/assets/sound/music/gameover.mp3'
-    ]);
-    
-    // Load keystroke sound effects
-    scene.load.audio('keystroke', [
-      '/assets/sound/sfx/keystroke.mp3'
-    ]);
-    scene.load.audio('keystroke1', [
-      '/assets/sound/sfx/keystroke1.mp3'
-    ]);
-    scene.load.audio('keystroke3', [
-      '/assets/sound/sfx/keystroke3.mp3'
-    ]);
-    
-    // Load interference sound effect (keeping for compatibility)
-    scene.load.audio('interference', [
-      '/assets/sound/sfx/interference.mp3'
-    ]);
-    
-    // Load narration sound effect
-    scene.load.audio('narration', [
-      '/assets/sound/sfx/narration.mp3'
-    ]);
-    
-    // Load drone buzz sound effect
-    scene.load.audio('drone_buzz', [
-      '/assets/sound/sfx/drone_buzz.mp3'
-    ]);
-    
-    // Load reload sounds
-    scene.load.audio('reload', [
-      '/assets/sound/sfx/rifle_reload.mp3'
-    ]);
-    
-    // Load reloading announcement
-    scene.load.audio('reloading_announce', [
-      '/assets/sound/sfx/reloading.mp3'
-    ]);
-    
-    // Load empty magazine sound effect
-    scene.load.audio('empty_mag', [
-      '/assets/sound/sfx/empty_shot.mp3'
-    ]);
-    
-    // Load low ammo sound effect
-    scene.load.audio('low_ammo', [
-      '/assets/sound/sfx/lowAmmo.mp3'
-    ]);
-    
-    // Load last magazine sound effect
-    scene.load.audio('last_mag', [
-      '/assets/sound/sfx/lastMag.mp3'
-    ]);
-    
-    // Load beep sound effect for proximity mine
-    scene.load.audio('mine_beep', [
-      '/assets/sound/sfx/beep.mp3'
-    ]);
-    
-    // Load explosion sound effect for proximity mine
-    scene.load.audio('mine_explosion', [
-      '/assets/sound/sfx/explosion.mp3'
-    ]);
-    
-    // Load survive sound effect
-    scene.load.audio('survive', [
-      '/assets/sound/sfx/survive.mp3'
-    ]);
-    
-    // Load whoo sound effect
-    scene.load.audio('whoo', [
-      '/assets/sound/sfx/whoo.mp3'
-    ]);
-    
-    // Load story dialog sounds - use direct paths without array for better compatibility
-    console.log("Loading dialog sound files...");
     scene.load.audio('dialog1', '/assets/sound/story/degen/intro/dialog1.mp3');
     scene.load.audio('dialog2', '/assets/sound/story/degen/intro/dialog2.mp3');
     scene.load.audio('dialog3', '/assets/sound/story/degen/intro/dialog3.mp3');

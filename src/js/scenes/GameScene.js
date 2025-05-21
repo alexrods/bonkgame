@@ -9,6 +9,7 @@ import { DialogSystem } from '../ui/DialogSystem.js';
 import { LabEnvironment } from '../environment/LabEnvironment.js';
 import { PlayerAccount } from '../web3/PlayerAccount.js';
 import { AIPlayerManager } from '../managers/AIPlayerManager.js';
+import { preloadEssentialAssets, loadBackgroundMusic } from '../utils/AssetLoader.js';
 
 export class GameScene extends Phaser.Scene {
   constructor() {
@@ -175,6 +176,121 @@ export class GameScene extends Phaser.Scene {
   }
   
   // Clean up resources when shutting down or restarting
+  // Getters for lazy-loaded managers
+  get environment() {
+    if (!this._environment) {
+      this._environment = new LabEnvironment(this);
+      this._environment.init();
+    }
+    return this._environment;
+  }
+  
+  get ui() {
+    if (!this._ui) {
+      this._ui = new GameUI(this);
+      this._ui.init();
+    }
+    return this._ui;
+  }
+  
+  get playerManager() {
+    if (!this._playerManager) {
+      this._playerManager = new PlayerManager(this);
+      this._playerManager.init();
+    }
+    return this._playerManager;
+  }
+  
+  get enemyManager() {
+    if (!this._enemyManager) {
+      this._enemyManager = new EnemyManager(this, this.environment.getBloodContainer());
+      this._enemyManager.init();
+    }
+    return this._enemyManager;
+  }
+  
+  get droneManager() {
+    if (!this._droneManager) {
+      this._droneManager = new DroneManager(this);
+      this._droneManager.init();
+    }
+    return this._droneManager;
+  }
+  
+  get timeScaleManager() {
+    if (!this._timeScaleManager) {
+      this._timeScaleManager = new TimeScaleManager(this);
+      this._timeScaleManager.init();
+    }
+    return this._timeScaleManager;
+  }
+  
+  get dialogSystem() {
+    if (!this._dialogSystem) {
+      this._dialogSystem = new DialogSystem(this);
+      this._dialogSystem.init();
+    }
+    return this._dialogSystem;
+  }
+  
+  get droneWheel() {
+    if (!this._droneWheel) {
+      this._droneWheel = new DroneWheel(this);
+      this._droneWheel.init();
+    }
+    return this._droneWheel;
+  }
+  
+  // Initialize essential managers that are needed immediately
+  initializeEssentialManagers() {
+    // Initialize environment and UI first
+    this._environment = new LabEnvironment(this);
+    this._environment.init();
+    
+    this._ui = new GameUI(this);
+    this._ui.init();
+    
+    // Initialize player manager
+    this._playerManager = new PlayerManager(this);
+    this._playerManager.init();
+    
+    // Set up camera to follow player
+    this.setupCamera();
+  }
+  
+  // Initialize non-essential managers after the game has started
+  initializeNonEssentialManagers() {
+    // Initialize enemy manager (lazy loaded)
+    this.enemyManager;
+    
+    // Initialize drone manager (lazy loaded)
+    this.droneManager;
+    
+    // Initialize time scale manager (lazy loaded)
+    this.timeScaleManager;
+    
+    // Initialize dialog system (lazy loaded)
+    this.dialogSystem;
+    
+    // Initialize drone wheel (lazy loaded)
+    this.droneWheel;
+    
+    // Set up event listeners
+    this.setupEventListeners();
+  }
+  
+  // Set up event listeners
+  setupEventListeners() {
+    // Listen for dialog end to trigger enemy AI player spawn at milestones
+    this.events.on('dialogEnded', this.handleDialogEnded, this);
+    
+    // Set up floating text event listener
+    this.events.on('showFloatingText', this.showFloatingText, this);
+    
+    // Listen for orientation changes to adjust camera
+    this.events.on('orientationChange', this.handleOrientationChange, this);
+  }
+  
   shutdown() {
     // Clean up physics groups if they exist
     if (this.lootGroup) {
@@ -187,43 +303,43 @@ export class GameScene extends Phaser.Scene {
     // Reset first blood flag
     this.firstBloodTriggered = false;
     
-    // Call shutdown on component managers if they have one
-    if (this.playerManager && typeof this.playerManager.shutdown === 'function') {
-      this.playerManager.shutdown();
-    }
+    // Call shutdown on all initialized component managers
+    const managers = [
+      this._playerManager,
+      this._enemyManager,
+      this._droneManager,
+      this._droneWheel,
+      this._dialogSystem,
+      this._environment,
+      this._ui,
+      this._timeScaleManager
+    ];
     
-    if (this.enemyManager && typeof this.enemyManager.shutdown === 'function') {
-      this.enemyManager.shutdown();
-    }
+    managers.forEach(manager => {
+      if (manager && typeof manager.shutdown === 'function') {
+        try {
+          manager.shutdown();
+        } catch (e) {
+          console.error('Error during manager shutdown:', e);
+        }
+      }
+    });
     
-    if (this.droneManager && typeof this.droneManager.shutdown === 'function') {
-      this.droneManager.shutdown();
-    }
-    
-    if (this.droneWheel && typeof this.droneWheel.shutdown === 'function') {
-      this.droneWheel.shutdown();
-    }
-    
-    if (this.dialogSystem && typeof this.dialogSystem.shutdown === 'function') {
-      this.dialogSystem.shutdown();
-    }
-    
-    if (this.environment && typeof this.environment.shutdown === 'function') {
-      this.environment.shutdown();
-    }
-    
-    if (this.ui && typeof this.ui.shutdown === 'function') {
-      this.ui.shutdown();
-    }
-    
-    if (this.timeScaleManager && typeof this.timeScaleManager.shutdown === 'function') {
-      this.timeScaleManager.shutdown();
-    }
-    
-    // Remove any event listeners
+    // Remove all event listeners
     this.events.off('player-authenticated');
     this.events.off('player-disconnected');
     this.events.off('showFloatingText');
+    this.events.off('dialogEnded');
+    
+    // Clear all references
+    this._environment = null;
+    this._ui = null;
+    this._playerManager = null;
+    this._enemyManager = null;
+    this._droneManager = null;
+    this._timeScaleManager = null;
+    this._dialogSystem = null;
+    this._droneWheel = null;
     
     // Call parent shutdown
     super.shutdown();
@@ -1103,17 +1219,40 @@ export class GameScene extends Phaser.Scene {
     });
   }
   
-  create() {
-    console.log("GameScene create - setting up game components");
+  preload() {
+    // Load only essential assets first
+    preloadEssentialAssets(this);
+    
+    // Load background music after a short delay
+    this.time.delayedCall(1000, () => {
+      loadBackgroundMusic(this);
+    });
     
     // Preload dialog images with error handling
     this.loadDialogAssets();
-
-    // Precarga explícita para Drainer si es el personaje seleccionado
-    const selectedCharacter = this.registry.get('selectedCharacter') || 'default';
-    if (selectedCharacter === 'character2') {
-      this.loadDrainerDialogAssets();
-    }
+  }
+  
+  create() {
+    console.log("GameScene create - setting up game components");
+    
+    // Initialize lazy-loaded properties
+    this._environment = null;
+    this._ui = null;
+    this._playerManager = null;
+    this._enemyManager = null;
+    this._droneManager = null;
+    this._timeScaleManager = null;
+    this._dialogSystem = null;
+    this._droneWheel = null;
+    
+    // Initialize essential managers first
+    this.initializeEssentialManagers();
+    
+    // Set up physics
+    this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    
+    // Set up camera
+    this.cameras.main.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
     
     // Check if this is a multiplayer game
     this.isMultiplayer = this.registry.get('multiplayer') || false;

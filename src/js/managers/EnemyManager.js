@@ -88,15 +88,91 @@ export class EnemyManager {
       { x: -10, y: -10 }  // For reflector in bottom-right, shadow falls top-left
     ];
     
-    // Initialize sub-managers
-    this.sounds = new EnemySounds(scene);
-    this.spawner = new EnemySpawner(scene, this.sounds, this.shadowOffsets);
-    this.behavior = new EnemyBehavior(scene);
-    this.collisions = new EnemyCollisions(scene);
-    this.effects = new EnemyEffects(scene, bloodContainer);
+    // Lazy initialization for sub-managers
+    this._sounds = null;
+    this._spawner = null;
+    this._behavior = null;
+    this._collisions = null;
+    this._effects = null;
     
-    // Pass the sounds reference directly to the effects
-    this.effects.sounds = this.sounds;
+    // Store a reference to this instance globally for emergency access
+    globalEnemyManager = this;
+  }
+
+  // Lazy getter for sounds
+  get sounds() {
+    if (!this._sounds) {
+      this._sounds = new EnemySounds(this.scene);
+    }
+    return this._sounds;
+  }
+
+  // Lazy getter for spawner
+  get spawner() {
+    if (!this._spawner) {
+      this._spawner = new EnemySpawner(this.scene, this.sounds, this.shadowOffsets);
+      // Initialize spawner if needed
+      if (this._spawner.init) {
+        this._spawner.init();
+      }
+    }
+    return this._spawner;
+  }
+
+  // Lazy getter for behavior
+  get behavior() {
+    if (!this._behavior) {
+      this._behavior = new EnemyBehavior(this.scene);
+    }
+    return this._behavior;
+  }
+
+  // Lazy getter for collisions
+  get collisions() {
+    if (!this._collisions) {
+      this._collisions = new EnemyCollisions(this.scene);
+    }
+    return this._collisions;
+  }
+
+  // Lazy getter for effects
+  get effects() {
+    if (!this._effects) {
+      this._effects = new EnemyEffects(this.scene, this.bloodContainer);
+      // Pass the sounds reference directly to the effects
+      this._effects.sounds = this.sounds;
+    }
+    return this._effects;
+  }
+  
+  constructor(scene, bloodContainer) {
+    this.scene = scene;
+    this.bloodContainer = bloodContainer;
+    
+    // Check if we're in multiplayer mode
+    this.isMultiplayer = scene.registry.get('multiplayer') || false;
+    this.isHost = scene.registry.get('isHost') || false;
+    
+    // Add paused flag for deposit/withdraw screens
+    this.paused = false;
+    
+    // Store velocities of all enemies when paused
+    this.pausedEnemiesState = [];
+    
+    // Define shadow offsets for all enemies
+    this.shadowOffsets = [
+      { x: 10, y: 10 },   // For reflector in top-left, shadow falls bottom-right
+      { x: -10, y: 10 },  // For reflector in top-right, shadow falls bottom-left
+      { x: 10, y: -10 },  // For reflector in bottom-left, shadow falls top-right
+      { x: -10, y: -10 }  // For reflector in bottom-right, shadow falls top-left
+    ];
+    
+    // Lazy initialization for sub-managers
+    this._sounds = null;
+    this._spawner = null;
+    this._behavior = null;
+    this._collisions = null;
+    this._effects = null;
     
     // Store a reference to this instance globally for emergency access
     globalEnemyManager = this;
