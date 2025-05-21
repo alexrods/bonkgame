@@ -1,11 +1,39 @@
-import { preloadSprites } from '../utils/AssetLoader.js';
+import { preloadEssentialAssets } from '../utils/AssetLoader.js';
 import { createBulletTexture } from '../utils/TextureGenerator.js';
 import { createAnimations } from '../utils/Animations.js';
+
+// Simple BREAK OUT text display
+class BreakoutText {
+  constructor(scene) {
+    this.scene = scene;
+    this.create();
+  }
+  
+  create() {
+    // Add BREAK OUT text in the background
+    this.text = this.scene.add.text(
+      this.scene.cameras.main.width / 2,
+      this.scene.cameras.main.height / 2,
+      'BREAK OUT',
+      {
+        fontSize: '72px',
+        fontFamily: 'Arial',
+        color: '#ff0000',
+        fontStyle: 'bold',
+        stroke: '#000000',
+        strokeThickness: 8
+      }
+    ).setOrigin(0.5).setAlpha(0.2);
+  }
+  
+  destroy() {
+    this.text.destroy();
+  }
+}
 
 export class BootScene extends Phaser.Scene {
   constructor() {
     super({ key: 'BootScene' });
-    this.currentAsset = '';
   }
   
   init() {
@@ -24,82 +52,44 @@ export class BootScene extends Phaser.Scene {
   }
   
   preload() {
-    // Create loading UI
-    this.createLoadingUI();
+    // Show BREAK OUT text
+    this.breakoutText = new BreakoutText(this);
     
-    // Load weapon upgrade images
-    this.load.image('rifle', '/assets//upgrades/rifle.png');
-    this.load.image('shotgun', '/assets//upgrades/shotgun.png');
+    // Load essential assets
+    preloadEssentialAssets(this);
     
-    // Add loading event listeners for debugging and UI updates
-    this.load.on('filecomplete', (key, type, data) => {
-      // Reduce logging to improve performance - only log certain key assets
-      if (key.startsWith('player_death_') || key === 'intro_music' || key === 'gameMusic') {
-        console.log(`Successfully loaded: ${key} (${type})`);
+    // Move to StartScene when loading is complete
+    this.load.once('complete', () => {
+      if (this.breakoutText) {
+        this.breakoutText.destroy();
+        this.breakoutText = null;
       }
-      this.currentAsset = key;
-      this.updateLoadingText();
-      
-      // Throttle DOM updates to improve performance - only update every 10 assets or for key assets
-      const isKeyAsset = key.includes('music') || key.includes('player_death_') || key === 'game_logo';
-      if (isKeyAsset || Math.random() < 0.1) {  // Update UI for ~10% of assets or key assets
-        // Dispatch event for DOM-based loading UI
-        window.dispatchEvent(new CustomEvent('game-loading-progress', {
-          detail: { value: this.load.progress, currentAsset: key }
-        }));
-      }
+      this.scene.start('StartScene');
     });
-    
-    this.load.on('loaderror', (file) => {
-      console.error(`Error loading file: ${file.key} (${file.type}) - ${file.url}`);
-      
-      // Continue loading even if one file fails
-      this.load.on('filecomplete', () => {
-        this.load.start(); // Restart loading pipeline
-      }, this, true); // Once only
-    });
-    
-    this.load.on('progress', (value) => {
-      this.updateProgressBar(value);
-      
-      // Throttle progress updates to improve performance
-      if (value % 0.05 <= 0.01) { // Update at roughly 5% intervals
-        // Dispatch event for DOM-based loading UI
-        window.dispatchEvent(new CustomEvent('game-loading-progress', {
-          detail: { value: value, currentAsset: this.currentAsset }
-        }));
-      }
-    });
-    
-    // Add a listener for all load completion
-    this.load.on('complete', () => {
-      console.log("All assets loaded successfully");
-      console.log("Audio cache contains:", Object.keys(this.cache.audio.entries));
-      
-      // Dispatch event to notify that loading is complete
-      window.dispatchEvent(new CustomEvent('game-loading-complete'));
-    });
-    
-    // Virus image removed
-    
-    preloadSprites(this);
   }
   
-  createLoadingUI() {
-    // Skip creating any UI elements in the Phaser scene
-    // We'll rely completely on the HTML/DOM loading UI
-    // This avoids duplicate loading bars and text elements
+  create() {
+    // Create animations
+    createBulletTexture(this);
+    createAnimations(this);
+    
+    // Detect Phantom WebView to set appropriate renderer flag
+    const isPhantomWebView = /Phantom/i.test(navigator.userAgent);
+    if (isPhantomWebView) {
+      this.renderer.type = Phaser.WEBGL;
+    }
+    
+    // Start loading
+    this.load.start();
   }
   
-  updateProgressBar(value) {
-    // No progress bar in the Phaser scene to update
-    // All updates are handled via events to the HTML UI
+  // All loading logic has been moved to preload() and create() methods
+  
+  preload() {
+    // Empty preload as we're handling loading in create()
   }
   
-  updateLoadingText() {
-    // Don't need to update text here, it's handled by the HTML UI
-    // Just keep track of the current asset for events
-  }
+  // No loading UI needed for on-demand loading
   
   create() {
     createBulletTexture(this);

@@ -924,11 +924,7 @@ export class GameScene extends Phaser.Scene {
       console.log("FIRST BLOOD!");
       
       // Play first blood sound effect
-      if (this.sound.get('kills_firstblood')) {
-        this.sound.play('kills_firstblood', { volume: 1.0 });
-      } else if (this.cachedAudioElements['kills_firstblood']) {
-        this.cachedAudioElements['kills_firstblood'].play();
-      }
+      this.playSound('kills_firstblood').catch(console.warn);
       
       // Show first blood message
       this.showFloatingText({
@@ -950,11 +946,7 @@ export class GameScene extends Phaser.Scene {
       console.log("10 KILLS MILESTONE!");
       
       // Play 10 kills sound effect
-      if (this.sound.get('kills_10')) {
-        this.sound.play('kills_10', { volume: 1.0 });
-      } else if (this.cachedAudioElements['kills_10']) {
-        this.cachedAudioElements['kills_10'].play();
-      }
+      this.playSound('kills_10').catch(console.warn);
       
       // Show 10 kills message
       this.showFloatingText({
@@ -974,11 +966,7 @@ export class GameScene extends Phaser.Scene {
       console.log("50 KILLS MILESTONE!");
       
       // Play 50 kills sound effect
-      if (this.sound.get('kills_50')) {
-        this.sound.play('kills_50', { volume: 1.0 });
-      } else if (this.cachedAudioElements['kills_50']) {
-        this.cachedAudioElements['kills_50'].play();
-      }
+      this.playSound('kills_50').catch(console.warn);
       
       // Show 50 kills message
       this.showFloatingText({
@@ -1001,11 +989,7 @@ export class GameScene extends Phaser.Scene {
     //  this.spawnEnemyAIPlayer(this.aiCharacterKey);
     
       // Play 100 kills sound effect
-      if (this.sound.get('kills_100')) {
-        this.sound.play('kills_100', { volume: 1.0 });
-      } else if (this.cachedAudioElements['kills_100']) {
-        this.cachedAudioElements['kills_100'].play();
-      }
+      this.playSound('kills_100').catch(console.warn);
       
       // Show 100 kills message
       this.showFloatingText({
@@ -1031,11 +1015,7 @@ export class GameScene extends Phaser.Scene {
       console.log("200 KILLS MILESTONE!");
       
       // Play 200 kills sound effect
-      if (this.sound.get('kills_200')) {
-        this.sound.play('kills_200', { volume: 1.0 });
-      } else if (this.cachedAudioElements['kills_200']) {
-        this.cachedAudioElements['kills_200'].play();
-      }
+      this.playSound('kills_200').catch(console.warn);
       
       // Show 200 kills message
       this.showFloatingText({
@@ -1057,11 +1037,7 @@ export class GameScene extends Phaser.Scene {
       
       
       // Play 300 kills sound effect
-      if (this.sound.get('kills_300')) {
-        this.sound.play('kills_300', { volume: 1.0 });
-      } else if (this.cachedAudioElements['kills_300']) {
-        this.cachedAudioElements['kills_300'].play();
-      }
+      this.playSound('kills_300').catch(console.warn);
       
       // Camera flash effect for dramatic entrance
       this.cameras.main.flash(500, 255, 0, 0);
@@ -1094,11 +1070,7 @@ export class GameScene extends Phaser.Scene {
       console.log("666 KILLS MILESTONE! DEMONIC ENCOUNTER!");
       
       // Play 666 kills sound effect
-      if (this.sound.get('kills_300')) {
-        this.sound.play('kills_300', { volume: 1.0 });
-      } else if (this.cachedAudioElements['kills_300']) {
-        this.cachedAudioElements['kills_300'].play();
-      }
+      this.playSound('kills_300').catch(console.warn);
       
       // Camera flash effect for dramatic entrance
       this.cameras.main.flash(500, 255, 0, 0);
@@ -1131,6 +1103,53 @@ export class GameScene extends Phaser.Scene {
     // Additional milestones can be handled similarly
   }
   
+  async playSound(key, config = {}) {
+    try {
+      // Try to play immediately if already loaded
+      if (this.sound.get(key)) {
+        return this.sound.play(key, config);
+      }
+      
+      // If not loaded, load it first
+      const sound = await loadSoundEffect(this, key);
+      return sound.play(config);
+    } catch (error) {
+      console.warn(`Failed to play sound ${key}:`, error);
+      return null;
+    }
+  }
+  
+  // Preload non-essential sounds in the background
+  preloadBackgroundSounds() {
+    // Load background music after a short delay
+    this.time.delayedCall(2000, () => {
+      loadBackgroundMusic(this);
+    });
+    
+    // Preload common SFX after game starts
+    this.time.delayedCall(5000, () => {
+      const commonSounds = [
+        'shot', 'reload', 'empty_mag', 'mine_explosion'
+      ];
+      
+      commonSounds.forEach(soundKey => {
+        if (!loadedAssets.has(soundKey)) {
+          loadSoundEffect(this, soundKey).catch(console.warn);
+        }
+      });
+    });
+  }
+  
+  // Play credit sound when collecting loot
+  async playCreditSound() {
+    try {
+      const sound = await loadSoundEffect(this, 'credit');
+      sound.setVolume(0.5).play();
+    } catch (error) {
+      console.warn('Failed to play credit sound:', error);
+    }
+  }
+  
   // Ensure AIPlayerManager is available and initialized
   ensureAIPlayerManager() {
     // Only proceed if we don't already have an AIPlayerManager
@@ -1152,772 +1171,50 @@ export class GameScene extends Phaser.Scene {
     //}
   }
   
-  
-  
-  setupKeyboardControls() {
-    // E key to open drone wheel while held down
-    this.input.keyboard.on('keydown-E', () => {
-      // Check if deposit/withdraw prompt or rhythm minigame is active
-      const depositPromptActive = this.droneWheel.depositWithdrawPrompt && 
-                                 this.droneWheel.depositWithdrawPrompt.isVisible;
-      const rhythmGameActive = this.droneWheel.rhythmGame && 
-                              this.droneWheel.rhythmGame.isActive;
-      
-      // Only show drone wheel if neither menu is active
-      if (!this.droneWheel.isVisible && !depositPromptActive && !rhythmGameActive) {
-        this.droneWheel.show();
-      }
-    });
-    
-    // Release E key to confirm and close drone wheel
-    this.input.keyboard.on('keyup-E', () => {
-      // Only handle if drone wheel is visible and not in deposit or rhythm game
-      const depositPromptActive = this.droneWheel.depositWithdrawPrompt && 
-                                 this.droneWheel.depositWithdrawPrompt.isVisible;
-      const rhythmGameActive = this.droneWheel.rhythmGame && 
-                              this.droneWheel.rhythmGame.isActive;
-                              
-      if (this.droneWheel.isVisible && !depositPromptActive && !rhythmGameActive) {
-        this.droneWheel.confirmSelection();
-        this.droneWheel.hide();
-      }
-    });
-    
-    // Arrow keys to navigate drone wheel clockwise/counter-clockwise
-    this.input.keyboard.on('keydown-LEFT', () => {
-      if (this.droneWheel.isVisible) {
-        console.log("LEFT arrow key pressed for drone wheel");
-        this.droneWheel.selectPrevious(); // Counter-clockwise
-      }
-    });
-    
-    this.input.keyboard.on('keydown-RIGHT', () => {
-      if (this.droneWheel.isVisible) {
-        console.log("RIGHT arrow key pressed for drone wheel");
-        this.droneWheel.selectNext(); // Clockwise
-      }
-    });
-    
-    // WASD navigation (alternative to arrow keys)
-    this.input.keyboard.on('keydown-A', () => {
-      if (this.droneWheel.isVisible) {
-        this.droneWheel.selectPrevious(); // Counter-clockwise
-      }
-    });
-    
-    this.input.keyboard.on('keydown-D', () => {
-      if (this.droneWheel.isVisible) {
-        this.droneWheel.selectNext(); // Clockwise
-      }
-    });
-    
-    // Add ESC to cancel without confirming
-    this.input.keyboard.on('keydown-ESC', () => {
-      if (this.droneWheel.isVisible) {
-        this.droneWheel.hide();
-      }
-    });
-  }
-  
-  preload() {
-    // Load only essential assets first
-    preloadEssentialAssets(this);
-    
-    // Load background music after a short delay
-    this.time.delayedCall(1000, () => {
-      loadBackgroundMusic(this);
-    });
-    
-    // Preload dialog images with error handling
-    this.loadDialogAssets();
-  }
-  
-  create() {
-    console.log("GameScene create - setting up game components");
-    
-    // Initialize lazy-loaded properties
-    this._environment = null;
-    this._ui = null;
-    this._playerManager = null;
-    this._enemyManager = null;
-    this._droneManager = null;
-    this._timeScaleManager = null;
-    this._dialogSystem = null;
-    this._droneWheel = null;
-    
-    // Initialize essential managers first
-    this.initializeEssentialManagers();
-    
-    // Set up physics
-    this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    
-    // Set up camera
-    this.cameras.main.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    
-    // Check if this is a multiplayer game
-    this.isMultiplayer = this.registry.get('multiplayer') || false;
-    this.isHost = this.registry.get('isHost') || false;
-    
-    // In multiplayer mode, host should wait for a signal before starting
-    if (this.isMultiplayer && this.isHost) {
-      // Show waiting text
-      this.waitingHostText = this.add.text(
-        GAME_WIDTH / 2,
-        GAME_HEIGHT * 0.3,
-        'Waiting for Player 2...',
-        {
-          fontFamily: 'Tektur',
-          fontSize: '28px',
-          color: '#ffffff',
-          stroke: '#000000',
-          strokeThickness: 4
-        }
-      );
-      this.waitingHostText.setOrigin(0.5);
-      this.waitingHostText.setDepth(1000);
-      this.waitingHostText.setScrollFactor(0);
-    }
-    
-    // Create player and load sounds
-    this.playerManager.createPlayer();
-    this.playerManager.loadSounds();
-    
-    // Configure camera to follow player
-    this.setupCamera();
-    
-    // In multiplayer, if we're not host, immediately send a "ready" message
-    // This helps in case the player ready signal from lobby was missed
-    if (this.isMultiplayer && !this.isHost && this.playerManager.socket) {
-      console.log("Player 2 sending another playerReady signal from GameScene");
-      this.playerManager.socket.emit('playerReady', { 
-        sessionId: this.registry.get('sessionId') 
-      });
-    }
-    
-    // Log the timeScaleManager state to debug
-    if (this.timeScaleManager) {
-      console.log("TimeScaleManager is initialized and ready");
-    } else {
-      console.warn("TimeScaleManager is not initialized yet!");
-    }
-    
-    // Check if this is a brand new game or a restart from game over
-    const isRestartFromGameOver = this.registry.get('restartFromGameOver');
-    
-    // For multiplayer, check if we need to wait
-    if (this.isMultiplayer) {
-      if (this.playerManager.socket) {
-        this.playerManager.socket.on('startGame', () => {
-          console.log('Received startGame signal, both players ready!');
-          
-          // Hide waiting text if it exists
-          if (this.waitingHostText) {
-            this.waitingHostText.destroy();
-          }
-          
-          // Start the game for both players
-          this.startGameForAllPlayers(isRestartFromGameOver);
-        });
-        
-        console.log(`Multiplayer game: I am ${this.isHost ? 'HOST' : 'PLAYER 2'}`);
-      }
-    } else {
-      // In single player mode, start game immediately
-      this.startGameForAllPlayers(isRestartFromGameOver);
-    }
-    
-    // Setup collision detection between bullets and enemies
-    // Use enemyManager's collision check method, but bound to the EnemyManager instance
-    this.physics.add.overlap(
-      this.playerManager.getBullets(),
-      this.enemyManager.getEnemies(),
-      this.handleBulletEnemyCollision,
-      (bullet, enemy) => this.enemyManager.checkBulletEnemyCollision(bullet, enemy),
-      this
-    );
-    
-    // Create loot group for cash items
-    this.lootGroup = this.physics.add.group();
-    
-    // Setup collision for player collecting cash
-    this.physics.add.overlap(
-      this.playerManager.getPlayer(),
-      this.lootGroup,
-      this.handleCashCollection,
-      null,
-      this
-    );
-    
-    // If player is authenticated, load high score from player account
-    if (this.playerAccount.isPlayerAuthenticated()) {
-      const highScore = this.playerAccount.getHighScore();
-      this.ui.setHighScore(highScore);
-    }
-    
-    // Listen for orientation changes to adjust camera
-    this.events.on('orientationChange', this.handleOrientationChange, this);
-  }
-  
-  // Track and handle kill streaks
-  updateKillStreak() {
-    const now = this.time.now;
-    const streak = this.killStreak;
-    const extStreak = this.extendedKillStreak;
-    
-    // Update short streak (7 kills in 5 seconds)
-    // If we're in cooldown, check if it should end
-    if (streak.cooldown) {
-      // End cooldown after 10 seconds
-      if (now - streak.lastKillTime > 10000) {
-        streak.cooldown = false;
-      }
-    } else {
-      // Check if this is the first kill in a potential streak
-      if (!streak.active) {
-        streak.active = true;
-        streak.kills = 1;
-        streak.startTime = now;
-        streak.lastKillTime = now;
-      } else {
-        // Check if the streak is still valid (within the time window)
-        if (now - streak.lastKillTime <= streak.timeWindow) {
-          // Add to streak and update the last kill time
-          streak.kills++;
-          streak.lastKillTime = now;
-          
-          // If we've reached the threshold, play the crowd chant
-          if (streak.kills >= streak.requiredKills) {
-            this.playCrowdChant();
-            
-            // Reset streak and enter cooldown
-            streak.active = false;
-            streak.kills = 0;
-            streak.cooldown = true;
-          }
-        } else {
-          // Too much time has passed, reset streak
-          streak.active = true;
-          streak.kills = 1;
-          streak.startTime = now;
-          streak.lastKillTime = now;
-        }
-      }
-    }
-    
-    // Update extended streak (40 kills in 30 seconds)
-    // If we're in cooldown, check if it should end
-    if (extStreak.cooldown) {
-      // End cooldown after 30 seconds
-      if (now - extStreak.startTime > 60000) { // 1 minute cooldown
-        extStreak.cooldown = false;
-      }
-    } else {
-      // Check if this is the first kill in a potential extended streak
-      if (!extStreak.active) {
-        extStreak.active = true;
-        extStreak.kills = 1;
-        extStreak.startTime = now;
-      } else {
-        // Check if the streak is still valid (within the extended time window)
-        if (now - extStreak.startTime <= extStreak.timeWindow) {
-          // Add to extended streak
-          extStreak.kills++;
-          
-          // If we've reached the threshold, play the crowd cheer
-          if (extStreak.kills >= extStreak.requiredKills) {
-            this.playCrowdCheer();
-            
-            // Reset extended streak and enter cooldown
-            extStreak.active = false;
-            extStreak.kills = 0;
-            extStreak.cooldown = true;
-          }
-        } else {
-          // Too much time has passed, reset extended streak
-          extStreak.active = true;
-          extStreak.kills = 1;
-          extStreak.startTime = now;
-        }
-      }
-    }
-  }
-  
-  // Play alternating crowd cheer sounds for 7-kill streaks
-  playCrowdChant() {
-    // Don't play crowd sounds in tutorial scene
-    if (this.scene.key === 'TutorialScene') {
-      console.log('Skipping crowd chant sound in tutorial');
-      return;
-    }
-    
-    // Increment the counter and get which cheer sound to use (0, 1, or 2)
-    this.cheerCounter = (this.cheerCounter + 1) % 3;
-    const cheerType = this.cheerCounter;
-    console.log(`Crowd cheering (${cheerType}) for 7-kill streak!`);
-    
-    // Try to play using Phaser sound system first
-    if (cheerType === 0 && this.crowdCheerSound) {
-      this.crowdCheerSound.play({ volume: 1.0 });
-      return;
-    } else if (cheerType === 1 && this.crowdCheer1Sound) {
-      this.crowdCheer1Sound.play({ volume: 1.0 });
-      return;
-    } else if (cheerType === 2 && this.crowdCheer2Sound) {
-      this.crowdCheer2Sound.play({ volume: 1.0 });
-      return;
-    }
-    
-    // Fallback to HTML Audio elements if available
-    let audioKey = 'crowd_cheer';
-    if (cheerType === 1) audioKey = 'crowd_cheer1';
-    if (cheerType === 2) audioKey = 'crowd_cheer2';
-    
-    const audioElement = this.cachedAudioElements[audioKey];
-    if (audioElement) {
-      // Reset to beginning in case it's already been played
-      audioElement.currentTime = 0;
-      // Ensure full volume
-      audioElement.volume = 1.0;
-      
-      // Play with error handling
-      try {
-        const playPromise = audioElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.warn(`Unable to play ${audioKey} sound:`, error);
-          });
-        }
-      } catch (error) {
-        console.error(`Failed to play ${audioKey} sound:`, error);
-      }
-    }
-  }
-  
-  // Play the crowd chant sound for extended streaks (25 kills)
-  playCrowdCheer() {
-    // Don't play crowd sounds in tutorial scene
-    if (this.scene.key === 'TutorialScene') {
-      console.log('Skipping crowd cheer sound in tutorial');
-      return;
-    }
-    
-    console.log('Crowd chanting for 25-kill streak!');
-    
-    // Try to play using Phaser sound system first
-    if (this.crowdChantSound) {
-      this.crowdChantSound.play({ volume: 1.0 });  // Full volume for crowd chant
-      return;
-    }
-    
-    // Fallback to HTML Audio element if available
-    const audioElement = this.cachedAudioElements['crowd_chant'];
-    if (audioElement) {
-      // Reset to beginning in case it's already been played
-      audioElement.currentTime = 0;
-      // Ensure full volume
-      audioElement.volume = 1.0;
-      
-      // Play with error handling
-      try {
-        const playPromise = audioElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.warn("Unable to play crowd chant sound:", error);
-          });
-        }
-      } catch (error) {
-        console.error("Failed to play crowd chant sound:", error);
-      }
-    }
-  }
-
-  // Play the crowd ooooh sound when player takes damage or survives a wave
-  playCrowdOoooh() {
-    // Don't play crowd sounds in tutorial scene
-    if (this.scene.key === 'TutorialScene') {
-      console.log('Skipping crowd ooooh sound in tutorial');
-      return;
-    }
-    
-    console.log('Crowd goes "Ooooh!"');
-    
-    // Try to play using Phaser sound system first
-    if (this.crowdOooohSound) {
-      this.crowdOooohSound.play({ volume: 1.0 });
-      return;
-    }
-    
-    // Fallback to HTML Audio element if available
-    const audioElement = this.cachedAudioElements['crowd_ooooh'];
-    if (audioElement) {
-      // Reset to beginning in case it's already been played
-      audioElement.currentTime = 0;
-      // Ensure full volume for dramatic effect
-      audioElement.volume = 1.0;
-      
-      // Play with error handling
-      try {
-        const playPromise = audioElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.warn("Unable to play crowd ooooh sound:", error);
-          });
-        }
-      } catch (error) {
-        console.error("Failed to play crowd ooooh sound:", error);
-      }
-    }
-  }
-  
-  // Play the crowd aaaah sound for surviving a large number of enemies
-  playCrowdAaaah() {
-    // Don't play crowd sounds in tutorial scene
-    if (this.scene.key === 'TutorialScene') {
-      console.log('Skipping crowd aaaah sound in tutorial');
-      return;
-    }
-    
-    console.log('Crowd goes "Aaaah!" for surviving many enemies!');
-    
-    // Try to play using Phaser sound system first
-    if (this.crowdAaaahSound) {
-      this.crowdAaaahSound.play({ volume: 1.0 });
-      return;
-    }
-    
-    // Fallback to HTML Audio element if available
-    const audioElement = this.cachedAudioElements['crowd_aaaah'];
-    if (audioElement) {
-      audioElement.currentTime = 0;
-      audioElement.volume = 1.0;
-      
-      try {
-        const playPromise = audioElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.warn("Unable to play crowd aaaah sound:", error);
-          });
-        }
-      } catch (error) {
-        console.error("Failed to play crowd aaaah sound:", error);
-      }
-    }
-  }
-  
-  // Set up camera to follow player with deadzone and bounds
-  setupCamera() {
-    const player = this.playerManager.getPlayer();
-    const isPortrait = this.registry.get('isPortrait');
-    
-    // Get current game dimensions
-    const gameWidth = this.cameras.main.width;
-    const gameHeight = this.cameras.main.height;
-    
-    // Calculate the extended world size (50% larger than screen)
-    const worldExtension = 0.5; // 50% extension
-    const worldWidth = gameWidth * (1 + worldExtension);
-    const worldHeight = gameHeight * (1 + worldExtension);
-    
-    // Calculate offset to center the extended world
-    const offsetX = (worldWidth - gameWidth) / 2;
-    const offsetY = (worldHeight - gameHeight) / 2;
-    
-    // Set world bounds to be larger than the camera view
-    this.physics.world.setBounds(
-      -offsetX, 
-      -offsetY, 
-      worldWidth, 
-      worldHeight
-    );
-    
-    // Keep player within these extended world bounds
-    player.setCollideWorldBounds(true);
-    
-    // Set camera bounds to match the game dimensions exactly
-    // This prevents the camera from showing beyond the playable area
-    this.cameras.main.setBounds(
-      -offsetX, 
-      -offsetY, 
-      worldWidth, 
-      worldHeight
-    );
-    
-    // Configure camera to follow player
-    this.cameras.main.startFollow(player, true);
-    
-    // Set camera deadzone - smaller in portrait mode
-    // These values determine how close to the edge the player can get before camera starts moving
-    const deadzoneWidth = isPortrait ? gameWidth * 0.3 : gameWidth * 0.4;
-    const deadzoneHeight = isPortrait ? gameHeight * 0.3 : gameHeight * 0.4;
-    
-    // Set the deadzone - area where camera won't scroll
-    // This creates a "box" in the center where the player can move without the camera moving
-    this.cameras.main.setDeadzone(deadzoneWidth, deadzoneHeight);
-    
-    // Set camera zoom
-    this.cameras.main.setZoom(1);
-    
-    // Inform environment to resize tiles
-    if (this.environment) {
-      // Send an event that LabEnvironment can listen for
-      this.events.emit('updateEnvironment', { isPortrait });
-    }
-    
-    // Store camera configuration for reference in update
-    this.cameraConfig = {
-      worldWidth,
-      worldHeight,
-      offsetX,
-      offsetY,
-      gameWidth,
-      gameHeight
-    };
-  }
-  
-  // Handle orientation changes
-  handleOrientationChange({ isPortrait }) {
-    // Update camera settings when orientation changes
-    this.setupCamera();
-    
-    // Handle UI visibility in portrait mode
-    if (isPortrait && this.ui) {
-      console.log('Switching to portrait mode - hiding counters');
-      // Hide counters in portrait mode until they change
-      if (this.ui.killCounter) {
-        // Hide container for more reliable hiding
-        if (this.ui.killCounter.container) {
-          this.ui.killCounter.container.setVisible(false);
-        } else {
-          this.ui.killCounter.segmentDisplays.forEach(segs => segs.forEach(s => s.setVisible(false)));
-        }
-        // Update portrait mode flag
-        this.ui.killCounter.isPortrait = true;
+  // Play a sound effect with error handling
+  async playSound(key, config = {}) {
+    try {
+      // Try to play immediately if already loaded
+      if (this.sound.get(key)) {
+        return this.sound.play(key, config);
       }
       
-      if (this.ui.moneyCounter) {
-        // Hide container for more reliable hiding
-        if (this.ui.moneyCounter.container) {
-          this.ui.moneyCounter.container.setVisible(false);
-        } else {
-          this.ui.moneyCounter.segmentDisplays.forEach(segs => segs.forEach(s => s.setVisible(false)));
-          this.ui.moneyCounter.decimalPoints.forEach(point => point.setVisible(false));
-        }
-        // Update portrait mode flag
-        this.ui.moneyCounter.isPortrait = true;
-      }
-      
-      if (this.ui.bonkCounter) {
-        // Hide container for more reliable hiding
-        if (this.ui.bonkCounter.container) {
-          this.ui.bonkCounter.container.setVisible(false);
-        } else {
-          this.ui.bonkCounter.segmentDisplays.forEach(segs => segs.forEach(s => s.setVisible(false)));
-          this.ui.bonkCounter.decimalPoints.forEach(point => point.setVisible(false));
-        }
-        // Update portrait mode flag
-        this.ui.bonkCounter.isPortrait = true;
-      }
-    } else if (!isPortrait && this.ui) {
-      console.log('Switching to landscape mode - showing counters');
-      // Show counters in landscape mode
-      if (this.ui.killCounter) {
-        // Show container for more reliable showing
-        if (this.ui.killCounter.container) {
-          this.ui.killCounter.container.setVisible(true);
-        } else {
-          this.ui.killCounter.segmentDisplays.forEach(segs => segs.forEach(s => s.setVisible(true)));
-        }
-        // Update portrait mode flag
-        this.ui.killCounter.isPortrait = false;
-      }
-      
-      if (this.ui.moneyCounter) {
-        // Show container for more reliable showing
-        if (this.ui.moneyCounter.container) {
-          this.ui.moneyCounter.container.setVisible(true);
-        } else {
-          this.ui.moneyCounter.segmentDisplays.forEach(segs => segs.forEach(s => s.setVisible(true)));
-          this.ui.moneyCounter.decimalPoints.forEach(point => point.setVisible(true));
-        }
-        // Update portrait mode flag
-        this.ui.moneyCounter.isPortrait = false;
-      }
-      
-      if (this.ui.bonkCounter) {
-        // Show container for more reliable showing
-        if (this.ui.bonkCounter.container) {
-          this.ui.bonkCounter.container.setVisible(true);
-        } else {
-          this.ui.bonkCounter.segmentDisplays.forEach(segs => segs.forEach(s => s.setVisible(true)));
-          this.ui.bonkCounter.decimalPoints.forEach(point => point.setVisible(true));
-        }
-        // Update portrait mode flag
-        this.ui.bonkCounter.isPortrait = false;
-      }
+      // If not loaded, load it first
+      const sound = await loadSoundEffect(this, key);
+      return sound.play(config);
+    } catch (error) {
+      console.warn(`Failed to play sound ${key}:`, error);
+      return null;
     }
-  }
-  
-  // Clean up scene when it stops or restarts
-  destroy() {
-    // Make sure to clean up properly
-    this.shutdown();
-    super.destroy();
-  }
-  
-  // Handle player collecting cash or upgrade boxes
-  handleCashCollection(player, item) {
-    // Check if the item is a drone upgrade box
-    if (item.upgradeType) {
-      // Check if this item has already been collected to prevent duplicate collection
-      if (item.isCollected) {
-        console.log(`Powerup already collected, ignoring duplicate collision`);
-        return;
-      }
-      
-      // Mark the item as collected to prevent duplicate collection
-      item.isCollected = true;
-      
-      // Apply the upgrade effect via drone manager
-      console.log('Collecting powerup:', item.upgradeType);
-      this.droneManager.applyUpgrade(player, item);
-      return;
-    }
-    
-    // Check if it's a BONK token
-    if (item.lootType === 'bonk') {
-      // Check if this item has already been collected to prevent duplicate collection
-      if (item.isCollected) {
-        console.log(`Bonk already collected, ignoring duplicate collision`);
-        return;
-      }
-      
-      // Mark the item as collected to prevent duplicate collection
-      item.isCollected = true;
-      
-      // Special collection animation for Bonk
-      this.tweens.add({
-        targets: item,
-        scale: 0.2, // Grow slightly for effect
-        alpha: 0,
-        y: item.y - 30, // Fly up higher
-        duration: 300,
-        ease: 'Back.easeIn',
-        onComplete: () => {
-          // Add Bonk tokens to player's account
-          const bonkAmount = item.bonkAmount || 1;
-
-          // Incrementa el contador de BONK de la arena
-          this.arenaBonkCount += bonkAmount;
-
-          // Actualiza SOLO la UI con el contador de la arena
-          this.time.delayedCall(50, () => {
-            if (this.ui && typeof this.ui.updateBonkDisplay === 'function') {
-              this.ui.updateBonkDisplay(this.arenaBonkCount);
-            }
-          });
-
-          // También actualiza el balance de la cuenta en segundo plano (si quieres mantenerlo actualizado)
-          if (this.playerAccount) {
-            this.playerAccount.updateBonkBalance(bonkAmount);
-          }
-
-          // Show floating text for BONK collection
-          this.events.emit('showFloatingText', {
-            x: player.x,
-            y: player.y - 40,
-            text: `+${bonkAmount} BONK`,
-            color: '#ffe234' // Bonk yellow color
-          });
-
-          // Remove the bonk item
-          item.destroy();
-        }
-      });
-      return;
-    }
-    
-    // Handle regular loot items (coins or cash)
-    // Check if this item has already been collected to prevent duplicate collection
-    if (item.isCollected) {
-      console.log(`Money already collected, ignoring duplicate collision`);
-      return;
-    }
-    
-    // Mark the item as collected to prevent duplicate collection
-    item.isCollected = true;
-    
-    this.tweens.add({
-      targets: item,
-      scale: 0.3, // Adjusted to match the new smaller size
-      alpha: 0,
-      y: item.y - 20,
-      duration: 200,
-      onComplete: () => {
-        // Add a random amount of money (10x nerf)
-        const moneyValues = [0.1, 0.5, 1, 2, 5, 10];
-        const randomMoney = moneyValues[Math.floor(Math.random() * moneyValues.length)];
-        
-        // Apply multiplier if set (from stronger enemies)
-        const multiplier = item.moneyMultiplier || 1;
-        const finalAmount = randomMoney * multiplier;
-        
-        // Update player's money
-        this.ui.updateMoney(finalAmount);
-        
-        // Play credit sound right before destroying the item
-        this.playCreditSound();
-        
-        // Remove the item
-        item.destroy();
-      }
-    });
   }
   
   // Play credit sound when collecting loot
-  playCreditSound() {
-    // Try to play the sound using Phaser's sound system
-    const sound = this.sound.get('credit');
-    if (sound) {
-      sound.play({ volume: 0.5 });
-      return;
-    }
+  async playCreditSound() {
+    return this.playSound('credit', { volume: 0.5 });
+  }
+  
+  // Preload non-essential sounds in the background
+  preloadBackgroundSounds() {
+    // Load background music after a short delay
+    this.time.delayedCall(2000, () => {
+      loadBackgroundMusic(this);
+    });
     
-    // Fallback to HTML Audio if available
-    const audioElement = this.cachedAudioElements['credit'];
-    if (audioElement) {
-      audioElement.currentTime = 0;
-      audioElement.volume = 0.5;
+    // Preload common SFX after game starts
+    this.time.delayedCall(5000, () => {
+      const commonSounds = [
+        'shot', 'reload', 'empty_mag', 'mine_explosion',
+        'kills_firstblood', 'kills_10', 'kills_50', 'kills_100',
+        'kills_200', 'kills_300', 'crowd_cheer', 'crowd_cheer1',
+        'crowd_cheer2', 'crowd_chant', 'crowd_ooooh', 'crowd_aaaah'
+      ];
       
-      try {
-        const playPromise = audioElement.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.warn(`Unable to play credit sound:`, error);
-          });
+      commonSounds.forEach(soundKey => {
+        if (!this.sound.get(soundKey)) {
+          loadSoundEffect(this, soundKey).catch(console.warn);
         }
-      } catch (error) {
-        console.error(`Failed to play credit sound:`, error);
-      }
-      return;
-    }
-    
-    // Second fallback - try to create and play the sound directly
-    try {
-      const newAudio = new Audio('/assets//sound/sfx/credit.mp3');
-      newAudio.volume = 0.5;
-      const playPromise = newAudio.play();
-      
-      // Cache for future use
-      this.cachedAudioElements['credit'] = newAudio;
-      
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.warn(`Unable to create and play credit sound:`, error);
-        });
-      }
-    } catch (error) {
-      console.error(`Failed to create and play credit sound:`, error);
-    }
+      });
+    });
   }
   
   update(time, delta) {
@@ -2450,6 +1747,29 @@ export class GameScene extends Phaser.Scene {
     });
   }
   
+  // Play crowd "aaaah" sound when player survives a large number of enemies
+  playCrowdAaaah() {
+    // Don't play crowd sounds in tutorial scene
+    if (this.scene.key === 'TutorialScene') {
+      console.log('Skipping crowd aaaah sound in tutorial');
+      return;
+    }
+    
+    console.log('Crowd goes "Aaaah!" for surviving many enemies!');
+    this.playSound('crowd_aaaah', { volume: 1.0 }).catch(console.warn);
+  }
+  
+  // Play crowd "ooooh" sound when player takes damage or survives a wave
+  playCrowdOoooh() {
+    // Don't play crowd sounds in tutorial scene
+    if (this.scene.key === 'TutorialScene') {
+      console.log('Skipping crowd ooooh sound in tutorial');
+      return;
+    }
+    
+    console.log('Crowd goes "Ooooh!"');
+    this.playSound('crowd_ooooh', { volume: 1.0 }).catch(console.warn);
+  }
   
   // Handle collisions between player and enemies for attacks
   checkPlayerEnemyCollisions() {

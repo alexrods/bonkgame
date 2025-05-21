@@ -38,8 +38,11 @@ const ASSET_GROUPS = {
   }
 };
 
-// Track which assets are loaded
-const loadedAssets = {
+// Track loaded assets
+const loadedAssets = new Set();
+
+// Track asset groups loading state
+const loadedGroups = {
   essential: false,
   music: false,
   sfx: false
@@ -47,34 +50,67 @@ const loadedAssets = {
 
 // Loads only essential assets needed for initial game start
 export function preloadEssentialAssets(scene) {
-  if (loadedAssets.essential) return;
+  if (loadedGroups.essential) return true;
   
-  scene.load.setPath('');
   loadAssetGroup(scene, 'essential');
-  loadedAssets.essential = true;
+  scene.load.start();
+  loadedGroups.essential = true;
+  return false;
 }
 
 // Loads background music after game starts
 export function loadBackgroundMusic(scene) {
-  if (loadedAssets.music) return;
+  if (loadedGroups.music) return Promise.resolve();
   
-  loadAssetGroup(scene, 'music');
-  scene.load.start();
-  loadedAssets.music = true;
+  return new Promise((resolve) => {
+    loadAssetGroup(scene, 'music');
+    scene.load.once('complete', () => {
+      loadedGroups.music = true;
+      resolve();
+    });
+    scene.load.start();
+  });
 }
 
 // Loads a specific sound effect on demand
 export function loadSoundEffect(scene, soundKey) {
-  if (loadedAssets.sfx) return;
+  // Check if already loaded
+  if (loadedAssets.has(soundKey)) {
+    return Promise.resolve(scene.sound.get(soundKey));
+  }
   
-  const sfx = ASSET_GROUPS.sfx.audio.find(sound => sound.key === soundKey);
-  if (sfx) {
-    scene.load.audio(sfx.key, sfx.urls);
+  // Find the sound in any group
+  let soundConfig;
+  for (const group of Object.values(ASSET_GROUPS)) {
+    if (group.audio) {
+      const found = group.audio.find(sound => sound.key === soundKey);
+      if (found) {
+        soundConfig = found;
+        break;
+      }
+    }
+  }
+  
+  if (!soundConfig) {
+    console.warn(`Sound effect not found: ${soundKey}`);
+    return Promise.reject(new Error('Sound not found'));
+  }
+  
+  return new Promise((resolve) => {
+    // Check cache first
+    if (scene.cache.audio.exists(soundKey)) {
+      loadedAssets.add(soundKey);
+      return resolve(scene.sound.add(soundKey));
+    }
+    
+    // Load the sound
+    scene.load.audio(soundKey, soundConfig.urls);
     scene.load.once('complete', () => {
-      console.log(`Loaded sound effect: ${soundKey}`);
+      loadedAssets.add(soundKey);
+      resolve(scene.sound.add(soundKey));
     });
     scene.load.start();
-  }
+  });
 }
 
 // Internal function to load an asset group
@@ -87,6 +123,9 @@ function loadAssetGroup(scene, groupName) {
     group.audio.forEach(sound => {
       if (!scene.cache.audio.exists(sound.key)) {
         scene.load.audio(sound.key, sound.urls);
+      } else {
+        // Mark as already loaded
+        loadedAssets.add(sound.key);
       }
     });
   }
@@ -98,7 +137,7 @@ export function preloadSprites(scene) {
   loadBackgroundMusic(scene);
   
   // Load all SFX but don't block
-  if (!loadedAssets.sfx) {
+  if (!loadedGroups.sfx) {
     loadAssetGroup(scene, 'sfx');
     scene.load.start();
     loadedAssets.sfx = true;

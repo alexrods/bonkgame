@@ -19,39 +19,7 @@ const isMobile = (
 window.WEB3_CONFIG = WEB3_CONFIG;
 
 // Set up DOM-based loading screen
-document.addEventListener('DOMContentLoaded', () => {
-  const loadingScreen = document.getElementById('loading-screen');
-  const loadingBar = document.getElementById('loading-bar');
-  const loadingPercent = document.getElementById('loading-percent');
-  const loadingAsset = document.getElementById('loading-asset');
-  
-  window.addEventListener('game-loading-progress', (event) => {
-    const { value, currentAsset } = event.detail;
-    const percent = Math.floor(value * 100);
-    
-    loadingBar.style.width = `${percent}%`;
-    loadingPercent.textContent = `${percent}%`;
-    
-    if (currentAsset) {
-      let assetName = currentAsset;
-      if (assetName.includes('_')) {
-        assetName = assetName
-          .replace(/_/g, ' ')
-          .replace(/\\b\\w/g, l => l.toUpperCase());
-      }
-      loadingAsset.textContent = `Loading: ${assetName}`;
-    }
-  });
-  
-  window.addEventListener('game-loading-complete', () => {
-    setTimeout(() => {
-      loadingScreen.style.opacity = '0';
-      setTimeout(() => {
-        loadingScreen.style.display = 'none';
-      }, 500);
-    }, 300);
-  });
-});
+// Loading screen functionality has been removed
 
 // Force font preloading
 const preloadFonts = () => {
