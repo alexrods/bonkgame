@@ -12,10 +12,10 @@ export default defineConfig({
         }
       ]
     }),
-    viteImagemin({
-      webp: { quality: 60 },
-      avif: { quality: 50 },
-    })
+    // viteImagemin({
+    //   webp: { quality: 60 },
+    //   avif: { quality: 50 },
+    // })
   ],
   resolve: {
     alias: {

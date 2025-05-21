@@ -97,6 +97,24 @@ export class EnemyManager {
     
     // Store a reference to this instance globally for emergency access
     globalEnemyManager = this;
+    
+    // Add force methods to this instance
+    this.forceStopSpawning = () => forceStopAllEnemySpawning();
+    this.forceStartSpawning = () => forceStartAllEnemySpawning();
+    
+    // Force add emergency spawning control methods to the scene's events
+    if (scene && scene.events) {
+      scene.events.on('forceStopSpawning', this.forceStopSpawning, this);
+      scene.events.on('forceStartSpawning', this.forceStartSpawning, this);
+    }
+    
+    // Bind methods to ensure correct context
+    this.checkBulletEnemyCollision = this.checkBulletEnemyCollision.bind(this);
+    
+    // Multiplayer sync
+    this.multiplayerEvents = null;
+    this.lastEnemySync = 0;
+    this.enemySyncInterval = 100; // Send enemy updates every 100ms
   }
 
   // Lazy getter for sounds
@@ -143,57 +161,6 @@ export class EnemyManager {
       this._effects.sounds = this.sounds;
     }
     return this._effects;
-  }
-  
-  constructor(scene, bloodContainer) {
-    this.scene = scene;
-    this.bloodContainer = bloodContainer;
-    
-    // Check if we're in multiplayer mode
-    this.isMultiplayer = scene.registry.get('multiplayer') || false;
-    this.isHost = scene.registry.get('isHost') || false;
-    
-    // Add paused flag for deposit/withdraw screens
-    this.paused = false;
-    
-    // Store velocities of all enemies when paused
-    this.pausedEnemiesState = [];
-    
-    // Define shadow offsets for all enemies
-    this.shadowOffsets = [
-      { x: 10, y: 10 },   // For reflector in top-left, shadow falls bottom-right
-      { x: -10, y: 10 },  // For reflector in top-right, shadow falls bottom-left
-      { x: 10, y: -10 },  // For reflector in bottom-left, shadow falls top-right
-      { x: -10, y: -10 }  // For reflector in bottom-right, shadow falls top-left
-    ];
-    
-    // Lazy initialization for sub-managers
-    this._sounds = null;
-    this._spawner = null;
-    this._behavior = null;
-    this._collisions = null;
-    this._effects = null;
-    
-    // Store a reference to this instance globally for emergency access
-    globalEnemyManager = this;
-    
-    // Add force methods to this instance
-    this.forceStopSpawning = () => forceStopAllEnemySpawning();
-    this.forceStartSpawning = () => forceStartAllEnemySpawning();
-    
-    // Force add emergency spawning control methods to the scene's events
-    if (scene && scene.events) {
-      scene.events.on('forceStopSpawning', this.forceStopSpawning, this);
-      scene.events.on('forceStartSpawning', this.forceStartSpawning, this);
-    }
-    
-    // Bind methods to ensure correct context
-    this.checkBulletEnemyCollision = this.checkBulletEnemyCollision.bind(this);
-    
-    // Multiplayer sync
-    this.multiplayerEvents = null;
-    this.lastEnemySync = 0;
-    this.enemySyncInterval = 100; // Send enemy updates every 100ms
   }
 
   init() {
