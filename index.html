@@ -116,15 +116,17 @@
     <div id="loading-percent" class="loading-percent" style="font-family: 'Tektur', sans-serif;">0%</div>
   </div>
   
-  <!-- Wallet Connection Debug Info - Hidden by default -->
+  <!--
+  Wallet Debug Info Section (Hidden by default)
   <div id="wallet-debug" style="display: none; position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8); color: white; padding: 10px; font-family: monospace; font-size: 12px; max-width: 400px; max-height: 200px; overflow: auto; z-index: 10000;">
     <div id="debug-title" style="font-weight: bold; margin-bottom: 5px;">Wallet Debug Info:</div>
     <div id="debug-content"></div>
   </div>
   
-  <!-- Debug toggle button -->
+  Debug Toggle Button
   <button id="toggle-debug" style="position: fixed; bottom: 10px; left: 10px; z-index: 10001; background: #333; color: white; border: none; padding: 3px 8px; font-size: 10px; cursor: pointer; opacity: 0.5;">Debug</button>
   
+  Debug Info Script
   <script>
     document.getElementById('toggle-debug').addEventListener('click', function() {
       const debugPanel = document.getElementById('wallet-debug');
@@ -163,6 +165,7 @@
       }
     });
   </script>
+  -->
   
   <!-- Main Application Script (ES Module) -->
   <script type="module" src="src/main.js"></script>
