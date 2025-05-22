@@ -1,6 +1,7 @@
 import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from "../../config.js";
 import { PlayerAccount } from "../web3/PlayerAccount.js";
 import { DepositWithdrawPrompt } from "../ui/DepositWithdrawPrompt.js";
+import { VERSUS_CONFIG } from "../configVersus.js";
 
 export class MenuScene extends Phaser.Scene {
   constructor() {
@@ -714,14 +715,6 @@ export class MenuScene extends Phaser.Scene {
       this.cameras.main.width / 2,
       this.cameras.main.height / 2
     );
-    dialogContainer.setDepth(1001);
-
-    // Create dialog background
-    const dialogBg = this.add.rectangle(0, 0, 400, 300, 0x330033, 0.9);
-    dialogBg.setStrokeStyle(2, 0x00ffff);
-    dialogContainer.add(dialogBg);
-
-    // Create dialog title
     const title = this.add.text(0, -110, "SELECT ROLE", {
       fontFamily: "Tektur, Arial",
       fontSize: "24px",
@@ -2031,35 +2024,29 @@ export class MenuScene extends Phaser.Scene {
       alpha: { from: 0.2, to: 0.4 },
       duration: 1500,
       yoyo: true,
-      repeat: -1,
+      repeat: -1
     });
 
     // Calculate responsive font size for versus button
     const screenWidth = this.cameras.main.width;
     const isPortrait = this.cameras.main.height > this.cameras.main.width;
+    const fontSize = isPortrait ? 24 : 36; // Smaller font for portrait mode
 
-    // In non-portrait modes, buttons should be 50% smaller
-    const sizeMultiplier = isPortrait ? 1 : 0.5;
-    let versusFontSize = Math.max(
-      30 * sizeMultiplier,
-      Math.floor(screenWidth * 0.062 * sizeMultiplier)
-    ); // 6.2% of screen width, minimum 30px
-
-    // Create versus button
-    this.versusButton = this.add.text(0, 0, "VERSUS MODE", {
+    // Create versus button text
+    this.versusButton = this.add.text(0, 0, 'VERSUS MODE', {
       fontFamily: '"Tektur", monospace, Courier, Arial',
-      fontSize: `${versusFontSize}px`,
+      fontSize: `${fontSize}px`,
       color: "#ffffff",
       stroke: "#000000",
       strokeThickness: 6,
       shadow: {
         offsetX: 2,
         offsetY: 2,
-        color: "#9900ff", // Purple shadow
+        color: "#9900ff",
         blur: 5,
         stroke: true,
-        fill: true,
-      },
+        fill: true
+      }
     });
     this.versusButton.setOrigin(0.5);
 
@@ -2088,36 +2075,40 @@ export class MenuScene extends Phaser.Scene {
 
     // Add click event for the versus button
     this.versusButton.on("pointerdown", () => {
-      // Only start the game if wallet is connected
+      // Only start Versus mode if wallet is connected
       if (this.playerAccount.isPlayerAuthenticated()) {
-        // Record that we're playing versus mode
-        this.registry.set("multiplayer", false); // Not using multiplayer networking
-        this.registry.set("versusMode", true); // Flag for versus AI mode
-
-        // Check if the tutorial has been completed
-        const tutorialCompleted =
-          localStorage.getItem("tutorialCompleted") === "true";
-
-        if (!tutorialCompleted) {
-          // New player MUST play the tutorial first
-          this.startTutorial();
+        // Check if player has enough credits
+        const playerAccount = this.registry.get('playerAccount');
+        if (playerAccount && playerAccount.gameAccountBalance >= VERSUS_CONFIG.VERSUS_MODE_COST) {
+          // Start Versus mode
+          this.scene.start('LobbySceneVersus');
         } else {
-          // Go to character select screen to choose player character
-          this.scene.start("CharacterSelectScene", { versusMode: true });
+          // Show insufficient credits message
+          const message = this.add.text(
+            this.cameras.main.width / 2,
+            this.cameras.main.height / 2,
+            'Insufficient credits for Versus mode',
+            {
+              font: `${fontSize}px Arial`,
+              fill: '#ffffff',
+              align: 'center'
+            }
+          ).setOrigin(0.5);
+
+          this.time.delayedCall(2000, () => {
+            message.destroy();
+          });
         }
       } else {
         // Show error message when trying to play without wallet
         this.showConnectWalletWarning();
       }
     });
-
-    // Create co-op button (below the versus button)
-    this.createCoopButton();
   }
 
   // Create the co-op button
   createCoopButton() {
-    const buttonY = this.cameras.main.height * 0.75; // Below versus button (originally was at 0.65)
+    const buttonY = this.cameras.main.height * 0.75; // Below versus button
 
     // Create container for Co-op button
     this.coopButtonContainer = this.add.container(
@@ -2135,7 +2126,7 @@ export class MenuScene extends Phaser.Scene {
       alpha: { from: 0.2, to: 0.4 },
       duration: 1500,
       yoyo: true,
-      repeat: -1,
+      repeat: -1
     });
 
     // Calculate responsive font size for co-op button
@@ -2159,18 +2150,18 @@ export class MenuScene extends Phaser.Scene {
       shadow: {
         offsetX: 2,
         offsetY: 2,
-        color: "#00ffff", // Cyan shadow instead of magenta
+        color: "#00ffff",
         blur: 5,
         stroke: true,
-        fill: true,
-      },
+        fill: true
+      }
     });
     this.coopButton.setOrigin(0.5);
 
     // Add to container
     this.coopButtonContainer.add(this.coopButton);
 
-    // Make the button interactive (but we'll update its state in updateButtonStates())
+    // Make the button interactive
     this.coopButton.setInteractive({ useHandCursor: true });
 
     // Add hover effect for the co-op button when enabled

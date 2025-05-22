@@ -7,6 +7,8 @@ import { TutorialScene } from './js/scenes/TutorialScene.js';
 import { LobbyScene } from './js/scenes/LobbyScene.js';
 import { GameScene } from './js/scenes/GameScene.js';
 import { GameOverScene } from './js/scenes/GameOverScene.js';
+import { LobbySceneVersus } from './js/scenes/LobbySceneVersus.js';
+import { MultiplayerGameScene } from './js/scenes/MultiplayerGameScene.js';
 
 // Detect if the device is mobile
 const isMobile = (
@@ -81,5 +83,5 @@ export const config = {
   },
   // Remove custom pipeline configuration from here
   // We'll create the pipeline in the BootScene instead
-  scene: [BootScene, StartScene, IntroScene, MenuScene, CharacterSelectScene, TutorialScene, LobbyScene, GameScene, GameOverScene]
+  scene: [BootScene, StartScene, IntroScene, MenuScene, CharacterSelectScene, TutorialScene, LobbyScene, GameScene, GameOverScene, LobbySceneVersus, MultiplayerGameScene]
 };

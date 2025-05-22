@@ -11,6 +11,9 @@ export class MultiplayerGameScene extends Phaser.Scene {
         super({ key: 'MultiplayerGameScene' });
         this.socket = null;
         this.playerAccount = null;
+        this.waitingText = null;
+        this.totalPlayers = 0;
+        this.gameStarted = false;
     }
 
     init(data) {
@@ -58,6 +61,12 @@ export class MultiplayerGameScene extends Phaser.Scene {
         this.environment = new LabEnvironment(this);
         this.environment.init();
 
+        // Show waiting text
+        this.waitingText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, 'Waiting for Player 2...', {
+            font: '32px Arial',
+            fill: '#ffffff'
+        }).setOrigin(0.5);
+
         // Initialize UI for score display
         this.ui = new GameUI(this);
         this.ui.init();
@@ -72,9 +81,6 @@ export class MultiplayerGameScene extends Phaser.Scene {
         // Initialize dialog system
         this.dialogSystem = new DialogSystem(this);
         this.dialogSystem.init();
-
-        // // Listen for dialog end to trigger enemy AI player spawn at milestones
-        // this.events.on('dialogEnded', this.handleDialogEnded, this);
 
         // Initialize time scale manager
         this.timeScaleManager = new TimeScaleManager(this);
@@ -857,48 +863,59 @@ export class MultiplayerGameScene extends Phaser.Scene {
         });
     }
 
-
-    // Handle socket event when another player starts the game
     handleSocketEvents() {
         if (!this.socket) {
             console.warn('Socket not initialized when setting up event handlers');
             return;
         }
 
-        this.socket.on('playerStartedGame', (data) => {
-            console.log('Received playerStartedGame event:', data);
-
-            data.players.forEach(player => {
-                if (player.playerId != this.playerId) {
-                    this.enemyManager.addEnemy(player)
-                }
-            });
-            // In single player mode, start game immediately
-            this.startGameForAllPlayers();
-            // Start game for all connected players when any player starts
-        });
-
-        this.socket.on('playerMoved', (data) => {
-            // console.log('Received playerMoved event:', data);
-
-            if (data.playerId != this.playerId) {
-                this.enemyManager.updateEnemyMovenment(data);
+        this.socket.on('playerConnected', (data) => {
+            console.log('Player connected:', data);
+            this.totalPlayers++;
+            if (this.totalPlayers >= 2 && !this.gameStarted) {
+                this.startGame();
             }
         });
-
-        this.socket.on('playerKilled', (data) => {
-            console.log("Received player killed event:", data);
-            if (data.playerId != this.playerId) {
-                this.enemyManager.removeEnemy(data.playerId);
-            }
-            if (data.killedBy == this.playerId) {
-                this.ui.updateKillCount();
-            }
-        })
 
         this.socket.on('playerDisconnected', (data) => {
-            console.log('Received playerDisconnected event:', data);
-            this.enemyManager.removeEnemy(data.playerId);
+            console.log('Player disconnected:', data);
+            this.totalPlayers--;
+            if (this.totalPlayers < 2) {
+                this.showDisconnectMessage();
+            }
         });
+
+        // Handle game start event from server
+        this.socket.on('gameStart', (data) => {
+            console.log('Game starting with players:', data.players);
+            this.startGame();
+        });
+
+        // Handle player position updates
+        this.socket.on('playerUpdate', (data) => {
+            if (this.playerManager) {
+                this.playerManager.updatePlayerPosition(data);
+            }
+        });
+
+        // Handle bullet updates
+        this.socket.on('bulletUpdate', (data) => {
+            if (this.playerManager) {
+                this.playerManager.updateBullet(data);
+            }
+        });
+
+        // Handle player death
+        this.socket.on('playerDeath', (data) => {
+            if (this.playerManager) {
+                this.playerManager.handlePlayerDeath(data);
+            }
+        });
+    }
+
+    startGame() {
+        this.gameStarted = true;
+        this.waitingText.destroy();
+        this.startGameForAllPlayers();
     }
 }
