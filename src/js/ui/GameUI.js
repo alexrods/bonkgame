@@ -37,6 +37,39 @@ export class GameUI {
     const screenHeight = this.scene.cameras.main.height;
     let textFontSize = Math.max(14, Math.floor(screenWidth * 0.025)); // 2.5% of screen width, minimum 14px
     
+    if (this.scene.isMultiplayer) {
+      // Use same y-coordinate as ammo display for alignment
+      const counterX = Math.max(120, screenWidth * 0.15); // 15% of screen width from left, minimum 120px
+
+      // Check if we're in portrait mode
+      const isPortrait = this.scene.registry.get('isPortrait');
+
+      // Initialize the digital kill counter display with responsive positioning at the top
+      // Position the counter at the same vertical position (25px) as the AmmoDisplay for perfect alignment
+      this.killCounter = new KillCounter(this.scene, counterX, 25);
+      this.killCounter.updateKillCount(0);
+
+      // In portrait mode, immediately hide the counters until they change
+      if (isPortrait) {
+        // Hide the entire container instead of just segments
+        if (this.killCounter.container) {
+          this.killCounter.container.setVisible(false);
+        } else {
+          this.killCounter.segmentDisplays.forEach(segs => segs.forEach(s => s.setVisible(false)));
+        }
+      }
+      // Create hidden kill count text object for compatibility but position it off-screen
+      this.killCountText = this.scene.add.text(
+        -1000,
+        -1000,
+        'Kills: 0',
+        { fontSize: `${textFontSize}px`, fill: '#fff' }
+      );
+      this.killCountText.setAlpha(0); // Hide the text version completely
+
+      return;
+    }
+
     // Check if we're in the tutorial scene
     const isTutorialScene = this.scene.constructor.name === 'TutorialScene';
     

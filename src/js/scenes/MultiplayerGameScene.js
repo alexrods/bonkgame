@@ -1,10 +1,11 @@
-import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from '../../config.js';
+import { GAME_WIDTH, GAME_HEIGHT, VERSUS_MODE_COST } from '../../config.js';
 import { MultiplayerEnemyManager } from '../managers/MultiplayerEnemyManager.js';
 import { TimeScaleManager } from '../managers/TimeScaleManager.js';
 import { GameUI } from '../ui/GameUI.js';
 import { DialogSystem } from '../ui/DialogSystem.js';
 import { LabEnvironment } from '../environment/LabEnvironment.js';
 import { MultiplayerPlayerManager } from '../managers/MultiplayerPlayerManager.js';
+import { setCreditCount } from '../utils/api.js';
 
 export class MultiplayerGameScene extends Phaser.Scene {
     constructor() {
@@ -66,7 +67,7 @@ export class MultiplayerGameScene extends Phaser.Scene {
         this.playerManager.init();
 
         // Initialize enemy manager
-        this.enemyManager = new MultiplayerEnemyManager(this);
+        this.enemyManager = new MultiplayerEnemyManager(this, this.environment.getBloodContainer());
         this.enemyManager.init();
 
         // Initialize dialog system
@@ -552,6 +553,7 @@ export class MultiplayerGameScene extends Phaser.Scene {
     handlePlayerDeath() {
         // Get player reference
         const player = this.playerManager.getPlayer();
+        this.playerManager.stopShooting();
 
         // If player is already dying, don't handle death again
         if (player.isDying) {
@@ -720,6 +722,8 @@ export class MultiplayerGameScene extends Phaser.Scene {
             // Make player briefly invincible after taking damage
             player.isInvincible = true;
 
+            // Send player damage event to server
+            this.socket.emit('playerDamage', { playerId });
             // Flash player sprite to indicate damage and invincibility
             this.tweens.add({
                 targets: player,
@@ -796,8 +800,8 @@ export class MultiplayerGameScene extends Phaser.Scene {
 
         //     this.showKillCountMessage(newKillCount);
         // });
-        console.log("bullet playerId:", bullet.getData('playerId'));
-        this.handlePlayerDamage(bullet.getData('playerId'));
+        console.log("bullet playerId:", bullet.playerId);
+        this.handlePlayerDamage(bullet.playerId);
     }
 
     update(time, delta) {
@@ -826,7 +830,7 @@ export class MultiplayerGameScene extends Phaser.Scene {
         // Check each bullet against each enemy player
         bullets.forEach(bullet => {
             // Skip checking bullets fired by the same player
-            if (bullet.getData('playerId') === this.playerId) {
+            if (bullet.playerId === this.playerId) {
                 return;
             }
 
@@ -886,12 +890,23 @@ export class MultiplayerGameScene extends Phaser.Scene {
             }
         });
 
+        this.socket.on('playerDamaged', (data) => {
+            console.log("Received player damage event:", data);
+            if (data.playerId != this.playerId) {
+                this.enemyManager.damageEnemy(data.playerId);
+            }
+        });
+
         this.socket.on('playerKilled', (data) => {
             console.log("Received player killed event:", data);
             if (data.playerId != this.playerId) {
                 this.enemyManager.removeEnemy(data.playerId);
             }
             if (data.killedBy == this.playerId) {
+                let existingAccount = this.registry.get('playerAccount');
+                existingAccount.gameAccountBalance += VERSUS_MODE_COST;
+                setCreditCount(existingAccount.authToken, existingAccount.gameAccountBalance);
+                this.registry.set('playerAccount', existingAccount);
                 this.ui.updateKillCount();
             }
         })

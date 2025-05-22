@@ -1,27 +1,23 @@
-import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG, VERSUS_MODE_COST } from '../../config.js';
-import { setCreditCount } from '../utils/api.js';
+import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from '../../config.js';
 
-export class LobbyScene extends Phaser.Scene {
+export class CoopHostScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'LobbyScene' });
+    super({ key: 'CoopHostScene' });
     this.waitingText = null;
     this.waitingPlayer = null;
     this.waitingAnimation = null;
     this.lobbyTimer = 0;
     this.playerId = null;
-    this.sessionId = null;
-    this.loadingDots = '';
-    this.dotCount = 0;
+    this.socket = null;
+    this.totalPlayers = 0;
+    this.debugText = null;
     this.cancelButton = null;
     this.isAlreadyStarted = false;
   }
 
   create() {
-    // Set up socket connection
-    this.setupSocketConnection();
-
     // Set background color
-    this.cameras.main.setBackgroundColor(0x000);
+    this.cameras.main.setBackgroundColor(0x120326);
 
     // Create debug text
     this.debugText = this.add.text(10, 10, '', {
@@ -30,13 +26,13 @@ export class LobbyScene extends Phaser.Scene {
     });
 
     // Create waiting text
-    this.waitingText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, `You will lose ${VERSUS_MODE_COST} credits for this game`, {
+    this.waitingText = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2, '', {
       font: '32px Arial',
       fill: '#ffffff'
     }).setOrigin(0.5);
 
     // Create cancel button
-    this.cancelButton = this.add.text(GAME_WIDTH / 2 - 100, GAME_HEIGHT / 2 + 100, 'Cancel', {
+    this.cancelButton = this.add.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 100, 'Cancel', {
       font: '24px Arial',
       fill: '#ffffff'
     })
@@ -47,19 +43,11 @@ export class LobbyScene extends Phaser.Scene {
         this.scene.start('MenuScene');
       });
 
-    // Create cancel button
-    this.confirmButton = this.add.text(GAME_WIDTH / 2 + 100, GAME_HEIGHT / 2 + 100, 'Confirm', {
-      font: '24px Arial',
-      fill: '#ffffff'
-    })
-      .setOrigin(0.5)
-      .setInteractive()
-      .on('pointerdown', () => {
-        this.cleanupLobby();
-        this.socket.emit('confirmPlayer', {
-          playerId: this.playerId
-        });
-      });
+    // Set up socket connection
+    this.setupSocketConnection();
+
+    // Start loading animation
+    this.startLoadingAnimation();
   }
 
   setupSocketConnection() {
@@ -85,14 +73,14 @@ export class LobbyScene extends Phaser.Scene {
       this.playerId = this.socket.id;
 
       // Register with server
-      this.socket.emit('registerPlayer', {
+      this.socket.emit('coop_hostPlayer', {
         playerId: this.playerId
       });
     });
 
     // Game start event from server
     this.socket.on('gameStart', (data) => {
-      if (!(this.registry.get('isGameStarted') || false)) {
+      if(!(this.registry.get('isGameStarted') || false)) {
         console.log('Game starting with players:', data.players);
         this.startGame();
         this.registry.set('isGameStarted', true);
@@ -143,6 +131,32 @@ export class LobbyScene extends Phaser.Scene {
     });
   }
 
+  updateWaitingText() {
+    this.waitingText.setText(`Waiting for players...\nPlayers: ${this.totalPlayers}/2`);
+  }
+
+  startLoadingAnimation() {
+    this.loadingDots = '';
+    this.dotCount = 0;
+    this.waitingAnimation = this.time.addEvent({
+      delay: 500,
+      callback: () => {
+        this.dotCount = (this.dotCount + 1) % 4;
+        this.loadingDots = '.'.repeat(this.dotCount);
+        this.updateWaitingText();
+      },
+      loop: true
+    });
+  }
+
+  showDisconnectMessage() {
+    this.waitingText.setText('Not enough players\nReturning to menu...');
+    this.time.delayedCall(2000, () => {
+      this.cleanupLobby();
+      this.scene.start('MenuScene');
+    });
+  }
+
   showConnectionError() {
     this.waitingText.setText('Connection error\nReturning to menu...');
     this.time.delayedCall(2000, () => {
@@ -163,10 +177,6 @@ export class LobbyScene extends Phaser.Scene {
     if (this.waitingAnimation) {
       this.waitingAnimation.destroy();
     }
-    const existingAccount = this.registry.get("playerAccount");
-    existingAccount.gameAccountBalance -= VERSUS_MODE_COST;
-    setCreditCount(existingAccount.authToken, existingAccount.gameAccountBalance);
-    this.registry.set('playerAccount', existingAccount);
 
     // Pass the socket to the multiplayer game scene
     this.scene.start('MultiplayerGameScene', {

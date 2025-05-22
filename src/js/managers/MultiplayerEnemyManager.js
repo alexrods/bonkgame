@@ -2,8 +2,9 @@ import { GAME_WIDTH, GAME_HEIGHT } from '../../config.js';
 import { MultiplayerEnemy } from './MultiplayerEnemy.js';
 
 export class MultiplayerEnemyManager {
-    constructor(scene) {
+    constructor(scene, bloodContainer) {
         this.scene = scene;
+        this.bloodContainer = bloodContainer;
         this.bullets = null;
         this.enemies = [];
     }
@@ -67,7 +68,7 @@ export class MultiplayerEnemyManager {
                 return;
             }
         }
-        const newEnemy = new MultiplayerEnemy(this.scene, enemy.playerId);
+        const newEnemy = new MultiplayerEnemy(this.scene, enemy.playerId, this.bloodContainer);
         newEnemy.createPlayer(enemy.x, enemy.y);
         console.log("New enemy created");
         this.enemies.push(newEnemy);
@@ -77,6 +78,14 @@ export class MultiplayerEnemyManager {
         for (let i = 0; i < this.enemies.length; i++) {
             if (this.enemies[i].playerId == data.playerId) {
                 this.enemies[i].handleMovement(data);
+            }
+        }
+    }
+
+    damageEnemy(playerId) {
+        for (let i = 0; i < this.enemies.length; i++) {
+            if (this.enemies[i].playerId == playerId) {
+                this.enemies[i].handlePlayerDamage();
             }
         }
     }

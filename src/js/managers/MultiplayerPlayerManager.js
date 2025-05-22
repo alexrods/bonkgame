@@ -18,6 +18,7 @@ export class MultiplayerPlayerManager {
     this.autoFireStartTime = 0; // Track when auto-fire started
     this.bullets = null;
     this.fireRate = 250; // Default fire rate in ms - can be modified by upgrades
+    this.isStopShooting = false;
     this.controlsEnabled = true; // Flag to disable controls during deposit/withdraw screens
 
     // Weapon system
@@ -514,7 +515,7 @@ export class MultiplayerPlayerManager {
     // Create group for bullets
     this.bullets = this.scene.physics.add.group({
       defaultKey: 'bullet',
-      maxSize: 30,
+      maxSize: 100000,
       allowGravity: false,
       runChildUpdate: true,
       collideWorldBounds: false,
@@ -1176,7 +1177,7 @@ export class MultiplayerPlayerManager {
 
   handleShooting() {
     // Skip if controls are disabled (during deposit/withdraw screens)
-    if (!this.controlsEnabled) {
+    if (!this.controlsEnabled || this.isStopShooting) {
       return;
     }
 
@@ -1282,7 +1283,7 @@ export class MultiplayerPlayerManager {
   cleanupBullets() {
     // Remove off-screen bullets - use a larger boundary to prevent premature cleanup
     // Add a 200px buffer to each dimension
-    const buffer = 200;
+    const buffer = 300;
     this.bullets.children.each(function (bullet) {
       if (bullet.active &&
         (bullet.x < -buffer ||
@@ -1489,15 +1490,17 @@ export class MultiplayerPlayerManager {
     const bulletOriginX = this.player.x + muzzleOffsetX;
     const bulletOriginY = this.player.y + muzzleOffsetY;
 
-    this.fireRifle(angle, muzzleOffsetX, muzzleOffsetY, this.playerId, this.player.x, this.player.y);
-    this.socket.emit('fireRifle', {
+    if (!this.isStopShooting) {
+      this.fireRifle(angle, muzzleOffsetX, muzzleOffsetY, this.playerId, this.player.x, this.player.y);
+      this.socket.emit('fireRifle', {
       angle: angle,
       muzzleOffsetX: muzzleOffsetX,
       muzzleOffsetY: muzzleOffsetY,
       playerX: this.player.x,
       playerY: this.player.y
-    });
-    console.log("Fired rifle bullet", angle, muzzleOffsetX, muzzleOffsetY, damageMultiplier, this.playerId, this.player.x, this.player.y);
+      });
+      console.log("Fired rifle bullet", angle, muzzleOffsetX, muzzleOffsetY, damageMultiplier, this.playerId, this.player.x, this.player.y);
+    }
 
     // Track shot fired for accuracy calculation
     if (this.scene.ui) {
@@ -1512,7 +1515,7 @@ export class MultiplayerPlayerManager {
 
   // Fire a single rifle bullet
   fireRifle(angle, muzzleOffsetX, muzzleOffsetY, playerId, playerX, playerY) {
-    let bullet = this.bullets.create(playerX + muzzleOffsetX, playerY + muzzleOffsetY, 'bullet').setData('playerId', playerId);
+    let bullet = this.bullets.create(playerX + muzzleOffsetX, playerY + muzzleOffsetY, 'bullet');
     if (bullet) {
       // Enable the bullet physics body (important!)
       bullet.enableBody(true, playerX + muzzleOffsetX, playerY + muzzleOffsetY, true, true);
@@ -1521,6 +1524,7 @@ export class MultiplayerPlayerManager {
 
       bullet.setRotation(angle);
       bullet.setScale(1.2);
+      bullet.playerId = playerId;
 
 
 
@@ -1538,7 +1542,7 @@ export class MultiplayerPlayerManager {
       // Set bullet depth higher than player (player is at depth 10) to ensure bullets render above the player
       bullet.setDepth(15);
 
-      console.log("Bullet playerId:", playerId, bullet.getData('playerId'));
+      console.log("Bullet playerId:", playerId, bullet.playerId);
       console.log("this.bullets", this.bullets);
 
       // Debug log removed
@@ -1782,6 +1786,10 @@ export class MultiplayerPlayerManager {
 
   getPlayer() {
     return this.player;
+  }
+
+  stopShooting() {
+    this.isStopShooting = true;
   }
 
   // Clean up resources when shutting down or restarting

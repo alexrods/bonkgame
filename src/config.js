@@ -6,7 +6,9 @@ import { CharacterSelectScene } from './js/scenes/CharacterSelectScene.js';
 import { TutorialScene } from './js/scenes/TutorialScene.js';
 import { LobbyScene } from './js/scenes/LobbyScene.js';
 import { GameScene } from './js/scenes/GameScene.js';
+import { MultiplayerGameScene } from './js/scenes/MultiplayerGameScene.js';
 import { GameOverScene } from './js/scenes/GameOverScene.js';
+import { CoopHostScene } from './js/scenes/CoopHostScene.js';
 
 // Detect if the device is mobile
 const isMobile = (
@@ -21,8 +23,8 @@ const isMobile = (
 );
 
 // Get initial dimensions
-let width = window.innerWidth;
-let height = window.innerHeight;
+let width = 1000;
+let height = 1000;
 
 // No need to swap dimensions - we'll support both orientations now
 
@@ -31,24 +33,25 @@ export const GAME_WIDTH = width;
 export const GAME_HEIGHT = height;
 export const BULLET_TIME_SLOWDOWN = 0.05; // Slow down to 5% of normal speed (same as rhythm game)
 export const GAME_VERSION = 'v0.420';
+export const VERSUS_MODE_COST = 1;
 
 // Web3 Constants
 export const WEB3_CONFIG = {
   // Set to true to require wallet connection to play
   walletRequired: true,
-  
+
   // Set to true to require wallet to be whitelisted
   whitelistRequired: false,
-  
+
   // Solana network to connect to
   network: 'devnet', // 'mainnet-beta', 'testnet', 'devnet'
-  
+
   // Set to true to automatically try to connect to the last used wallet
   autoConnect: false,
-  
+
   // Set to false to disable persistent wallet authentication
   persistentAuth: false,
-  
+
   // Supported wallets
   supportedWallets: ['phantom', 'solflare', 'slope']
 };
@@ -81,5 +84,17 @@ export const config = {
   },
   // Remove custom pipeline configuration from here
   // We'll create the pipeline in the BootScene instead
-  scene: [BootScene, StartScene, IntroScene, MenuScene, CharacterSelectScene, TutorialScene, LobbyScene, GameScene, GameOverScene]
+  scene: [
+    BootScene,
+    StartScene,
+    IntroScene,
+    MenuScene,
+    CharacterSelectScene,
+    TutorialScene,
+    LobbyScene,
+    GameScene,
+    MultiplayerGameScene,
+    GameOverScene,
+    CoopHostScene
+  ]
 };

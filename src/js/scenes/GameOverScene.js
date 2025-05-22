@@ -44,6 +44,7 @@ export class GameOverScene extends Phaser.Scene {
     this.typewriterSound = null;
     this.reportContainer = null;
     this.cursor = null;
+    this.isMultiPlay = data.isMultiPlay || false;
     
     // Ensure typing speed is set correctly
     this.typingSpeed = 114; // milliseconds per character (further slowed by 15% from 99ms)
@@ -1024,7 +1025,9 @@ export class GameOverScene extends Phaser.Scene {
       const tutorialCompleted = localStorage.getItem('tutorialCompleted') === 'true';
       const hadFirstGame = localStorage.getItem('hadFirstGame') === 'true';
       
-      if (!tutorialCompleted) {
+      if (this.isMultiPlay) {
+        this.scene.start('MenuScene');
+      }else if (!tutorialCompleted) {
         // If tutorial not completed, send player to tutorial
         this.scene.start('TutorialScene');
       } else if (tutorialCompleted && !hadFirstGame) {
