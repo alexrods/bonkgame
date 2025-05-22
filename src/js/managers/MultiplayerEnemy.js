@@ -883,7 +883,7 @@ export class MultiplayerEnemy {
         // Create shield bar background (black rectangle)
         this.shieldBarBg = this.scene.add.rectangle(
             this.player.x,
-            this.player.y - 40, // Position above AI player
+            this.player.y + 40, // Position above AI player
             50, // Width
             8, // Height
             0x000000 // Black color
@@ -894,7 +894,7 @@ export class MultiplayerEnemy {
         // Create shield bar (green rectangle initially)
         this.shieldBar = this.scene.add.rectangle(
             this.player.x - 25, // Left-aligned with background
-            this.player.y - 40,
+            this.player.y + 40,
             50, // Full width initially
             8,
             0x00ff00 // Green color
@@ -916,10 +916,10 @@ export class MultiplayerEnemy {
 
         // Position shield bar above AI player
         this.shieldBarBg.x = this.player.x;
-        this.shieldBarBg.y = this.player.y - 40;
+        this.shieldBarBg.y = this.player.y + 40;
 
         this.shieldBar.x = this.player.x - 25; // Left-aligned
-        this.shieldBar.y = this.player.y - 40;
+        this.shieldBar.y = this.player.y + 40;
 
         // Update shield bar width based on current shield value
         const shieldPercentage = this.player.shields / this.maxShields;
