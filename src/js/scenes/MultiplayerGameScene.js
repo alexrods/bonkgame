@@ -10,6 +10,7 @@ import { setCreditCount } from '../utils/api.js';
 export class MultiplayerGameScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MultiplayerGameScene' });
+        this.isMultiplayer = true;
         this.socket = null;
         this.playerAccount = null;
     }

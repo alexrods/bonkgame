@@ -92,8 +92,9 @@ export class LobbyScene extends Phaser.Scene {
 
     // Game start event from server
     this.socket.on('gameStart', (data) => {
+      console.log('gameStart even triggered', data);
+      if (data.playerId != this.playerId) return;
       if (!(this.registry.get('isGameStarted') || false)) {
-        console.log('Game starting with players:', data.players);
         this.startGame();
         this.registry.set('isGameStarted', true);
       }

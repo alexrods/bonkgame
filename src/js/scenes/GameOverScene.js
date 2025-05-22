@@ -671,7 +671,9 @@ export class GameOverScene extends Phaser.Scene {
       const hasSelectedCharacter = localStorage.getItem('hasSelectedCharacter') === 'true';
       const hadFirstGame = localStorage.getItem('hadFirstGame') === 'true';
       
-      if (!tutorialCompleted) {
+      if(this.isMultiPlay) {
+        this.scene.start('MenuScene');
+      } else if (!tutorialCompleted) {
         // If tutorial not completed, send player to tutorial
         this.scene.start('TutorialScene');
       } else if (tutorialCompleted && !hadFirstGame) {
