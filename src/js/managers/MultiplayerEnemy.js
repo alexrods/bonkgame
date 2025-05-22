@@ -143,6 +143,7 @@ export class MultiplayerEnemy {
 
         // Listen for orientation changes to update sprite size
         this.scene.events.on('orientationChange', this.handleOrientationChange, this);
+        this.createShieldBar();
     }
 
     // Handle orientation changes
@@ -253,6 +254,7 @@ export class MultiplayerEnemy {
         // Update player animation based on movement (when not shooting)
         let shootX = data.shootX, shootY = data.shootY;
         this.updateShadows();
+        this.updateShieldBar();
 
         // Player animation based on movement and shooting.
         if (shootX === 0 && shootY === 0) {
@@ -749,7 +751,7 @@ export class MultiplayerEnemy {
         console.log(`Weapon type set to: ${type}`);
     }
 
-    // Handle player damage from AI bullets
+    // Handle player damage
     damagePlayer(amount) {
         console.log('===== PLAYER DAMAGE METHOD CALLED =====');
         console.log(`Attempting to damage player by ${amount} points`);
@@ -873,6 +875,78 @@ export class MultiplayerEnemy {
         }
     }
 
+    createShieldBar() {
+        if (!this.player) return;
+
+        this.player.shields = 3;
+        this.maxShields = 3;
+        // Create shield bar background (black rectangle)
+        this.shieldBarBg = this.scene.add.rectangle(
+            this.player.x,
+            this.player.y - 40, // Position above AI player
+            50, // Width
+            8, // Height
+            0x000000 // Black color
+        );
+        this.shieldBarBg.setDepth(20);
+        this.shieldBarBg.setAlpha(0.7);
+
+        // Create shield bar (green rectangle initially)
+        this.shieldBar = this.scene.add.rectangle(
+            this.player.x - 25, // Left-aligned with background
+            this.player.y - 40,
+            50, // Full width initially
+            8,
+            0x00ff00 // Green color
+        );
+        this.shieldBar.setDepth(21);
+        this.shieldBar.setOrigin(0, 0.5); // Set origin to left center for easier scaling
+
+        // Update shield bar color based on current shield value
+        this.updateShieldBarColor();
+    }
+
+    updateShieldBar() {
+        if (!this.player || !this.shieldBar || !this.shieldBarBg) return;
+        if(this.player.shields == 0) {
+            this.shieldBar.destroy();
+            this.shieldBarBg.destroy();
+            return;
+        }
+
+        // Position shield bar above AI player
+        this.shieldBarBg.x = this.player.x;
+        this.shieldBarBg.y = this.player.y - 40;
+
+        this.shieldBar.x = this.player.x - 25; // Left-aligned
+        this.shieldBar.y = this.player.y - 40;
+
+        // Update shield bar width based on current shield value
+        const shieldPercentage = this.player.shields / this.maxShields;
+        this.shieldBar.width = 50 * shieldPercentage;
+
+        // Update shield bar color
+        this.updateShieldBarColor();
+    }
+
+    updateShieldBarColor() {
+        if (!this.shieldBar) return;
+
+        const shieldPercentage = this.player.shields / this.maxShields;
+
+        // Set color based on shield percentage
+        if (shieldPercentage <= 0.25) {
+            // 25% or less - red
+            this.shieldBar.fillColor = 0xff0000;
+        } else if (shieldPercentage <= 0.75) {
+            // 75% or less - orange
+            this.shieldBar.fillColor = 0xff9900;
+        } else {
+            // Above 75% - green
+            this.shieldBar.fillColor = 0x00ff00;
+        }
+    }
+
     // Verify essential animations exist and create fallbacks if needed
     verifyEssentialAnimations() {
         if (!this.scene || !this.scene.anims) {
@@ -946,6 +1020,8 @@ export class MultiplayerEnemy {
     handlePlayerDamage() {
         console.log("Enemy received player damage");
         this.effects.createPlayerBloodSplatter(this.player);
+        this.player.shields -= 1;
+        this.updateShieldBar();
     }
 
     // Handle when the player is killed
@@ -953,6 +1029,8 @@ export class MultiplayerEnemy {
         console.log("Start to kill enemy");
         // Get player reference
         const player = this.player;
+        this.player.shields = 0;
+        this.updateShieldBar();
 
         // If player is already dying, don't handle death again
         if (player.isDying) {
@@ -971,7 +1049,7 @@ export class MultiplayerEnemy {
 
         // Make sure player scale doesn't get modified by other effects
         player.setScale(originalPlayerScale.x, originalPlayerScale.y);
-        
+
         // Fallback timer in case both animation methods fail
         // Increased to 2550ms (1800ms + 750ms delay) to give the animation enough time to complete
         this.scene.time.delayedCall(2550, () => {
