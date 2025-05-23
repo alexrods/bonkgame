@@ -74,7 +74,11 @@ export class LobbyScene extends Phaser.Scene {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      timeout: 5000
+      timeout: 5000,
+      withCredentials: true,  // Importante para enviar cookies
+      transports: ['websocket', 'polling'],  // Asegurar que use WebSocket primero
+      secure: true,  // Asegurar que use HTTPS
+      rejectUnauthorized: false  // Solo para desarrollo, quitar en producción
     });
 
     // Connection established
