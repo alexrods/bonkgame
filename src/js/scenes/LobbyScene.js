@@ -70,7 +70,7 @@ export class LobbyScene extends Phaser.Scene {
 
     // Connect to the socket.io server
     console.log('Connecting to socket.io server');
-    this.socket = io(import.meta.env.VITE_BASE_API_URL.replace('/api', ''), {
+    this.socket = io(import.meta.env.VITE_BASE_API_URL, {
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
