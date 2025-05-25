@@ -349,6 +349,8 @@ export function preloadSprites(scene) {
     scene.load.image('bonkosWide', '/assets/cutscenes/comercial/bonkosWide.png');
     scene.load.image('organtradePortrait', '/assets/cutscenes/comercial/organtradePortrait.png');
     scene.load.image('organtradeWide', '/assets/cutscenes/comercial/organtradeWide.png');
+    scene.load.image('survivorPortrait', '/assets/cutscenes/comercial/survivorPortrait.png');
+    scene.load.image('survivorWide', '/assets/cutscenes/comercial/survivorWide.png');
     scene.load.image('psg1Portrait', '/assets/cutscenes/comercial/psg1Portrait.png');
     scene.load.image('psg1Wide', '/assets/cutscenes/comercial/psg1Wide.png');
     scene.load.image('wifPortrait', '/assets/cutscenes/comercial/wifPortrait.png');

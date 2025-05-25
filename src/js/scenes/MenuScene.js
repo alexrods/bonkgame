@@ -888,6 +888,10 @@ export class MenuScene extends Phaser.Scene {
         sound: "organTrading",
       },
       {
+        images: { portrait: "survivorPortrait", wide: "survivorWide" },
+        sound: "survivor",
+      },
+      {
         images: { portrait: "psg1Portrait", wide: "psg1Wide" },
         sound: "psg1",
       },
