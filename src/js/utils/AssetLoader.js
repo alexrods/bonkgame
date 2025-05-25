@@ -370,6 +370,7 @@ export function preloadSprites(scene) {
     scene.load.audio('becomeSponsor', '/assets/sound/comercials/becomeSponsor.mp3');
     scene.load.audio('buyAdd', '/assets/sound/comercials/buyAdd.mp3');
     scene.load.audio('organTrading', '/assets/sound/comercials/organTrading.mp3');
+    scene.load.audio('survivor', '/assets/sound/comercials/survivor.mp3');
     scene.load.audio('psg1', '/assets/sound/comercials/psg1.mp3');
     scene.load.audio('sonponsoredBy', '/assets/sound/comercials/sonponsoredBy.mp3');
     scene.load.audio('todaysgames', '/assets/sound/comercials/todaysgames.mp3');
