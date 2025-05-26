@@ -39,6 +39,11 @@ export function preloadSprites(scene) {
       '/assets/sound/sfx/keystroke3.mp3'
     ]);
     
+    // Load Solhunter commercial sound
+    scene.load.audio('solhunter', [
+      '/assets/sound/commercials/solhunter.mp3'
+    ]);
+    
     // Load interference sound effect (keeping for compatibility)
     scene.load.audio('interference', [
       '/assets/sound/sfx/interference.mp3'
@@ -355,6 +360,8 @@ export function preloadSprites(scene) {
     scene.load.image('psg1Wide', '/assets/cutscenes/comercial/psg1Wide.png');
     scene.load.image('wifPortrait', '/assets/cutscenes/comercial/wifPortrait.png');
     scene.load.image('wifWide', '/assets/cutscenes/comercial/wifWide.png');
+    scene.load.image('solhunterPortrait', '/assets/cutscenes/comercial/solhunterPortrait.jpeg');
+    scene.load.image('solhunterWide', '/assets/cutscenes/comercial/solhunterWide.jpeg');
     
     // Load enter arena cutscene assets
     scene.load.image('cutscene_landscape', '/assets/cutscenes/enter_arena/arenaLandscape.png');

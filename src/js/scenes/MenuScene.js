@@ -899,6 +899,10 @@ export class MenuScene extends Phaser.Scene {
         images: { portrait: "wifPortrait", wide: "wifWide" },
         sound: "wif",
       },
+      {
+        images: { portrait: "solhunterPortrait", wide: "solhunterWide" },
+        sound: "solhunter",
+      },
     ];
 
     // Initialize static counter if it doesn't exist
