@@ -385,6 +385,7 @@ export function preloadSprites(scene) {
     scene.load.audio('todaysgames', '/assets/sound/comercials/todaysgames.mp3');
     scene.load.audio('wif', '/assets/sound/comercials/wif.mp3');
     scene.load.audio('TheeKalEl', '/assets/sound/comercials/TheeKalEl.mp3');
+    scene.load.audio('solhunter', '/assets/sound/comercials/solhunter.mp3');
     
     // Load enemy death animations - front (killed from below)
     for (let i = 1; i <= 12; i++) {
