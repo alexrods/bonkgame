@@ -355,6 +355,8 @@ export function preloadSprites(scene) {
     scene.load.image('psg1Wide', '/assets/cutscenes/comercial/psg1Wide.png');
     scene.load.image('wifPortrait', '/assets/cutscenes/comercial/wifPortrait.png');
     scene.load.image('wifWide', '/assets/cutscenes/comercial/wifWide.png');
+    scene.load.image('TheeKalElPortrait', '/assets/cutscenes/comercial/TheeKalElPortrait.png');
+    scene.load.image('TheeKalElWide', '/assets/cutscenes/comercial/TheeKalElWide.png');
     
     // Load enter arena cutscene assets
     scene.load.image('cutscene_landscape', '/assets/cutscenes/enter_arena/arenaLandscape.png');
@@ -375,6 +377,7 @@ export function preloadSprites(scene) {
     scene.load.audio('sonponsoredBy', '/assets/sound/comercials/sonponsoredBy.mp3');
     scene.load.audio('todaysgames', '/assets/sound/comercials/todaysgames.mp3');
     scene.load.audio('wif', '/assets/sound/comercials/wif.mp3');
+    scene.load.audio('TheeKalEl', '/assets/sound/comercials/TheeKalEl.mp3');
     
     // Load enemy death animations - front (killed from below)
     for (let i = 1; i <= 12; i++) {
