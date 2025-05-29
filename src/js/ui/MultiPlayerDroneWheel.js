@@ -27,22 +27,13 @@ export class DroneWheel {
       {
         type: 'speed',
         name: 'Speed Boots',
-        emoji: '👢',
+        sprite: 'speed',
         color: 0x00ffff,
         levels: [
           { level: 1, cost: 25, effect: 1.1, description: '+10% Speed' },
           { level: 2, cost: 50, effect: 1.2, description: '+20% Speed' },
           { level: 3, cost: 100, effect: 1.3, description: '+30% Speed' },
           { level: 4, cost: 200, effect: 1.4, description: '+40% Speed' }
-        ]
-      },
-      {
-        type: 'fireRate',
-        name: 'Rapid Fire',
-        emoji: '🔫',
-        color: 0xff0000,
-        levels: [
-          { level: 1, cost: 100, effect: 0.7, description: 'Weapon Select' }
         ]
       },
       {
@@ -56,15 +47,6 @@ export class DroneWheel {
         ]
       },
       {
-        type: 'withdraw',
-        name: 'HACK',
-        emoji: '🏧',
-        color: 0xff6600,
-        levels: [
-          { level: 1, cost: 0, effect: 1, description: 'Does not work in Versus Mode' }
-        ]
-      },
-      {
         type: 'magazine',
         name: 'Ammo',
         emoji: null,
@@ -75,31 +57,12 @@ export class DroneWheel {
         ]
       },
       {
-        type: 'bulletTime',
-        name: 'Stimulants',
-        emoji: null,
-        sprite: 'pills',
-        color: 0x9966ff,
-        levels: [
-          { level: 1, cost: 50, effect: 0.3, description: '30s Stimulants' }
-        ]
-      },
-      {
         type: 'emote',
         name: 'Emote',
         emoji: '😊',
         color: 0xcc6600,
         levels: [
           { level: 1, cost: 10, effect: 1, description: 'Express yourself' }
-        ]
-      },
-      {
-        type: 'robot',
-        name: 'Combat Robot',
-        emoji: '🤖',
-        color: 0x0099cc,
-        levels: [
-          { level: 1, cost: 100, effect: 1, description: 'Does not work in Versus Mode' }
         ]
       }
     ];
@@ -197,10 +160,10 @@ export class DroneWheel {
     this.upgradeOptions = [];
 
     // Load the drone wheel image
-    const wheelImage = this.scene.add.image(0, 0, 'dronewheel');
+    const wheelImage = this.scene.add.image(0, 0, 'dronewheel_formultiplayer');
     wheelImage.setAlpha(0.9);
     wheelImage.setScale(0.45); // 20% larger than 0.375
-    wheelImage.setAngle(22.5); // Rotate 22.5 degrees clockwise
+    // wheelImage.setAngle(22.5); // Rotate 22.5 degrees clockwise
     this.wheelContainer.add(wheelImage);
 
     // Create segments for each upgrade
@@ -225,16 +188,17 @@ export class DroneWheel {
         let posY = y;
 
         if (upgrade.type === 'armor') {
-          // Calculate position 5% further away from wheel center
-          const angle = Math.atan2(y, x);
-          const distanceAdjust = this.radius * 0.05; // 5% of radius
-          posX = x + Math.cos(angle) * distanceAdjust;
-          posY = y + Math.sin(angle) * distanceAdjust;
+          posY = y + 2;
+        } else if (upgrade.type === 'speed') {
+          posY = y + 5;
+        } else if (upgrade.type === 'magazine') {
+          posX = x - 1;
+          posY = y + 1;
         }
 
         // Use sprite image
         icon = this.scene.add.image(posX, posY, upgrade.sprite);
-        icon.setScale(0.05); // Halved again to 1/20 original size
+        icon.setScale(0.45);
       } else {
         // Use emoji as fallback
         icon = this.scene.add.text(x, y, upgrade.emoji, {

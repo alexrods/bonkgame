@@ -321,9 +321,11 @@ export function preloadSprites(scene) {
     
     // Load drone wheel UI
     scene.load.image('dronewheel', '/assets/UI/dronewheel.png');
+    scene.load.image('dronewheel_formultiplayer', '/assets/UI/dronewheel_formultiplayer.png');
     scene.load.image('bullets', '/assets/UI/bullets.png');
     scene.load.image('pills', '/assets/UI/pills.png');
     scene.load.image('shield', '/assets/UI/shield.png');
+    scene.load.image('speed', '/assets/UI/speed.png');
     
     // Load player markers for versus mode
     scene.load.image('greenMark', '/assets/UI/greenMark.png');
