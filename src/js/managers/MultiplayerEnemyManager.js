@@ -69,7 +69,7 @@ export class MultiplayerEnemyManager {
             }
         }
         const newEnemy = new MultiplayerEnemy(this.scene, enemy.playerId, this.bloodContainer);
-        newEnemy.createPlayer(enemy.x, enemy.y);
+        newEnemy.createPlayer(enemy.x, enemy.y, enemy.health);
         console.log("New enemy created");
         this.enemies.push(newEnemy);
     }

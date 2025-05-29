@@ -33,7 +33,6 @@ export const GAME_WIDTH = width;
 export const GAME_HEIGHT = height;
 export const BULLET_TIME_SLOWDOWN = 0.05; // Slow down to 5% of normal speed (same as rhythm game)
 export const GAME_VERSION = 'v0.420';
-export const VERSUS_MODE_COST = 1;
 
 // Web3 Constants
 export const WEB3_CONFIG = {

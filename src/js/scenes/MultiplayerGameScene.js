@@ -1,4 +1,4 @@
-import { GAME_WIDTH, GAME_HEIGHT, VERSUS_MODE_COST } from '../../config.js';
+import { GAME_WIDTH, GAME_HEIGHT } from '../../config.js';
 import { MultiplayerEnemyManager } from '../managers/MultiplayerEnemyManager.js';
 import { TimeScaleManager } from '../managers/TimeScaleManager.js';
 import { GameUI } from '../ui/GameUI.js';
@@ -6,6 +6,8 @@ import { DialogSystem } from '../ui/DialogSystem.js';
 import { LabEnvironment } from '../environment/LabEnvironment.js';
 import { MultiplayerPlayerManager } from '../managers/MultiplayerPlayerManager.js';
 import { setCreditCount } from '../utils/api.js';
+import { DroneManager } from '../managers/MultiPlayerDroneManager.js';
+import { DroneWheel } from '../ui/MultiPlayerDroneWheel.js';
 
 export class MultiplayerGameScene extends Phaser.Scene {
     constructor() {
@@ -18,6 +20,7 @@ export class MultiplayerGameScene extends Phaser.Scene {
     init(data) {
         this.socket = data.socket;
         this.playerId = this.socket.id;
+        this.roomId = data.roomId;
         if (!this.socket) {
             console.error('No socket connection provided for multiplayer game');
             this.scene.start('MenuScene');
@@ -45,14 +48,29 @@ export class MultiplayerGameScene extends Phaser.Scene {
         this.timeScaleManager = null;
         this.environment = null;
         this.ui = null;
+        this.droneManager = null;
 
         // Clean up physics groups just in case
         if (this.physics && this.physics.world) {
             this.physics.world.colliders.destroy();
         }
 
+        // Initialize player account and web3 connection
+        this.initializePlayerAccount();
         // Initialize our component managers
         this.initializeManagers();
+    }
+
+    initializePlayerAccount() {
+        // Get the existing PlayerAccount from registry
+        const existingAccount = this.registry.get('playerAccount');
+        if (existingAccount) {
+            this.playerAccount = existingAccount;
+        } else {
+            // Create player account manager if not in registry (should not happen normally)
+            console.log("Player account does not exist.");
+            this.scene.start('MenuScene');
+        }
     }
 
     initializeManagers() {
@@ -71,16 +89,25 @@ export class MultiplayerGameScene extends Phaser.Scene {
         this.enemyManager = new MultiplayerEnemyManager(this, this.environment.getBloodContainer());
         this.enemyManager.init();
 
+        // Initialize drone manager
+        this.droneManager = new DroneManager(this, this.socket);
+        this.droneManager.init();
+
+        // Initialize drone wheel UI
+        this.droneWheel = new DroneWheel(this);
+        this.droneWheel.init();
+
         // Initialize dialog system
         this.dialogSystem = new DialogSystem(this);
         this.dialogSystem.init();
 
-        // // Listen for dialog end to trigger enemy AI player spawn at milestones
-        // this.events.on('dialogEnded', this.handleDialogEnded, this);
+        // Setup floating text event listener
+        this.events.on('showFloatingText', this.showFloatingText, this);
 
         // Initialize time scale manager
         this.timeScaleManager = new TimeScaleManager(this);
         this.timeScaleManager.init();
+        this.setupKeyboardControls();
     }
 
     // Show a message when the player disconnects
@@ -93,31 +120,6 @@ export class MultiplayerGameScene extends Phaser.Scene {
         this.time.delayedCall(2000, () => {
             this.scene.start('MenuScene');
         });
-    }
-
-    // Clean up resources when shutting down or restarting
-    shutdown() {
-        // Clean up websocket if it exist
-        if (this.socket) {
-            this.socket.destroy();
-            this.socket = null;
-        }
-
-        // Call shutdown on component managers if they have one
-        if (this.playerManager && typeof this.playerManager.shutdown === 'function') {
-            this.playerManager.shutdown();
-        }
-
-        if (this.ui && typeof this.ui.shutdown === 'function') {
-            this.ui.shutdown();
-        }
-
-        if (this.timeScaleManager && typeof this.timeScaleManager.shutdown === 'function') {
-            this.timeScaleManager.shutdown();
-        }
-
-        // Call parent shutdown
-        super.shutdown();
     }
 
     create() {
@@ -149,6 +151,7 @@ export class MultiplayerGameScene extends Phaser.Scene {
                 y: this.playerManager.player.y,
                 health: this.playerManager.health,
                 score: this.playerManager.score,
+                roomId: this.roomId
             };
             // Emit player created event with settings
             this.socket.emit('playerCreated', playerSettings);
@@ -160,6 +163,9 @@ export class MultiplayerGameScene extends Phaser.Scene {
         // Listen for orientation changes to adjust camera
         this.events.on('orientationChange', this.handleOrientationChange, this);
 
+        // Create loot group for cash items
+        this.lootGroup = this.physics.add.group();
+
         // Create the ESC key object
         this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
 
@@ -168,6 +174,114 @@ export class MultiplayerGameScene extends Phaser.Scene {
             this.socket.close();
             this.registry.set('isGameStarted', false);
             this.scene.start('MenuScene');
+        });
+    }
+
+    // Handle player collecting cash or upgrade boxes
+    handleCashCollection(player, item) {
+        // Check if the item is a drone upgrade box
+        if (item.upgradeType) {
+            // Check if this item has already been collected to prevent duplicate collection
+            if (item.isCollected) {
+                console.log(`Powerup already collected, ignoring duplicate collision`);
+                return;
+            }
+
+            // Mark the item as collected to prevent duplicate collection
+            item.isCollected = true;
+
+            // Apply the upgrade effect via drone manager
+            console.log('Collecting powerup:', item.upgradeType);
+            this.droneManager.applyUpgrade(player, item);
+            return;
+        }
+
+        // Handle regular loot items (coins or cash)
+        // Check if this item has already been collected to prevent duplicate collection
+        if (item.isCollected) {
+            console.log(`Money already collected, ignoring duplicate collision`);
+            return;
+        }
+
+        // Mark the item as collected to prevent duplicate collection
+        item.isCollected = true;
+
+        this.tweens.add({
+            targets: item,
+            scale: 0.3, // Adjusted to match the new smaller size
+            alpha: 0,
+            y: item.y - 20,
+            duration: 200,
+            onComplete: () => {
+                // Add a random amount of money (10x nerf)
+                const moneyValues = [0.1, 0.5, 1, 2, 5, 10];
+                const randomMoney = moneyValues[Math.floor(Math.random() * moneyValues.length)];
+
+                // Apply multiplier if set (from stronger enemies)
+                const multiplier = item.moneyMultiplier || 1;
+                const finalAmount = randomMoney * multiplier;
+
+                // Update player's money
+                this.ui.updateMoney(finalAmount);
+
+                // Play credit sound right before destroying the item
+                this.playCreditSound();
+
+                // Remove the item
+                item.destroy();
+            }
+        });
+    }
+
+    setupKeyboardControls() {
+        // E key to open drone wheel while held down
+        this.input.keyboard.on('keydown-E', () => {            // Only show drone wheel if neither menu is active
+            if (!this.droneWheel.isVisible) {
+                this.droneWheel.show();
+            }
+        });
+
+        // Release E key to confirm and close drone wheel
+        this.input.keyboard.on('keyup-E', () => {
+            if (this.droneWheel.isVisible) {
+                this.droneWheel.confirmSelection();
+                this.droneWheel.hide();
+            }
+        });
+
+        // Arrow keys to navigate drone wheel clockwise/counter-clockwise
+        this.input.keyboard.on('keydown-LEFT', () => {
+            if (this.droneWheel.isVisible) {
+                console.log("LEFT arrow key pressed for drone wheel");
+                this.droneWheel.selectPrevious(); // Counter-clockwise
+            }
+        });
+
+        this.input.keyboard.on('keydown-RIGHT', () => {
+            if (this.droneWheel.isVisible) {
+                console.log("RIGHT arrow key pressed for drone wheel");
+                this.droneWheel.selectNext(); // Clockwise
+            }
+        });
+
+        // WASD navigation (alternative to arrow keys)
+        this.input.keyboard.on('keydown-A', () => {
+            if (this.droneWheel.isVisible) {
+                this.droneWheel.selectPrevious(); // Counter-clockwise
+            }
+        });
+
+        this.input.keyboard.on('keydown-D', () => {
+            if (this.droneWheel.isVisible) {
+                this.droneWheel.selectNext(); // Clockwise
+            }
+        });
+
+        // Add ESC to cancel without confirming
+        this.input.keyboard.on('keydown-ESC', () => {
+            if (this.droneWheel.isVisible) {
+                this.droneWheel.hide();
+            }
         });
     }
 
@@ -329,6 +443,7 @@ export class MultiplayerGameScene extends Phaser.Scene {
             });
 
             // Show SURVIVE message at game start
+            this.droneWheel.enabled = true;
             this.showSurviveTextMessage();
         }
     }
@@ -717,14 +832,14 @@ export class MultiplayerGameScene extends Phaser.Scene {
 
         // If health is depleted, player dies
         if (this.playerManager.health <= 0) {
-            this.socket.emit('playerDead', { playerId });
+            this.socket.emit('playerDead', { playerId, roomId: this.roomId });
             this.handlePlayerDeath();
         } else {
             // Make player briefly invincible after taking damage
             player.isInvincible = true;
 
             // Send player damage event to server
-            this.socket.emit('playerDamage', { playerId });
+            this.socket.emit('playerDamage', { playerId, roomId: this.roomId });
             // Flash player sprite to indicate damage and invincibility
             this.tweens.add({
                 targets: player,
@@ -818,6 +933,8 @@ export class MultiplayerGameScene extends Phaser.Scene {
         }
 
         this.checkPlayerBulletsCollision();
+        this.checkPlayerUpgradeBoxCollision();
+        this.checkEnemyUpgradeBoxCollision();
 
         // Handle camera edge cases to prevent showing beyond the playable area
         this.updateCameraConstraints();
@@ -862,7 +979,78 @@ export class MultiplayerGameScene extends Phaser.Scene {
         });
     }
 
+    checkEnemyUpgradeBoxCollision() {
+        // Get all active upgrade boxes
+        const upgradeBoxes = this.droneManager.getUpgradeBoxes();
+        const enemies = this.enemyManager.getEnemies();
+        // console.log("upgradeBoxes:", upgradeBoxes);
+        // console.log("enemies:", enemies);
 
+        upgradeBoxes.forEach(upgradeBox => {
+            enemies.forEach(enemy => {
+                if (!upgradeBox.active) {
+                    return;
+                }
+                // Get upgradeBox position
+                const upgradeBoxX = upgradeBox.x;
+                const upgradeBoxY = upgradeBox.y;
+
+                // Get enemy position
+                const enemyX = enemy.player.x;
+                const enemyY = enemy.player.y;
+
+                // Calculate distance between upgradeBox and enemy
+                const dx = upgradeBoxX - enemyX;
+                const dy = upgradeBoxY - enemyY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // Define collision radius (adjust as needed)
+                const collisionRadius = 50;
+
+                // Check if upgradeBox is within collision radius
+                if (distance < collisionRadius && upgradeBox.isCollected != true) {
+                    upgradeBox.isCollected = true;
+                    console.log("upgradeBox collision detected for enemy");
+                    // Handle collision
+                    this.droneManager.applyUpgradeForEnemy(upgradeBox);
+                }
+            });
+        });
+    }
+
+    checkPlayerUpgradeBoxCollision() {
+        // Get all active upgrade boxes
+        const upgradeBoxes = this.droneManager.getUpgradeBoxes();
+        const player = this.playerManager.getPlayer();
+
+        upgradeBoxes.forEach(upgradeBox => {
+            if (!upgradeBox.active) {
+                return;
+            }
+            // Check upgradeBox position
+            const upgradeBoxX = upgradeBox.x;
+            const upgradeBoxY = upgradeBox.y;
+
+            // Get player position
+            const playerX = player.x;
+            const playerY = player.y;
+
+            // Calculate distance between upgradeBox and player
+            const dx = upgradeBoxX - playerX;
+            const dy = upgradeBoxY - playerY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // Define collision radius (adjust as needed)
+            const collisionRadius = 50;
+
+            // Check if upgradeBox is within collision radius
+            if (distance < collisionRadius && upgradeBox.isCollected != true) {
+                console.log("upgradeBox collision detected for player");
+                // Handle collision
+                this.handleCashCollection(player, upgradeBox);
+            }
+        });
+    }
     // Handle socket event when another player starts the game
     handleSocketEvents() {
         if (!this.socket) {
@@ -871,6 +1059,9 @@ export class MultiplayerGameScene extends Phaser.Scene {
         }
 
         this.socket.on('playerStartedGame', (data) => {
+            if(data.roomId != this.roomId) {
+                return;
+            }
             console.log('Received playerStartedGame event:', data);
 
             data.players.forEach(player => {
@@ -885,13 +1076,18 @@ export class MultiplayerGameScene extends Phaser.Scene {
 
         this.socket.on('playerMoved', (data) => {
             // console.log('Received playerMoved event:', data);
-
+            if(data.roomId != this.roomId) {
+                return;
+            }
             if (data.playerId != this.playerId) {
                 this.enemyManager.updateEnemyMovenment(data);
             }
         });
 
         this.socket.on('playerDamaged', (data) => {
+            if(data.roomId != this.roomId) {
+                return;
+            }
             console.log("Received player damage event:", data);
             if (data.playerId != this.playerId) {
                 this.enemyManager.damageEnemy(data.playerId);
@@ -899,13 +1095,16 @@ export class MultiplayerGameScene extends Phaser.Scene {
         });
 
         this.socket.on('playerKilled', (data) => {
+            if(data.roomId != this.roomId) {
+                return;
+            }
             console.log("Received player killed event:", data);
             if (data.playerId != this.playerId) {
                 this.enemyManager.removeEnemy(data.playerId);
             }
             if (data.killedBy == this.playerId) {
                 let existingAccount = this.registry.get('playerAccount');
-                existingAccount.gameAccountBalance += VERSUS_MODE_COST;
+                existingAccount.gameAccountBalance += this.roomId * 1000;
                 setCreditCount(existingAccount.authToken, existingAccount.gameAccountBalance);
                 this.registry.set('playerAccount', existingAccount);
                 this.ui.updateKillCount();

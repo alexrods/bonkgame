@@ -10,6 +10,7 @@ export class MultiplayerEnemy {
         this.lastDirection = 'down';
         this.shootingDirection = { x: 0, y: 0 };
         this.bullets = null;
+        this.health = 3;
 
         // Weapon system
         this.weaponType = 'rifle'; // Default weapon type (can be 'rifle' or 'shotgun')
@@ -29,7 +30,7 @@ export class MultiplayerEnemy {
         this.effects = new EnemyEffects(scene, bloodContainer);
     }
 
-    createPlayer(sX, sY) {
+    createPlayer(sX, sY, health) {
         // Get the selected character
         let selectedCharacter = 'default';
 
@@ -131,7 +132,7 @@ export class MultiplayerEnemy {
         this.player.speed = 250; // Default movement speed that can be boosted by upgrades
 
         // Initialize player health system
-        this.health = 3; // Player now has 3 hit points
+        this.health = health; // Player now has 3 hit points
         this.maxHealth = 10; // Maximum health with shields
 
         // Set initial animation with the appropriate character prefix if needed
@@ -230,15 +231,11 @@ export class MultiplayerEnemy {
             return;
         }
 
-        // Player movement.
-        let speed = this.player ? this.player.speed : 250; // Use player's speed property for upgrades
-        let vx = 0, vy = 0;
-        let inputHandled = false;
+        let vx = data.vx, vy = data.vy;
 
         this.player.x = data.x;
         this.player.y = data.y;
-        vx = data.vx;
-        vy = data.vy;
+        this.health = data.health;
         // Get animation prefix for the selected character
         const animPrefix = this.selectedCharacter !== 'default' ? `${this.selectedCharacter}_` : '';
 
@@ -878,8 +875,8 @@ export class MultiplayerEnemy {
     createShieldBar() {
         if (!this.player) return;
 
-        this.player.shields = 3;
-        this.maxShields = 3;
+        this.health = 3;
+        this.maxShields = 10;
         // Create shield bar background (black rectangle)
         this.shieldBarBg = this.scene.add.rectangle(
             this.player.x,
@@ -908,7 +905,7 @@ export class MultiplayerEnemy {
 
     updateShieldBar() {
         if (!this.player || !this.shieldBar || !this.shieldBarBg) return;
-        if(this.player.shields == 0) {
+        if(this.health == 0) {
             this.shieldBar.destroy();
             this.shieldBarBg.destroy();
             return;
@@ -922,7 +919,7 @@ export class MultiplayerEnemy {
         this.shieldBar.y = this.player.y + 40;
 
         // Update shield bar width based on current shield value
-        const shieldPercentage = this.player.shields / this.maxShields;
+        const shieldPercentage = this.health / this.maxShields;
         this.shieldBar.width = 50 * shieldPercentage;
 
         // Update shield bar color
@@ -932,7 +929,7 @@ export class MultiplayerEnemy {
     updateShieldBarColor() {
         if (!this.shieldBar) return;
 
-        const shieldPercentage = this.player.shields / this.maxShields;
+        const shieldPercentage = this.health / this.maxShields;
 
         // Set color based on shield percentage
         if (shieldPercentage <= 0.25) {
@@ -1020,7 +1017,7 @@ export class MultiplayerEnemy {
     handlePlayerDamage() {
         console.log("Enemy received player damage");
         this.effects.createPlayerBloodSplatter(this.player);
-        this.player.shields -= 1;
+        this.health -= 1;
         this.updateShieldBar();
     }
 
@@ -1029,7 +1026,7 @@ export class MultiplayerEnemy {
         console.log("Start to kill enemy");
         // Get player reference
         const player = this.player;
-        this.player.shields = 0;
+        this.health = 0;
         this.updateShieldBar();
 
         // If player is already dying, don't handle death again

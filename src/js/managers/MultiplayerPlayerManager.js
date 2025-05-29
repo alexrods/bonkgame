@@ -1048,7 +1048,9 @@ export class MultiplayerPlayerManager {
       vx: vx,
       vy: vy,
       shootX: shootX,
-      shootY: shootY
+      shootY: shootY,
+      health: this.health,
+      roomId: this.scene.roomId
     });
     // Player animation based on movement and shooting.
     if (shootX === 0 && shootY === 0) {
@@ -1493,11 +1495,12 @@ export class MultiplayerPlayerManager {
     if (!this.isStopShooting) {
       this.fireRifle(angle, muzzleOffsetX, muzzleOffsetY, this.playerId, this.player.x, this.player.y);
       this.socket.emit('fireRifle', {
-      angle: angle,
-      muzzleOffsetX: muzzleOffsetX,
-      muzzleOffsetY: muzzleOffsetY,
-      playerX: this.player.x,
-      playerY: this.player.y
+        angle: angle,
+        muzzleOffsetX: muzzleOffsetX,
+        muzzleOffsetY: muzzleOffsetY,
+        playerX: this.player.x,
+        playerY: this.player.y,
+        roomId: this.scene.roomId
       });
       console.log("Fired rifle bullet", angle, muzzleOffsetX, muzzleOffsetY, damageMultiplier, this.playerId, this.player.x, this.player.y);
     }
@@ -1927,6 +1930,9 @@ export class MultiplayerPlayerManager {
     }
 
     this.socket.on("rifleFired", (data) => {
+      if(data.roomId != this.scene.roomId) {
+        return;
+      }
       console.log("Rifle fired", data);
       if (data.playerId != this.playerId) {
         this.fireRifle(data.angle, data.muzzleOffsetX, data.muzzleOffsetY, data.playerId, data.playerX, data.playerY);

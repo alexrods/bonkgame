@@ -1,4 +1,4 @@
-import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG, VERSUS_MODE_COST } from "../../config.js";
+import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from "../../config.js";
 import { PlayerAccount } from "../web3/PlayerAccount.js";
 import { DepositWithdrawPrompt } from "../ui/DepositWithdrawPrompt.js";
 import { setCreditCount } from "../utils/api.js";
@@ -1356,8 +1356,9 @@ export class MenuScene extends Phaser.Scene {
     // Check if warning already exists
     if (this.warningText) {
       // If it exists, reset the animation
-      this.warningText.destroy();
-      this.warningText = null;
+      // this.warningText.destroy();
+      // this.warningText = null;
+      return;
     }
     // Calculate responsive font size for warning text
     const screenWidth = this.cameras.main.width;
@@ -1368,85 +1369,6 @@ export class MenuScene extends Phaser.Scene {
       this.cameras.main.width / 2,
       this.cameras.main.height * 0.88, // Positioned below tutorial button
       "CONNECT WALLET TO PLAY!",
-      {
-        fontFamily: "Arial Black", // Same as other menu text
-        fontSize: `${warningFontSize}px`,
-        color: "#ff0000", // Red text
-        stroke: "#000000",
-        strokeThickness: 6,
-        shadow: {
-          offsetX: 2,
-          offsetY: 2,
-          color: "#aa0000", // Darker red shadow
-          blur: 5,
-          stroke: true,
-          fill: true,
-        },
-      }
-    );
-    this.warningText.setOrigin(0.5);
-
-    // Now recreate the scanlines so they're on top of the warning
-    this.scanlines = this.createScanlines();
-    if (scanlinesDepth > 0) {
-      this.scanlines.setDepth(scanlinesDepth);
-    }
-
-    // Just animate the warning text
-    const warningElements = [this.warningText];
-
-    // Add shaking animation to the warning text
-    this.tweens.add({
-      targets: warningElements,
-      x: {
-        from: this.cameras.main.width / 2 - 10,
-        to: this.cameras.main.width / 2 + 10,
-      },
-      duration: 60,
-      yoyo: true,
-      repeat: 5,
-      ease: "Sine.easeInOut",
-    });
-
-    // Fade out after 2 seconds
-    this.warningFadeEvent = this.time.delayedCall(2000, () => {
-      this.tweens.add({
-        targets: warningElements,
-        alpha: 0,
-        duration: 500,
-        onComplete: () => {
-          if (this.warningText) {
-            this.warningText.destroy();
-            this.warningText = null;
-          }
-        },
-      });
-    });
-  }
-
-  showNotEnoughAccountBalanceWarning() {
-    // Check if scanlines exist and temporarily store their depth
-    let scanlinesDepth = 0;
-    if (this.scanlines) {
-      scanlinesDepth = this.scanlines.depth || 0;
-      this.scanlines.destroy();
-    }
-
-    // Check if warning already exists
-    if (this.warningText) {
-      // If it exists, reset the animation
-      this.warningText.destroy();
-      this.warningText = null;
-    }
-    // Calculate responsive font size for warning text
-    const screenWidth = this.cameras.main.width;
-    let warningFontSize = Math.max(20, Math.floor(screenWidth * 0.038)); // 3.8% of screen width, minimum 20px
-
-    // Create warning text matching the style of other menu elements but in red
-    this.warningText = this.add.text(
-      this.cameras.main.width / 2,
-      this.cameras.main.height * 0.88, // Positioned below tutorial button
-      "Please Charge To Play!",
       {
         fontFamily: "Arial Black", // Same as other menu text
         fontSize: `${warningFontSize}px`,
@@ -2182,14 +2104,7 @@ export class MenuScene extends Phaser.Scene {
           // New player MUST play the tutorial first
           this.startTutorial();
         } else {
-          const existingAccount = this.registry.get("playerAccount");
-          if (existingAccount.gameAccountBalance >= VERSUS_MODE_COST) {
-            // Go to lobby scene
             this.scene.start('LobbyScene');
-          } else {
-            console.log('Not enough balance to play versus mode');
-            this.showNotEnoughAccountBalanceWarning();
-          }
         }
       } else {
         // Show error message when trying to play without wallet
