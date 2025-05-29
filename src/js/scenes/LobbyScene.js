@@ -410,7 +410,7 @@ export class LobbyScene extends Phaser.Scene {
 
   startGame(roomId) {
     const existingAccount = this.registry.get("playerAccount");
-    existingAccount.gameAccountBalance += roomId * 1000;
+    existingAccount.gameAccountBalance -= roomId * 1000;
     setCreditCount(existingAccount.authToken, existingAccount.gameAccountBalance);
     this.registry.set('playerAccount', existingAccount);
 

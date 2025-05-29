@@ -178,8 +178,8 @@ export class BootScene extends Phaser.Scene {
     // No tweens to clean up
     
     // Start the sequence with StartScene (logo screen)
-    // this.scene.start('StartScene');
-    this.scene.start('MenuScene');
+    this.scene.start('StartScene');
+    // this.scene.start('MenuScene');
   }
   
   // Create a grayscale pipeline for black and white effect
