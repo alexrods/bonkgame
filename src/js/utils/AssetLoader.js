@@ -39,6 +39,11 @@ export function preloadSprites(scene) {
       '/assets/sound/sfx/keystroke3.mp3'
     ]);
     
+    // Load Solhunter commercial sound
+    scene.load.audio('solhunter', [
+      '/assets/sound/commercials/solhunter.mp3'
+    ]);
+    
     // Load interference sound effect (keeping for compatibility)
     scene.load.audio('interference', [
       '/assets/sound/sfx/interference.mp3'
@@ -351,10 +356,16 @@ export function preloadSprites(scene) {
     scene.load.image('bonkosWide', '/assets/cutscenes/comercial/bonkosWide.png');
     scene.load.image('organtradePortrait', '/assets/cutscenes/comercial/organtradePortrait.png');
     scene.load.image('organtradeWide', '/assets/cutscenes/comercial/organtradeWide.png');
+    scene.load.image('survivorPortrait', '/assets/cutscenes/comercial/survivorPortrait.png');
+    scene.load.image('survivorWide', '/assets/cutscenes/comercial/survivorWide.png');
     scene.load.image('psg1Portrait', '/assets/cutscenes/comercial/psg1Portrait.png');
     scene.load.image('psg1Wide', '/assets/cutscenes/comercial/psg1Wide.png');
     scene.load.image('wifPortrait', '/assets/cutscenes/comercial/wifPortrait.png');
     scene.load.image('wifWide', '/assets/cutscenes/comercial/wifWide.png');
+    scene.load.image('TheeKalElPortrait', '/assets/cutscenes/comercial/TheeKalElPortrait.png');
+    scene.load.image('TheeKalElWide', '/assets/cutscenes/comercial/TheeKalElWide.png');
+    scene.load.image('solhunterPortrait', '/assets/cutscenes/comercial/solhunterPortrait.jpeg');
+    scene.load.image('solhunterWide', '/assets/cutscenes/comercial/solhunterWide.jpeg');
     
     // Load enter arena cutscene assets
     scene.load.image('cutscene_landscape', '/assets/cutscenes/enter_arena/arenaLandscape.png');
@@ -370,10 +381,13 @@ export function preloadSprites(scene) {
     scene.load.audio('becomeSponsor', '/assets/sound/comercials/becomeSponsor.mp3');
     scene.load.audio('buyAdd', '/assets/sound/comercials/buyAdd.mp3');
     scene.load.audio('organTrading', '/assets/sound/comercials/organTrading.mp3');
+    scene.load.audio('survivor', '/assets/sound/comercials/survivor.mp3');
     scene.load.audio('psg1', '/assets/sound/comercials/psg1.mp3');
     scene.load.audio('sonponsoredBy', '/assets/sound/comercials/sonponsoredBy.mp3');
     scene.load.audio('todaysgames', '/assets/sound/comercials/todaysgames.mp3');
     scene.load.audio('wif', '/assets/sound/comercials/wif.mp3');
+    scene.load.audio('TheeKalEl', '/assets/sound/comercials/TheeKalEl.mp3');
+    scene.load.audio('solhunter', '/assets/sound/comercials/solhunter.mp3');
     
     // Load enemy death animations - front (killed from below)
     for (let i = 1; i <= 12; i++) {

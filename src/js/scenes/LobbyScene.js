@@ -325,11 +325,28 @@ export class LobbyScene extends Phaser.Scene {
 
     // Connect to the socket.io server
     console.log('Connecting to socket.io server');
-    this.socket = io(import.meta.env.VITE_BASE_API_URL.replace('/api', ''), {
+    
+    // Construir la URL de conexión
+    const serverUrl = new URL(import.meta.env.VITE_BASE_API_URL);
+    const wsProtocol = serverUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${wsProtocol}//${serverUrl.host}`;
+    
+    console.log('WebSocket URL:', wsUrl);
+    
+    this.socket = io(wsUrl, {
+      path: '/socket.io',
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
-      timeout: 5000
+      timeout: 5000,
+      transports: ['websocket', 'polling'],
+      withCredentials: true
+    });
+    
+    // Manejar eventos de conexión/desconexión
+    this.socket.on('connect_error', (error) => {
+      console.error('Error de conexión Socket.IO:', error);
+      this.showConnectionError();
     });
 
     // Connection established
