@@ -41,6 +41,13 @@ export class MultiplayerGameScene extends Phaser.Scene {
             walletUI.style.display = 'none';
         }
 
+        // First check if menu music is playing and stop it (different music type)
+        const menuMusic = this.registry.get('menuMusic');
+        if (menuMusic && menuMusic.isPlaying) {
+          console.log('Stopping menu music in CharacterSelectScene');
+          menuMusic.stop();
+        }
+
         // Create a background color matching the lab floor
         this.cameras.main.setBackgroundColor(0xb8c0c8);
         this.playerManager = null;
