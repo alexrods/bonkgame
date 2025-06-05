@@ -240,7 +240,7 @@ export const updateMaxKills = async (token, kills) => {
     
     // Use axios for the request
     const response = await api.patch(
-      '/api/users/updateMaxKills',
+      '/users/updateMaxKills',
       { kills },
       { 
         headers: { 'x-auth-token': token },
