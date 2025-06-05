@@ -165,7 +165,7 @@ export const getUserInfo = async (token) => {
 
 export const setCreditCount = async (token, credit_count) => {
   try {
-    console.log("API.js - setCreditCount - Enviando petición al servidor:", {
+    console.log("API.js - setCreditCount - Sending request to server:", {
       endpoint: "/users/updateCreditCount",
       tokenLength: token ? token.length : 0,
       tokenStart: token ? token.substring(0, 10) + '...' : null,
@@ -178,14 +178,14 @@ export const setCreditCount = async (token, credit_count) => {
       { headers: { "x-auth-token": token } }
     );
     
-    console.log("API.js - setCreditCount - Respuesta recibida:", {
+    console.log("API.js - setCreditCount - Response received:", {
       status: response.status,
       data: response.data
     });
     
     return response.data;
   } catch (error) {
-    console.error("API.js - setCreditCount - Error en petición:", {
+    console.error("API.js - setCreditCount - Error in request:", {
       message: error.message,
       response: error.response ? {
         status: error.response.status,
@@ -222,33 +222,32 @@ export const updateEarnCount = async (token, earn) => {
 };
 
 /**
- * Actualiza el récord máximo de kills del usuario en el backend
- * @param {string} token - Token de autenticación del usuario
- * @param {number} kills - Cantidad de kills a actualizar
- * @returns {Promise<Object>} - Respuesta del servidor con el resultado
+ * Updates the maximum kills of the user in the backend
+ * @param {string} token - User authentication token
+ * @param {number} kills - Number of kills to update
+ * @returns {Promise<Object>} - Server response with the result
  */
 export const updateMaxKills = async (token, kills) => {
   try {
-    console.log('API.js - updateMaxKills - Enviando kills al servidor:', {
+    console.log('API.js - updateMaxKills - Sending kills to server:', {
       endpoint: '/users/updateMaxKills',
       kills
     });
     
-    // Determinar la URL base según entorno
+    // Determine the base URL based on environment
     const baseURL = window.location.hostname === 'localhost' ? 
       'http://localhost:9031' : '';
     
-    // Usar axios para la petición
+    // Use axios for the request
     const response = await api.patch(
-      '/api/users/updateMaxKills',  // Corregido: añadido el prefijo /api
+      '/api/users/updateMaxKills',
       { kills },
       { 
         headers: { 'x-auth-token': token },
-        baseURL: baseURL || undefined // Si no hay baseURL, usar el configurado en axios
+        // baseURL: baseURL || undefined // If no baseURL, use the configured axios baseURL
       }
     );
-    
-    console.log('API.js - updateMaxKills - Respuesta recibida:', {
+    console.log('API.js - updateMaxKills - Response received:', {
       status: response.status,
       data: response.data
     });
