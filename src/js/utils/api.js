@@ -221,4 +221,49 @@ export const updateEarnCount = async (token, earn) => {
   }
 };
 
+/**
+ * Actualiza el récord máximo de kills del usuario en el backend
+ * @param {string} token - Token de autenticación del usuario
+ * @param {number} kills - Cantidad de kills a actualizar
+ * @returns {Promise<Object>} - Respuesta del servidor con el resultado
+ */
+export const updateMaxKills = async (token, kills) => {
+  try {
+    console.log('API.js - updateMaxKills - Enviando kills al servidor:', {
+      endpoint: '/users/updateMaxKills',
+      kills
+    });
+    
+    // Determinar la URL base según entorno
+    const baseURL = window.location.hostname === 'localhost' ? 
+      'http://localhost:9031' : '';
+    
+    // Usar axios para la petición
+    const response = await api.patch(
+      '/api/users/updateMaxKills',  // Corregido: añadido el prefijo /api
+      { kills },
+      { 
+        headers: { 'x-auth-token': token },
+        baseURL: baseURL || undefined // Si no hay baseURL, usar el configurado en axios
+      }
+    );
+    
+    console.log('API.js - updateMaxKills - Respuesta recibida:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('API.js - updateMaxKills - Error:', {
+      message: error.message,
+      response: error.response ? {
+        status: error.response.status,
+        data: error.response.data
+      } : 'No response data'
+    });
+    throw error;
+  }
+};
+
 export default api;
