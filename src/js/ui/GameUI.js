@@ -441,4 +441,22 @@ export class GameUI {
     }
     return this.killCount;
   }
+  
+  // Método para guardar el killCount cuando se inicia la escena de game over
+  saveKillCountOnGameOver() {
+    try {
+      const gameId = this.scene.key || 'arenaGame';
+      // Guardamos el contador de kills actual
+      const killData = {
+        killCount: this.killCount,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(`bonkgames_lastKills_${gameId}`, JSON.stringify(killData));
+      console.log(`Kill count guardado al game over: ${this.killCount} kills`);
+      return true;
+    } catch (error) {
+      console.warn('Error al guardar killCount en localStorage:', error);
+      return false;
+    }
+  }
 }

@@ -1,5 +1,6 @@
 import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from '../../config.js';
 import { PlayerAccount } from '../web3/PlayerAccount.js';
+import { updateMaxKills } from '../utils/api.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -55,6 +56,9 @@ export class GameOverScene extends Phaser.Scene {
     this.accuracy = data.accuracy || 0;
     this.isAuthenticated = data.isAuthenticated || false;
     this.highScore = data.highScore || 0;
+    
+    // Guardar el killCount localmente cuando se inicia la escena de game over
+    this.saveKillCountLocally();
     
     // Get the intro music from registry
     this.introMusic = this.registry.get('introMusic');
@@ -1306,5 +1310,117 @@ export class GameOverScene extends Phaser.Scene {
     }
     
     return scanlineGraphics;
+  }
+  
+  // Método para guardar el contador de kills localmente y en el backend si es más alto que el anterior
+  saveKillCountLocally() {
+    try {
+      // Usar la clave de la escena o 'arenaGame' por defecto
+      const gameId = this.scene.key || 'arenaGame';
+      const storageKey = `bonkgames_lastKills_${gameId}`;
+      
+      // Leer el valor actual almacenado
+      let previousKillCount = 0;
+      const savedData = localStorage.getItem(storageKey);
+      
+      if (savedData) {
+        try {
+          const parsedData = JSON.parse(savedData);
+          if (parsedData && typeof parsedData.killCount === 'number') {
+            previousKillCount = parsedData.killCount;
+          }
+        } catch (parseError) {
+          console.warn('Error al parsear los datos guardados:', parseError);
+        }
+      }
+      
+      // Verificar si es un nuevo récord local
+      const isNewRecord = this.killCount > previousKillCount;
+      
+      // Mostrar log del resultado de la comparación
+      if (isNewRecord) {
+        console.log(`GameOver: Nuevo récord local detectado: ${this.killCount} kills (anterior: ${previousKillCount})`);
+        
+        // Crear un objeto con la información de kills y timestamp
+        const killData = {
+          killCount: this.killCount,
+          timestamp: Date.now()
+        };
+        
+        // Guardar en localStorage
+        localStorage.setItem(storageKey, JSON.stringify(killData));
+        
+        // Solo enviar al backend si es un nuevo récord local y el usuario está autenticado
+        if (this.isAuthenticated) {
+          console.log('Nuevo récord local confirmado, enviando al backend...');
+          this.sendKillsToBackend(this.killCount);
+        } else {
+          console.log('Usuario no autenticado, guardando solo localmente');
+        }
+        
+        return true;
+      } else {
+        console.log(`GameOver: Kill count no supera el récord anterior. Actual: ${this.killCount}, Récord: ${previousKillCount}`);
+        return false;
+      }
+    } catch (error) {
+      console.warn('Error al guardar killCount en localStorage:', error);
+      return false;
+    }
+  }
+  
+  // Método para enviar el contador de kills al backend
+  async sendKillsToBackend(kills) {
+    console.log('=== INICIO: Proceso de envío de kills al backend ===');
+    console.log(`Intentando guardar ${kills} kills en el backend`);
+    
+    // Verificar el estado de autenticación
+    console.log('Estado de autenticación:', this.isAuthenticated ? 'AUTENTICADO' : 'NO AUTENTICADO');
+    
+    // Verificar si el usuario está autenticado
+    if (!this.isAuthenticated) {
+      console.warn('⚠️ Usuario no autenticado, no se envían kills al backend');
+      return false;
+    }
+    
+    try {
+      // Obtener el token del PlayerAccount en lugar de localStorage
+      let token = null;
+      
+      // Buscar el PlayerAccount en el registro del juego para obtener el token de autenticación
+      const playerAccount = this.registry.get('playerAccount');
+      if (playerAccount && playerAccount.authToken) {
+        token = playerAccount.authToken;
+        console.log('Token obtenido desde PlayerAccount: DISPONIBLE');
+      } else {
+        // Intentar obtenerlo desde localStorage como fallback
+        token = localStorage.getItem('token');
+        console.log('Token de PlayerAccount no disponible, buscando en localStorage:', token ? 'ENCONTRADO' : 'NO ENCONTRADO');
+      }
+      
+      if (!token) {
+        console.warn('⚠️ No hay token de autenticación disponible');
+        return false;
+      }
+      
+      console.log('Utilizando función updateMaxKills de api.js');
+      
+      // Llamar a la función updateMaxKills de api.js
+      const resultado = await updateMaxKills(token, kills);
+      console.log('Resultado de updateMaxKills:', resultado);
+      
+      if (resultado && resultado.success) {
+        console.log(`✅ ÉXITO: Nuevo récord guardado en backend: ${kills} kills`);
+        return true;
+      } else {
+        console.warn(`⚠️ No se actualizó el récord en el backend:`, resultado);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ ERROR al enviar kills al backend:', error);
+      return false;
+    } finally {
+      console.log('=== FIN: Proceso de envío de kills al backend ===');
+    }
   }
 }
