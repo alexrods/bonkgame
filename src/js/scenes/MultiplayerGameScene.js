@@ -147,6 +147,7 @@ export class MultiplayerGameScene extends Phaser.Scene {
 
     // Create player and load sounds
     this.playerManager.createPlayer();
+    this.playerManager.loadSounds();
 
     // Configure camera to follow player
     this.setupCamera();
