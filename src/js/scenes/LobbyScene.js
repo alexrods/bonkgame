@@ -1,16 +1,15 @@
-import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from '../../config.js';
-import { setCreditCount } from '../utils/api.js';
-
+import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from "../../config.js";
+import { setCreditCount } from "../utils/api.js";
 
 export class LobbyScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'LobbyScene' });
+    super({ key: "LobbyScene" });
     this.waitingText = null;
     this.waitingPlayer = null;
     this.lobbyTimer = 0;
     this.playerId = null;
     this.sessionId = null;
-    this.loadingDots = '';
+    this.loadingDots = "";
     this.dotCount = 0;
     this.cancelButton = null;
     this.isAlreadyStarted = false;
@@ -192,9 +191,9 @@ export class LobbyScene extends Phaser.Scene {
         this.showNotEnoughAccountBalanceWarning();
         return;
       }
-      this.socket.emit('joinVersusGame', {
+      this.socket.emit("joinVersusGame", {
         playerId: this.playerId,
-        roomId: 10
+        roomId: 10,
       });
     });
 
@@ -203,9 +202,9 @@ export class LobbyScene extends Phaser.Scene {
         this.showNotEnoughAccountBalanceWarning();
         return;
       }
-      this.socket.emit('joinVersusGame', {
+      this.socket.emit("joinVersusGame", {
         playerId: this.playerId,
-        roomId: 50
+        roomId: 50,
       });
     });
 
@@ -214,26 +213,27 @@ export class LobbyScene extends Phaser.Scene {
         this.showNotEnoughAccountBalanceWarning();
         return;
       }
-      this.socket.emit('joinVersusGame', {
+      this.socket.emit("joinVersusGame", {
         playerId: this.playerId,
-        roomId: 100
+        roomId: 100,
       });
     });
 
     cancelButton.on("pointerdown", () => {
       this.socket.close();
-      this.registry.set('isGameStarted', false);
-      this.scene.start('MenuScene');
+      this.registry.set("isGameStarted", false);
+      this.scene.start("MenuScene");
     });
 
-    this.escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
-    this.escKey.on('down', () => {
+    this.escKey = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.ESC
+    );
+    this.escKey.on("down", () => {
       this.socket.close();
-      this.registry.set('isGameStarted', false);
-      this.scene.start('MenuScene');
+      this.registry.set("isGameStarted", false);
+      this.scene.start("MenuScene");
     });
   }
-
 
   showNotEnoughAccountBalanceWarning() {
     // Check if warning already exists
@@ -324,58 +324,58 @@ export class LobbyScene extends Phaser.Scene {
     }
 
     // Connect to the socket.io server
-    console.log('Connecting to socket.io server');
-    
+    console.log("Connecting to socket.io server");
+
     // Construir la URL de conexión
     const serverUrl = new URL(import.meta.env.VITE_BASE_API_URL);
-    const wsProtocol = serverUrl.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsProtocol = serverUrl.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${wsProtocol}//${serverUrl.host}`;
-    
-    console.log('WebSocket URL:', wsUrl);
-    
+
+    console.log("WebSocket URL:", wsUrl);
+
     this.socket = io(wsUrl, {
-      path: '/socket.io',
+      path: "/socket.io",
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,
       timeout: 5000,
-      transports: ['websocket', 'polling'],
-      withCredentials: true
+      transports: ["websocket", "polling"],
+      withCredentials: true,
     });
-    
+
     // Manejar eventos de conexión/desconexión
-    this.socket.on('connect_error', (error) => {
-      console.error('Error de conexión Socket.IO:', error);
+    this.socket.on("connect_error", (error) => {
+      console.error("Error de conexión Socket.IO:", error);
       this.showConnectionError();
     });
 
     // Connection established
-    this.socket.on('connect', () => {
-      console.log('Connected to matchmaking server with id:', this.socket.id);
+    this.socket.on("connect", () => {
+      console.log("Connected to matchmaking server with id:", this.socket.id);
       // this.debugText.setText(`Debug: Connected to server | Socket ID: ${this.socket.id.substring(0, 8)}...`);
 
       // Initialize player ID
       this.playerId = this.socket.id;
 
       // Register with server
-      this.socket.emit('registerPlayer', {
-        playerId: this.playerId
+      this.socket.emit("registerPlayer", {
+        playerId: this.playerId,
       });
     });
 
     // Game start event from server
-    this.socket.on('versus_playerJoined', (data) => {
-      console.log('versus_playerJoined event triggered', data);
+    this.socket.on("versus_playerJoined", (data) => {
+      console.log("versus_playerJoined event triggered", data);
       if (data.playerId != this.playerId) return;
-      if (!(this.registry.get('isGameStarted') || false)) {
+      if (!(this.registry.get("isGameStarted") || false)) {
         this.startGame(data.roomId);
-        this.registry.set('isGameStarted', true);
+        this.registry.set("isGameStarted", true);
       }
     });
 
     // Player disconnected event
-    this.socket.on('playerDisconnected', (data) => {
-      console.log('Player disconnected:', data);
+    this.socket.on("playerDisconnected", (data) => {
+      console.log("Player disconnected:", data);
       // this.totalPlayers = data.totalPlayers;
       // this.updateWaitingText();
 
@@ -386,55 +386,63 @@ export class LobbyScene extends Phaser.Scene {
     });
 
     // Connection error
-    this.socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+    this.socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
       this.debugText.setText(`Debug: Connection error - ${error.message}`);
       this.showConnectionError();
     });
 
     // Reconnection attempts
-    this.socket.on('reconnect_attempt', (attemptNumber) => {
+    this.socket.on("reconnect_attempt", (attemptNumber) => {
       console.log(`Reconnection attempt ${attemptNumber}`);
       this.debugText.setText(`Debug: Reconnecting... Attempt ${attemptNumber}`);
     });
 
     // Reconnection failed
-    this.socket.on('reconnect_failed', () => {
-      console.error('Failed to reconnect to server');
-      this.debugText.setText('Debug: Failed to reconnect');
+    this.socket.on("reconnect_failed", () => {
+      console.error("Failed to reconnect to server");
+      this.debugText.setText("Debug: Failed to reconnect");
       this.showConnectionError();
     });
 
     // Handle reconnection
-    this.socket.on('reconnect', () => {
-      console.log('Reconnected to server');
-      this.debugText.setText('Debug: Reconnected to server');
+    this.socket.on("reconnect", () => {
+      console.log("Reconnected to server");
+      this.debugText.setText("Debug: Reconnected to server");
 
       // Re-register with server
-      this.socket.emit('registerPlayer', {
-        playerId: this.playerId
+      this.socket.emit("registerPlayer", {
+        playerId: this.playerId,
       });
     });
   }
 
   showConnectionError() {
-    this.waitingText.setText('Connection error\nReturning to menu...');
+    this.waitingText.setText("Connection error\nReturning to menu...");
     this.time.delayedCall(2000, () => {
       this.cleanupLobby();
-      this.scene.start('MenuScene');
+      this.scene.start("MenuScene");
     });
   }
 
   startGame(roomId) {
     const existingAccount = this.registry.get("playerAccount");
     existingAccount.gameAccountBalance -= roomId * 1000;
-    setCreditCount(existingAccount.authToken, existingAccount.gameAccountBalance);
-    this.registry.set('playerAccount', existingAccount);
+
+    const localAccount = JSON.parse(localStorage.getItem("playerData"));
+    localAccount.gameAccountBalance -= roomId * 1000;
+
+    setCreditCount(
+      existingAccount.authToken,
+      existingAccount.gameAccountBalance
+    );
+    this.registry.set("playerAccount", existingAccount);
+    localStorage.setItem("playerData", JSON.stringify(localAccount));
 
     // Pass the socket to the multiplayer game scene
-    this.scene.start('MultiplayerGameScene', {
+    this.scene.start("MultiplayerGameScene", {
       socket: this.socket,
-      roomId: roomId
+      roomId: roomId,
     });
   }
 
