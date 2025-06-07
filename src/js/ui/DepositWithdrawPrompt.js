@@ -1109,7 +1109,7 @@ export class DepositWithdrawPrompt {
           // If coming from wheel, keep enemies paused but let wheel handle
           // the final unpausing when wheel is closed
           if (this.scene.enemyManager) {
-            this.scene.enemyManager.paused = true;
+            this.scene.enemyManager.paused = true; 
           }
 
           // Controls should already be set appropriately above in the synchronous section
@@ -2632,23 +2632,23 @@ export class DepositWithdrawPrompt {
             "DepositWithdrawPrompt: Attempting to update credit_count in DB with value:",
             newBalance
           );
-          // try {
-          //   this.scene.playerAccount.setCreditCount(newBalance)
-          //     .then((response) => {
-          //       console.log(
-          //         "DepositWithdrawPrompt: credit_count successfully updated in DB:",
-          //         response
-          //       );
-          //     })
-          //     .catch((err) => {
-          //       console.error(
-          //         "Error updating credit_count in DB from DepositWithdrawPrompt:",
-          //         err
-          //       );
-          //     });
-          // } catch (error) {
-          //   console.error("Error calling setCreditCount:", error);
-          // }
+          try {
+            this.scene.playerAccount.setCreditCount(newBalance)
+              .then((response) => {
+                console.log(
+                  "DepositWithdrawPrompt: credit_count successfully updated in DB:",
+                  response
+                );
+              })
+              .catch((err) => {
+                console.error(
+                  "Error updating credit_count in DB from DepositWithdrawPrompt:",
+                  err
+                );
+              });
+          } catch (error) {
+            console.error("Error calling setCreditCount:", error);
+          }
         } else {
           console.error(
             "DepositWithdrawPrompt: Cannot update DB - setCreditCount method not available"
