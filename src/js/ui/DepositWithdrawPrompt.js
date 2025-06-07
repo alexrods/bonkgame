@@ -223,31 +223,31 @@ export class DepositWithdrawPrompt {
 
     // Create deposit options for wallet to game - pushed down to accommodate higher cancel button
     this.createButton(
-      "DEPOSIT 100 🅒",
+      "DEPOSIT 100K 🅒",
       this.scene.cameras.main.width / 2,
       this.scene.cameras.main.height / 2 - 60,
       () => {
-        this.handleWalletToGameDeposit(100);
+        this.handleWalletToGameDeposit(100000);
       },
       this.walletToGameButtonsContainer
     );
 
     this.createButton(
-      "DEPOSIT 250 🅒",
+      "DEPOSIT 250K 🅒",
       this.scene.cameras.main.width / 2,
       this.scene.cameras.main.height / 2,
       () => {
-        this.handleWalletToGameDeposit(250);
+        this.handleWalletToGameDeposit(250000);
       },
       this.walletToGameButtonsContainer
-    );
+    );  
 
     this.createButton(
-      "DEPOSIT 500 🅒",
+      "DEPOSIT 500K 🅒",
       this.scene.cameras.main.width / 2,
       this.scene.cameras.main.height / 2 + 60,
       () => {
-        this.handleWalletToGameDeposit(500);
+        this.handleWalletToGameDeposit(500000);
       },
       this.walletToGameButtonsContainer
     );
@@ -329,7 +329,7 @@ export class DepositWithdrawPrompt {
       this.scene.cameras.main.width / 2,
       this.scene.cameras.main.height / 2 - 60,
       () => {
-        this.handleGameToArenaDeposit(100);
+        this.handleGameToArenaDeposit(100000);
       },
       this.gameToArenaButtonsContainer
     );
@@ -339,7 +339,7 @@ export class DepositWithdrawPrompt {
       this.scene.cameras.main.width / 2,
       this.scene.cameras.main.height / 2,
       () => {
-        this.handleGameToArenaDeposit(250);
+        this.handleGameToArenaDeposit(250000);
       },
       this.gameToArenaButtonsContainer
     );
@@ -349,7 +349,7 @@ export class DepositWithdrawPrompt {
       this.scene.cameras.main.width / 2,
       this.scene.cameras.main.height / 2 + 60,
       () => {
-        this.handleGameToArenaDeposit(500);
+        this.handleGameToArenaDeposit(500000);
       },
       this.gameToArenaButtonsContainer
     );
