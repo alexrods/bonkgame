@@ -1196,8 +1196,6 @@ export class MultiplayerGameScene extends Phaser.Scene {
       }
       if (data.killedBy == this.playerId) {
         let existingAccount = this.registry.get("playerAccount");
-        // Recuperar apuesta inicial + 80% de la apuesta del oponente
-        existingAccount.gameAccountBalance += (this.roomId * 1000) + (this.roomId * 800);
 
         const localAccount = JSON.parse(localStorage.getItem("playerData"));
         localAccount.gameAccountBalance += (this.roomId * 1000) + (this.roomId * 800);
