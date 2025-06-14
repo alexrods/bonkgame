@@ -57,8 +57,17 @@ export class GameOverScene extends Phaser.Scene {
     this.isAuthenticated = data.isAuthenticated || false;
     this.highScore = data.highScore || 0;
     
-    // Guardar el killCount localmente cuando se inicia la escena de game over
-    // this.saveKillCountLocally();
+    // Guardar el killCount cuando se inicia la escena de game over
+    if (this.isAuthenticated && this.killCount > 0) {
+      // Lanzamos la verificación de récord sin esperar su resultado
+      this.checkAndUpdateMaxKills().then(isNewRecord => {
+        if (isNewRecord) {
+          console.log('¡Nuevo récord de kills establecido y guardado en la base de datos desde init!');
+        }
+      }).catch(error => {
+        console.error('Error al verificar el récord de kills desde init:', error);
+      });
+    }
     
     // Get the intro music from registry
     this.introMusic = this.registry.get('introMusic');
