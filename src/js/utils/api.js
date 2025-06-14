@@ -222,29 +222,54 @@ export const updateEarnCount = async (token, earn) => {
 };
 
 /**
- * Updates the maximum kills of the user in the backend
+ * Gets the current maximum kills of the user from the backend
+ * @param {string} token - User authentication token
+ * @returns {Promise<Object>} - Server response with the max kills
+ */
+export const getUserMaxKills = async (token) => {
+  try {
+    console.log('API.js - getUserMaxKills - Getting max kills from server');
+    
+    const response = await api.get('/users/maxKills', {
+      headers: { 'x-auth-token': token }
+    });
+    
+    console.log('API.js - getUserMaxKills - Response received:', {
+      status: response.status,
+      data: response.data
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('API.js - getUserMaxKills - Error:', {
+      message: error.message,
+      response: error.response ? {
+        status: error.response.status,
+        data: error.response.data
+      } : 'No response data'
+    });
+    throw error;
+  }
+};
+
+/**
+ * Updates the maximum kills of the user in the backend only if the new value is higher
  * @param {string} token - User authentication token
  * @param {number} kills - Number of kills to update
- * @returns {Promise<Object>} - Server response with the result
+ * @returns {Promise<Object>} - Server response with the result and whether it was a new record
  */
 export const updateMaxKills = async (token, kills) => {
   try {
-    console.log('API.js - updateMaxKills - Sending kills to server:', {
-      endpoint: '/users/updateMaxKills',
+    console.log('API.js - updateMaxKills - Processing kills update:', {
       kills
     });
-    
-    // Determine the base URL based on environment
-    const baseURL = window.location.hostname === 'localhost' ? 
-      'http://localhost:9031' : '';
     
     // Use axios for the request
     const response = await api.patch(
       '/users/updateMaxKills',
       { kills },
       { 
-        headers: { 'x-auth-token': token },
-        // baseURL: baseURL || undefined // If no baseURL, use the configured axios baseURL
+        headers: { 'x-auth-token': token }
       }
     );
     console.log('API.js - updateMaxKills - Response received:', {

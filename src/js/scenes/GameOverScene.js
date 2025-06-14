@@ -1,6 +1,6 @@
 import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from '../../config.js';
 import { PlayerAccount } from '../web3/PlayerAccount.js';
-import { updateMaxKills } from '../utils/api.js';
+import { updateMaxKills, getUserMaxKills } from '../utils/api.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -58,7 +58,7 @@ export class GameOverScene extends Phaser.Scene {
     this.highScore = data.highScore || 0;
     
     // Guardar el killCount localmente cuando se inicia la escena de game over
-    this.saveKillCountLocally();
+    // this.saveKillCountLocally();
     
     // Get the intro music from registry
     this.introMusic = this.registry.get('introMusic');
@@ -753,6 +753,18 @@ export class GameOverScene extends Phaser.Scene {
     this.buttonClicked = false;
     this.menuButtons = [];
     
+    // Verificar si se ha batido el récord de kills en la base de datos
+    // Esto es asíncrono pero no necesitamos esperar el resultado para continuar
+    if (this.isAuthenticated && this.killCount > 0) {
+      this.checkAndUpdateMaxKills().then(isNewRecord => {
+        if (isNewRecord) {
+          console.log('¡Nuevo récord de kills establecido y guardado en la base de datos!');
+        }
+      }).catch(error => {
+        console.error('Error al verificar el récord de kills:', error);
+      });
+    }
+    
     // Add a dark overlay
     const overlay = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000);
     overlay.setOrigin(0, 0);
@@ -1312,60 +1324,78 @@ export class GameOverScene extends Phaser.Scene {
     return scanlineGraphics;
   }
   
-  // Método para guardar el contador de kills localmente y en el backend si es más alto que el anterior
-  saveKillCountLocally() {
+  // Método para verificar y actualizar el récord de kills directamente en la base de datos
+  async checkAndUpdateMaxKills() {
+    console.log('=== INICIO: Verificación y actualización de récord de kills ===');
+    console.log(`Verificando si ${this.killCount} kills es un nuevo récord`);
+    
+    // Verificar el estado de autenticación
+    console.log('Estado de autenticación:', this.isAuthenticated ? 'AUTENTICADO' : 'NO AUTENTICADO');
+    
+    // Si el usuario no está autenticado, no podemos verificar ni actualizar récords
+    if (!this.isAuthenticated) {
+      console.warn('⚠️ Usuario no autenticado, no se puede verificar el récord');
+      return false;
+    }
+    
     try {
-      // Usar la clave de la escena o 'arenaGame' por defecto
-      const gameId = this.scene.key || 'arenaGame';
-      const storageKey = `bonkgames_lastKills_${gameId}`;
+      // Obtener el token de autenticación
+      let token = null;
       
-      // Leer el valor actual almacenado
-      let previousKillCount = 0;
-      const savedData = localStorage.getItem(storageKey);
-      
-      if (savedData) {
-        try {
-          const parsedData = JSON.parse(savedData);
-          if (parsedData && typeof parsedData.killCount === 'number') {
-            previousKillCount = parsedData.killCount;
-          }
-        } catch (parseError) {
-          console.warn('Error al parsear los datos guardados:', parseError);
-        }
+      // Buscar el PlayerAccount en el registro del juego
+      const playerAccount = this.registry.get('playerAccount');
+      if (playerAccount && playerAccount.authToken) {
+        token = playerAccount.authToken;
+        console.log('Token obtenido desde PlayerAccount: DISPONIBLE');
+      } else {
+        // Intentar obtenerlo desde localStorage como fallback
+        token = localStorage.getItem('token');
+        console.log('Token de PlayerAccount no disponible, buscando en localStorage:', token ? 'ENCONTRADO' : 'NO ENCONTRADO');
       }
       
-      // Verificar si es un nuevo récord local
-      const isNewRecord = this.killCount > previousKillCount;
+      if (!token) {
+        console.warn('⚠️ No hay token de autenticación disponible');
+        return false;
+      }
       
-      // Mostrar log del resultado de la comparación
+      // Consultar el récord actual del usuario en el backend
+      console.log('Consultando récord actual en la base de datos...');
+      const userMaxKills = await getUserMaxKills(token);
+      
+      if (!userMaxKills || !userMaxKills.success) {
+        console.warn('⚠️ No se pudo obtener el récord actual:', userMaxKills);
+        return false;
+      }
+      
+      const previousMaxKills = userMaxKills.maxKills || 0;
+      console.log(`Récord actual en la base de datos: ${previousMaxKills} kills`);
+      
+      // Verificar si es un nuevo récord
+      const isNewRecord = this.killCount > previousMaxKills;
+      
       if (isNewRecord) {
-        console.log(`GameOver: Nuevo récord local detectado: ${this.killCount} kills (anterior: ${previousKillCount})`);
+        console.log(`✨ Nuevo récord detectado: ${this.killCount} kills (anterior: ${previousMaxKills})`);
         
-        // Crear un objeto con la información de kills y timestamp
-        const killData = {
-          killCount: this.killCount,
-          timestamp: Date.now()
-        };
+        // Actualizar el récord en la base de datos
+        console.log('Enviando nuevo récord al backend...');
+        const updateResult = await this.sendKillsToBackend(this.killCount);
         
-        // Guardar en localStorage
-        localStorage.setItem(storageKey, JSON.stringify(killData));
-        
-        // Solo enviar al backend si es un nuevo récord local y el usuario está autenticado
-        if (this.isAuthenticated) {
-          console.log('Nuevo récord local confirmado, enviando al backend...');
-          this.sendKillsToBackend(this.killCount);
+        if (updateResult) {
+          console.log('✅ Récord actualizado correctamente en la base de datos');
+          return true;
         } else {
-          console.log('Usuario no autenticado, guardando solo localmente');
+          console.warn('⚠️ No se pudo actualizar el récord en la base de datos');
+          return false;
         }
-        
-        return true;
       } else {
-        console.log(`GameOver: Kill count no supera el récord anterior. Actual: ${this.killCount}, Récord: ${previousKillCount}`);
+        console.log(`Kill count no supera el récord actual. Kills: ${this.killCount}, Récord: ${previousMaxKills}`);
         return false;
       }
     } catch (error) {
-      console.warn('Error al guardar killCount en localStorage:', error);
+      console.error('❌ ERROR al verificar/actualizar el récord de kills:', error);
       return false;
+    } finally {
+      console.log('=== FIN: Verificación y actualización de récord de kills ===');
     }
   }
   
