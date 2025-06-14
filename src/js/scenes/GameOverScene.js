@@ -1,6 +1,6 @@
 import { GAME_WIDTH, GAME_HEIGHT, WEB3_CONFIG } from '../../config.js';
 import { PlayerAccount } from '../web3/PlayerAccount.js';
-import { updateMaxKills, getUserMaxKills } from '../utils/api.js';
+import { updateMaxKills } from '../utils/api.js';
 
 export class GameOverScene extends Phaser.Scene {
   constructor() {
@@ -1336,7 +1336,7 @@ export class GameOverScene extends Phaser.Scene {
   // Método para verificar y actualizar el récord de kills directamente en la base de datos
   async checkAndUpdateMaxKills() {
     console.log('=== INICIO: Verificación y actualización de récord de kills ===');
-    console.log(`Verificando si ${this.killCount} kills es un nuevo récord`);
+    console.log(`Enviando ${this.killCount} kills al backend para verificar si es un nuevo récord`);
     
     // Verificar el estado de autenticación
     console.log('Estado de autenticación:', this.isAuthenticated ? 'AUTENTICADO' : 'NO AUTENTICADO');
@@ -1367,37 +1367,24 @@ export class GameOverScene extends Phaser.Scene {
         return false;
       }
       
-      // Consultar el récord actual del usuario en el backend
-      console.log('Consultando récord actual en la base de datos...');
-      const userMaxKills = await getUserMaxKills(token);
+      // Enviar las kills directamente al backend
+      // El backend decidirá si es un nuevo récord y lo actualizará si es necesario
+      console.log(`Enviando kills (${this.killCount}) al backend para comprobar récord`);
+      const updateResult = await this.sendKillsToBackend(this.killCount);
       
-      if (!userMaxKills || !userMaxKills.success) {
-        console.warn('⚠️ No se pudo obtener el récord actual:', userMaxKills);
-        return false;
-      }
-      
-      const previousMaxKills = userMaxKills.maxKills || 0;
-      console.log(`Récord actual en la base de datos: ${previousMaxKills} kills`);
-      
-      // Verificar si es un nuevo récord
-      const isNewRecord = this.killCount > previousMaxKills;
-      
-      if (isNewRecord) {
-        console.log(`✨ Nuevo récord detectado: ${this.killCount} kills (anterior: ${previousMaxKills})`);
+      if (updateResult) {
+        // La respuesta del servidor nos dirá si fue un nuevo récord
+        const isNewRecord = updateResult.isNewRecord || false;
         
-        // Actualizar el récord en la base de datos
-        console.log('Enviando nuevo récord al backend...');
-        const updateResult = await this.sendKillsToBackend(this.killCount);
-        
-        if (updateResult) {
-          console.log('✅ Récord actualizado correctamente en la base de datos');
+        if (isNewRecord) {
+          console.log(`✨ Nuevo récord guardado en backend: ${this.killCount} kills`);
           return true;
         } else {
-          console.warn('⚠️ No se pudo actualizar el récord en la base de datos');
+          console.log(`Kill count no supera el récord actual: ${this.killCount} kills`);
           return false;
         }
       } else {
-        console.log(`Kill count no supera el récord actual. Kills: ${this.killCount}, Récord: ${previousMaxKills}`);
+        console.warn('⚠️ No se pudo actualizar el récord en la base de datos');
         return false;
       }
     } catch (error) {

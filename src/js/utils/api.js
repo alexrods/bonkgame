@@ -222,37 +222,6 @@ export const updateEarnCount = async (token, earn) => {
 };
 
 /**
- * Gets the current maximum kills of the user from the backend
- * @param {string} token - User authentication token
- * @returns {Promise<Object>} - Server response with the max kills
- */
-export const getUserMaxKills = async (token) => {
-  try {
-    console.log('API.js - getUserMaxKills - Getting max kills from server');
-    
-    const response = await api.get('/users/maxKills', {
-      headers: { 'x-auth-token': token }
-    });
-    
-    console.log('API.js - getUserMaxKills - Response received:', {
-      status: response.status,
-      data: response.data
-    });
-    
-    return response.data;
-  } catch (error) {
-    console.error('API.js - getUserMaxKills - Error:', {
-      message: error.message,
-      response: error.response ? {
-        status: error.response.status,
-        data: error.response.data
-      } : 'No response data'
-    });
-    throw error;
-  }
-};
-
-/**
  * Updates the maximum kills of the user in the backend only if the new value is higher
  * @param {string} token - User authentication token
  * @param {number} kills - Number of kills to update
